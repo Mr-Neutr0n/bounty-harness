@@ -11,6 +11,7 @@ and tool availability.
 import argparse
 import json
 import os
+import re
 import sys
 import shutil
 import uuid
@@ -562,25 +563,35 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 examples:
-  python3 generate_plan.py --domain-profile /path/to/domain_profile.json \\
-      --techniques-dir .claude/skills/technique-kb/techniques/ \\
-      --output plan.json
+  Generate a plan:
+    python3 generate_plan.py --action generate --domain-profile /path/to/domain_profile.json \\
+        --techniques-dir .claude/skills/technique-kb/techniques/ --output plan.json
 
-  python3 generate_plan.py --domain-profile domain.json \\
-      --techniques-dir techniques/ \\
-      --coverage-matrix coverage.json \\
-      --output plan.json
+  List existing plans:
+    python3 generate_plan.py --action list-plans --plans-dir plans/
+
+  Show plan summary:
+    python3 generate_plan.py --action show-plan-summary --plan-file plans/plan.json
+
+  Get a specific step:
+    python3 generate_plan.py --action get-step --plan-file plans/plan.json --step-id TECH-001
         """,
     )
     parser.add_argument(
+        "--action",
+        default="generate",
+        choices=["generate","list-plans","show-plan-summary","get-step"],
+        help="Action: generate (default), list-plans, show-plan-summary, get-step",
+    )
+    parser.add_argument(
         "--domain-profile",
-        required=True,
-        help="Path to domain profile JSON (output of domain-model classifier)",
+        required=False,
+        help="Path to domain profile JSON (required for --action generate)",
     )
     parser.add_argument(
         "--techniques-dir",
-        required=True,
-        help="Path to technique-kb/techniques/ directory containing YAML technique files",
+        required=False,
+        help="Path to technique-kb/techniques/ directory (required for --action generate)",
     )
     parser.add_argument(
         "--coverage-matrix",
@@ -589,8 +600,8 @@ examples:
     )
     parser.add_argument(
         "--output",
-        required=True,
-        help="Output path for the plan JSON file",
+        required=False,
+        help="Output path for the plan JSON file (required for --action generate)",
     )
     parser.add_argument(
         "--exclude-intrusive",
@@ -602,99 +613,363 @@ examples:
         action="store_true",
         help="Exclude data-modifying techniques from the plan",
     )
+    parser.add_argument(
+        "--plans-dir",
+        help="Directory containing plan JSON files (for list-plans)",
+    )
+    parser.add_argument(
+        "--plan-file",
+        help="Path to a plan JSON file (for show-plan-summary, get-step)",
+    )
+    parser.add_argument(
+        "--step-id",
+        help="Step ID or index within a plan (for get-step)",
+    )
+    parser.add_argument(
+        "--json",
+        dest="output_json",
+        action="store_true",
+        help="Output in JSON format",
+    )
     return parser
+
+
+def _load_plan_json(plan_file):
+    with open(plan_file, "r") as fh:
+        return json.load(fh)
+
+
+def list_plans(plans_dir, output_json):
+    base = Path(plans_dir)
+    if not base.is_dir():
+        result = {"status": "error", "error": f"plans-dir not found: {plans_dir}"}
+        if output_json:
+            print(json.dumps(result))
+        else:
+            print(f"error: plans-dir not found: {plans_dir}")
+        return result
+
+    plans = []
+    for f in sorted(base.glob("*.json")):
+        try:
+            p = _load_plan_json(f)
+            metadata = p.get("metadata", {})
+            summary = p.get("summary", {})
+            plans.append({
+                "plan_file": str(f),
+                "target": metadata.get("target", "unknown"),
+                "program": metadata.get("program", "unknown"),
+                "generated_at": metadata.get("generated_at", "unknown"),
+                "total_steps": summary.get("total_plan_items", 0),
+                "critical": summary.get("by_priority", {}).get("critical", 0),
+                "high": summary.get("by_priority", {}).get("high", 0),
+                "medium": summary.get("by_priority", {}).get("medium", 0),
+                "low": summary.get("by_priority", {}).get("low", 0),
+                "coverage_pct": metadata.get("standards_coverage_pct", 0),
+            })
+        except Exception as exc:
+            plans.append({"plan_file": str(f), "error": str(exc)})
+
+    result = {"status": "ok", "plans": plans, "count": len(plans)}
+    if output_json:
+        print(json.dumps(result))
+    else:
+        print(f"=== Plans ({len(plans)}) ===")
+        for p in plans:
+            if "error" in p:
+                print(f"  {p['plan_file']}  ERROR: {p['error']}")
+            else:
+                print(f"  {p['plan_file']}")
+                print(f"    target={p['target']}  program={p['program']}  steps={p['total_steps']}")
+                print(f"    priority: C={p['critical']} H={p['high']} M={p['medium']} L={p['low']}")
+                print(f"    coverage: {p['coverage_pct']}%")
+                print(f"    generated: {p['generated_at']}")
+    return result
+
+
+def show_plan_summary(plan_file, output_json):
+    try:
+        plan = _load_plan_json(plan_file)
+    except Exception as exc:
+        result = {"status": "error", "error": f"failed to load plan: {exc}"}
+        if output_json:
+            print(json.dumps(result))
+        return result
+
+    metadata = plan.get("metadata", {})
+    summary = plan.get("summary", {})
+    domain = plan.get("domain_profile", {})
+    archetypes = domain.get("archetypes", [])
+    surfaces = domain.get("surfaces", [])
+
+    by_skill = {}
+    for item in plan.get("plan_items", []):
+        skill = item.get("skill", "unknown")
+        if skill not in by_skill:
+            by_skill[skill] = {"critical": 0, "high": 0, "medium": 0, "low": 0, "count": 0}
+        by_skill[skill][item.get("priority", "low")] += 1
+        by_skill[skill]["count"] += 1
+
+    top_items = plan.get("plan_items", [])[:5]
+
+    result = {
+        "status": "ok",
+        "plan_file": plan_file,
+        "target": metadata.get("target", "unknown"),
+        "program": metadata.get("program", "unknown"),
+        "generated_at": metadata.get("generated_at", "unknown"),
+        "total_steps": summary.get("total_plan_items", 0),
+        "by_priority": summary.get("by_priority", {}),
+        "safe_count": summary.get("safe_to_run_immediately", 0),
+        "intrusive_count": summary.get("intrusive_count", 0),
+        "auth_required": summary.get("auth_required_count", 0),
+        "coverage": {
+            "before": summary.get("coverage_before", 0),
+            "after": summary.get("coverage_after", 0),
+        },
+        "archetype_count": len(archetypes),
+        "surface_count": len(surfaces),
+        "skill_breakdown": by_skill,
+        "top_items": [
+            {
+                "priority": item["priority"],
+                "score": item["score"],
+                "technique_id": item.get("technique_id",""),
+                "name": item.get("technique_name",""),
+                "skill": item.get("skill",""),
+                "workflow": item.get("workflow",""),
+            }
+            for item in top_items
+        ],
+    }
+    if output_json:
+        print(json.dumps(result))
+    else:
+        print(f"=== Plan Summary: {plan_file} ===")
+        print(f"  Target:       {result['target']} ({result['program']})")
+        print(f"  Generated:    {result['generated_at']}")
+        print(f"  Total steps:  {result['total_steps']}")
+        print(f"  By priority:  {result['by_priority']}")
+        print(f"  Safe: {result['safe_count']}  Intrusive: {result['intrusive_count']}  Auth: {result['auth_required']}")
+        print(f"  Coverage:     {result['coverage']['before']}% -> {result['coverage']['after']}%")
+        print(f"  Archetypes:   {result['archetype_count']}, Surfaces: {result['surface_count']}")
+        print(f"  Top items:")
+        for item in result["top_items"]:
+            print(f"    [{item['priority']}] {item['name']} ({item['skill']}/{item['workflow']}) score={item['score']}")
+    return result
+
+
+def get_step(plan_file, step_id, output_json):
+    try:
+        plan = _load_plan_json(plan_file)
+    except Exception as exc:
+        result = {"status": "error", "error": f"failed to load plan: {exc}"}
+        if output_json:
+            print(json.dumps(result))
+        return result
+
+    plan_items = plan.get("plan_items", [])
+    target = None
+
+    for i, item in enumerate(plan_items):
+        tid = item.get("technique_id", "")
+        if tid == step_id or str(i) == step_id or f"step_{i}" == step_id:
+            target = {"index": i, "item": item}
+            break
+
+    if target is None:
+        result = {"status": "not_found", "step_id": step_id, "plan_file": plan_file}
+        if output_json:
+            print(json.dumps(result))
+        else:
+            print(f"error: step '{step_id}' not found in {plan_file}")
+        return result
+
+    item = target["item"]
+    metadata = plan.get("metadata", {})
+    result = {
+        "status": "ok",
+        "step_id": step_id,
+        "step_index": target["index"],
+        "total_steps": len(plan_items),
+        "plan_file": plan_file,
+        "target": metadata.get("target", "unknown"),
+        "program": metadata.get("program", "unknown"),
+        "priority": item["priority"],
+        "score": item["score"],
+        "score_breakdown": item.get("score_breakdown", {}),
+        "technique_id": item.get("technique_id",""),
+        "technique_name": item.get("technique_name",""),
+        "category": item.get("category",""),
+        "severity": item.get("severity",""),
+        "skill": item.get("skill",""),
+        "workflow": item.get("workflow",""),
+        "rationale": item.get("rationale",""),
+        "surface_matches": item.get("surface_matches",[]),
+        "preconditions": item.get("preconditions",{}),
+        "safety": item.get("safety",{}),
+        "expected_signals": item.get("expected_signals",{}),
+        "evidence_requirements": item.get("evidence_requirements",[]),
+        "standards_checked": item.get("standards_checked",[]),
+        "coverage_gap": item.get("coverage_gap",False),
+        "context": {
+            "previous_step": plan_items[target["index"]-1].get("technique_name","") if target["index"] > 0 else None,
+            "next_step": plan_items[target["index"]+1].get("technique_name","") if target["index"] < len(plan_items)-1 else None,
+            "adjacent_priority_steps": [
+                items["technique_name"]
+                for j, items in enumerate(plan_items)
+                if items["priority"] == item["priority"] and j != target["index"]
+            ][:5],
+        },
+    }
+    if output_json:
+        print(json.dumps(result))
+    else:
+        print(f"=== Step: {step_id} ({item['technique_name']}) ===")
+        print(f"  Plan:       {plan_file}")
+        print(f"  Position:   {target['index'] + 1}/{len(plan_items)}")
+        print(f"  Priority:   {item['priority']} (score: {item['score']})")
+        print(f"  Category:   {item.get('category','')}")
+        print(f"  Severity:   {item.get('severity','')}")
+        print(f"  Skill:      {item.get('skill','')}")
+        print(f"  Workflow:   {item.get('workflow','')}")
+        print(f"  Rationale:  {item.get('rationale','')}")
+        print(f"  Safety:     {json.dumps(item.get('safety',{}))}")
+        print(f"  Preconditions: {json.dumps(item.get('preconditions',{}))}")
+        print(f"  Signals:    +{item.get('expected_signals',{}).get('positive',[])} -{item.get('expected_signals',{}).get('negative',[])}")
+        print(f"  Standards:  {item.get('standards_checked',[])}")
+        print(f"  Surfaces:   {item.get('surface_matches',[])}")
+        print(f"  Evidence:   {item.get('evidence_requirements',[])}")
+        print(f"  Context:")
+        print(f"    Previous: {result['context']['previous_step']}")
+        print(f"    Next:     {result['context']['next_step']}")
+        if result['context']['adjacent_priority_steps']:
+            print(f"    Similar:  {', '.join(result['context']['adjacent_priority_steps'])}")
+    return result
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    if not os.path.isfile(args.domain_profile):
-        print(f"error: domain profile not found: {args.domain_profile}", file=sys.stderr)
-        sys.exit(1)
+    if args.action == "generate":
+        if not args.domain_profile:
+            print("error: --domain-profile is required for generate action", file=sys.stderr)
+            sys.exit(1)
+        if not args.techniques_dir:
+            print("error: --techniques-dir is required for generate action", file=sys.stderr)
+            sys.exit(1)
+        if not args.output:
+            print("error: --output is required for generate action", file=sys.stderr)
+            sys.exit(1)
 
-    techniques_dir = args.techniques_dir
-    if not os.path.isdir(techniques_dir):
-        print(f"error: techniques directory not found: {techniques_dir}", file=sys.stderr)
-        sys.exit(1)
+        if not os.path.isfile(args.domain_profile):
+            print(f"error: domain profile not found: {args.domain_profile}", file=sys.stderr)
+            sys.exit(1)
 
-    print(f"loading domain profile from {args.domain_profile} ...")
-    domain_profile = load_domain_profile(args.domain_profile)
+        techniques_dir = args.techniques_dir
+        if not os.path.isdir(techniques_dir):
+            print(f"error: techniques directory not found: {techniques_dir}", file=sys.stderr)
+            sys.exit(1)
 
-    print(f"loading techniques from {techniques_dir} ...")
-    techniques = load_all_techniques(techniques_dir)
+        print(f"loading domain profile from {args.domain_profile} ...")
+        domain_profile = load_domain_profile(args.domain_profile)
 
-    if not techniques:
-        print("warn: no technique YAML files found in techniques directory — "
-              "plan will be empty", file=sys.stderr)
+        print(f"loading techniques from {techniques_dir} ...")
+        techniques = load_all_techniques(techniques_dir)
 
-    coverage = load_coverage_matrix(args.coverage_matrix)
-    print(f"coverage data: {len(coverage.get('covered', []))} covered, "
-          f"{len(coverage.get('partial', []))} partial, "
-          f"{len(coverage.get('missing', []))} missing")
+        if not techniques:
+            print("warn: no technique YAML files found in techniques directory — "
+                  "plan will be empty", file=sys.stderr)
 
-    print(f"generating plan for {len(techniques)} techniques ...")
-    plan = generate_plan(domain_profile, techniques, coverage)
+        coverage = load_coverage_matrix(args.coverage_matrix)
+        print(f"coverage data: {len(coverage.get('covered', []))} covered, "
+              f"{len(coverage.get('partial', []))} partial, "
+              f"{len(coverage.get('missing', []))} missing")
 
-    if args.exclude_intrusive:
-        before = len(plan["plan_items"])
-        plan["plan_items"] = [
-            item for item in plan["plan_items"]
-            if not item["safety"]["intrusive"]
-        ]
-        print(f"excluded {before - len(plan['plan_items'])} intrusive items")
+        print(f"generating plan for {len(techniques)} techniques ...")
+        plan = generate_plan(domain_profile, techniques, coverage)
 
-    if args.exclude_destructive:
-        before = len(plan["plan_items"])
-        plan["plan_items"] = [
-            item for item in plan["plan_items"]
-            if not item["safety"]["data_modifying"]
-        ]
-        print(f"excluded {before - len(plan['plan_items'])} destructive items")
+        if args.exclude_intrusive:
+            before = len(plan["plan_items"])
+            plan["plan_items"] = [
+                item for item in plan["plan_items"]
+                if not item["safety"]["intrusive"]
+            ]
+            print(f"excluded {before - len(plan['plan_items'])} intrusive items")
 
-    plan["metadata"]["techniques_filtered"] = (
-        plan["metadata"]["techniques_matched"] - len(plan["plan_items"])
-    )
+        if args.exclude_destructive:
+            before = len(plan["plan_items"])
+            plan["plan_items"] = [
+                item for item in plan["plan_items"]
+                if not item["safety"]["data_modifying"]
+            ]
+            print(f"excluded {before - len(plan['plan_items'])} destructive items")
 
-    by_priority: dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-    for item in plan["plan_items"]:
-        by_priority[item["priority"]] = by_priority.get(item["priority"], 0) + 1
-    plan["summary"]["by_priority"] = by_priority
-    plan["summary"]["total_plan_items"] = len(plan["plan_items"])
-    plan["summary"]["auth_required_count"] = sum(
-        1 for item in plan["plan_items"]
-        if item["preconditions"].get("auth_required", "none") not in ("none", "")
-    )
-    plan["summary"]["intrusive_count"] = sum(
-        1 for item in plan["plan_items"] if item["safety"]["intrusive"]
-    )
-    plan["summary"]["safe_to_run_immediately"] = sum(
-        1 for item in plan["plan_items"]
-        if not item["safety"]["intrusive"] and not item["safety"]["data_modifying"]
-    )
+        plan["metadata"]["techniques_filtered"] = (
+            plan["metadata"]["techniques_matched"] - len(plan["plan_items"])
+        )
 
-    output_dir = os.path.dirname(os.path.abspath(args.output))
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
+        by_priority: dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        for item in plan["plan_items"]:
+            by_priority[item["priority"]] = by_priority.get(item["priority"], 0) + 1
+        plan["summary"]["by_priority"] = by_priority
+        plan["summary"]["total_plan_items"] = len(plan["plan_items"])
+        plan["summary"]["auth_required_count"] = sum(
+            1 for item in plan["plan_items"]
+            if item["preconditions"].get("auth_required", "none") not in ("none", "")
+        )
+        plan["summary"]["intrusive_count"] = sum(
+            1 for item in plan["plan_items"] if item["safety"]["intrusive"]
+        )
+        plan["summary"]["safe_to_run_immediately"] = sum(
+            1 for item in plan["plan_items"]
+            if not item["safety"]["intrusive"] and not item["safety"]["data_modifying"]
+        )
 
-    with open(args.output, "w") as fh:
-        json.dump(plan, fh, indent=2)
+        output_dir = os.path.dirname(os.path.abspath(args.output))
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
 
-    items = plan["plan_items"]
-    priorities = [p for p in ["critical", "high", "medium", "low"] if by_priority.get(p, 0) > 0]
+        with open(args.output, "w") as fh:
+            json.dump(plan, fh, indent=2)
 
-    print()
-    print(f"plan written to {args.output}")
-    print(f"  total items: {len(items)}")
-    if priorities:
-        print(f"  by priority: " + ", ".join(
-            f"{p}={by_priority[p]}" for p in priorities
-        ))
-    if items:
-        print(f"  top item: [{items[0]['priority']}] {items[0]['technique_name']} "
-              f"({items[0]['score']:.4f})")
-    print(f"  coverage: {plan['summary']['coverage_before']}% -> "
-          f"{plan['summary']['coverage_after']}%")
+        items = plan["plan_items"]
+        priorities = [p for p in ["critical", "high", "medium", "low"] if by_priority.get(p, 0) > 0]
+
+        print()
+        print(f"plan written to {args.output}")
+        print(f"  total items: {len(items)}")
+        if priorities:
+            print(f"  by priority: " + ", ".join(
+                f"{p}={by_priority[p]}" for p in priorities
+            ))
+        if items:
+            print(f"  top item: [{items[0]['priority']}] {items[0]['technique_name']} "
+                  f"({items[0]['score']:.4f})")
+        print(f"  coverage: {plan['summary']['coverage_before']}% -> "
+              f"{plan['summary']['coverage_after']}%")
+
+    elif args.action == "list-plans":
+        if not args.plans_dir:
+            print("error: --plans-dir is required for list-plans", file=sys.stderr)
+            sys.exit(1)
+        list_plans(args.plans_dir, args.output_json)
+
+    elif args.action == "show-plan-summary":
+        if not args.plan_file:
+            print("error: --plan-file is required for show-plan-summary", file=sys.stderr)
+            sys.exit(1)
+        show_plan_summary(args.plan_file, args.output_json)
+
+    elif args.action == "get-step":
+        if not args.plan_file:
+            print("error: --plan-file is required for get-step", file=sys.stderr)
+            sys.exit(1)
+        if not args.step_id:
+            print("error: --step-id is required for get-step", file=sys.stderr)
+            sys.exit(1)
+        get_step(args.plan_file, args.step_id, args.output_json)
 
 
 if __name__ == "__main__":

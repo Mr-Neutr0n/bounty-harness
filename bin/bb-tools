@@ -10,7 +10,7 @@ cd "$PROJECT_ROOT"
 
 # Source context env for PATH if available
 [ -f .bb/context.env ] && source .bb/context.env 2>/dev/null || true
-export PATH="$HOME/.pdtm/go/bin:$HOME/go/bin:$PATH"
+export PATH="/opt/homebrew/bin:$HOME/.pdtm/go/bin:$HOME/go/bin:$HOME/Library/Python/3.14/bin:$PATH"
 
 REGISTRY_DIR="tools/registry"
 LOCK_FILE=".bb/tool-lock.json"
@@ -22,15 +22,27 @@ Usage: bb-tools <command> [options]
 
 Commands:
   list [--installed | --missing]     List tools from registry
-  doctor [--skill <skill>]           Check tool health and versions
+  doctor [filters] [flags]           Check tool health and versions
+  explain <tool-name>                Show why a tool exists, what requires it, and how to install it
   install --profile <profile>        Install a tool profile
   install <tool-name>                Install a single tool
   update [<tool-name>]               Update installed tools
   lock                               Write .bb/tool-lock.json
   verify                             Verify lock against installed versions
 
-Flags:
-  --dry-run                          Print commands without executing (install/update)
+Doctor filters (choose one):
+  --skill <skill>                    Check tools needed by ONE specific skill only
+  --workflow <skill> <workflow>      Check tools for ONE specific workflow only
+  --profile <profile>                Check ALL tools in a named install profile
+  (none)                             Check all registry tools
+
+Doctor flags:
+  --json                             Output machine-readable JSON instead of text
+  --fix-safe                         Create missing .bb/ directories, refresh tool-lock.json, suggest fixes
+                                     (NEVER auto-install, modify shell profile, or download templates)
+
+Install/Update flags:
+  --dry-run                          Print commands without executing
 
 Exit codes:
   0  All good
@@ -76,6 +88,8 @@ for f in sorted(glob.glob("tools/registry/*.yaml")):
             entry = dict(tool)
             entry["profile"] = profile_name
             entry["source_file"] = f
+            # Include description and risk_tier for explain
+            entry["category"] = category
             im = entry.get("install_method", "unknown")
             if im == "pipx":
                 entry["install_method"] = "pip"
@@ -111,6 +125,130 @@ for t in sorted(tools):
 PYEOF
 }
 
+# Return newline-separated tools_required for a specific workflow within a skill.
+# Uses the parent skill's tools_required list with additional binary discovery
+# from the workflow command string (filtering out vars, paths, and shell noise).
+python_workflow_tools() {
+  local skill_name="$1"
+  local workflow_name="$2"
+  python3 - "$skill_name" "$workflow_name" <<'PYEOF'
+import yaml, sys, re
+
+skill_name = sys.argv[1]
+workflow_name = sys.argv[2]
+
+skills_dir = ".claude/skills"
+skill_file = f"{skills_dir}/{skill_name}/skill.yaml"
+
+SHELL_NOISE = frozenset([
+    "mkdir", "cat", "echo", "cd", "true", "false", "grep", "awk", "sed",
+    "sort", "uniq", "head", "tail", "tee", "cut", "tr", "wc", "find",
+    "xargs", "source", "export", "set", "unset", "bash", "sh", "zsh",
+    "rm", "cp", "mv", "ls", "chmod", "chown", "touch", "dirname",
+    "basename", "which", "type", "eval", "exec", "printf", "date",
+    "env", "read", "test", "while", "for", "if", "then", "else", "elif",
+    "fi", "do", "done", "in", "case", "esac", "break", "continue",
+    "return", "exit", "wait", "sleep", "kill", "jobs", "bg", "fg",
+    "mktemp", "curl", "wget", "ncat", "nc", "openssl", "python3",
+    "python", "ruby", "perl", "node", "php", "java", "lua", "go",
+    "npx", "pnpm", "npm", "yarn", "pip3", "pip", "pipx",
+])
+
+try:
+    data = yaml.safe_load(open(skill_file))
+    tools = set(data.get("tools_required", []))
+
+    wf = data.get("workflows", {}).get(workflow_name)
+    if wf and wf.get("command"):
+        cmd_str = wf["command"]
+        known = {t.lower() for t in data.get("tools_required", [])}
+        segments = re.split(r'\s*&&\s*|\s*\|\|\s*|\s*;\s*|\s*\|\s+|\s*\\?\n\s*', cmd_str)
+        for seg in segments:
+            stripped = seg.strip()
+            if not stripped:
+                continue
+            stripped = re.sub(r'^((?:[A-Za-z_][A-Za-z0-9_]*=[^\s]*\s+)+)', '', stripped)
+            first_word = stripped.split()[0] if stripped.split() else ""
+            if not first_word:
+                continue
+            lw = first_word.lower()
+            if first_word.startswith("$") or first_word.startswith("${"):
+                continue
+            if "/" in first_word or "\\" in first_word:
+                continue
+            if "." in first_word:
+                continue
+            if lw in SHELL_NOISE or lw in known:
+                continue
+            if len(first_word) < 2:
+                continue
+            if re.match(r'^[a-zA-Z][a-zA-Z0-9_-]*$', first_word):
+                tools.add(first_word)
+except Exception as e:
+    print(f"WARN: failed to parse {skill_file}: {e}", file=sys.stderr)
+    sys.exit(1)
+
+for t in sorted(tools):
+    print(t)
+PYEOF
+}
+
+# Return JSON with explain info for a single tool
+python_json_explain() {
+  local name="$1"
+  python3 <<PYEOF
+import yaml, json, glob, sys
+
+registry = {}
+for f in sorted(glob.glob("tools/registry/*.yaml")):
+    try:
+        data = yaml.safe_load(open(f))
+        if not data or "registry" not in data:
+            continue
+        for tool in data["registry"].get("tools", []):
+            tn = tool.get("name", "")
+            if tn:
+                entry = dict(tool)
+                entry["source_file"] = f
+                im = entry.get("install_method", "unknown")
+                if im == "pipx":
+                    entry["install_method"] = "pip"
+                elif im == "manual":
+                    entry["install_method"] = "manual"
+                registry[tn] = entry
+    except Exception:
+        pass
+
+# Find which skills reference this tool
+referencing_skills = []
+for sf in sorted(glob.glob(".claude/skills/*/skill.yaml")):
+    try:
+        sd = yaml.safe_load(open(sf))
+        if "${name}" in sd.get("tools_required", []):
+            referencing_skills.append(sd.get("name", "unknown"))
+    except Exception:
+        pass
+
+info = registry.get("${name}")
+if info:
+    info["referencing_skills"] = referencing_skills
+    print(json.dumps(info))
+else:
+    info = {
+        "name": "${name}",
+        "binary": "${name}",
+        "install_method": "unknown",
+        "risk_tier": "unknown",
+        "description": "",
+        "source_file": "not found in registry",
+        "referencing_skills": referencing_skills,
+        "capabilities": [],
+        "repo": ""
+    }
+    print(json.dumps(info))
+PYEOF
+}
+
 # ---------------------------------------------------------------------------
 # Bash helpers
 # ---------------------------------------------------------------------------
@@ -122,7 +260,7 @@ binary_on_path() {
 # Extract a field from the registry JSON for a named tool
 registry_field() {
   local name="$1" field="$2"
-  python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('$name',{}).get('$field',''))" 2>/dev/null
+  echo "$REGISTRY_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('$name',{}).get('$field',''))" 2>/dev/null
 }
 
 # Run a version command from registry or fallback flags.
@@ -143,6 +281,146 @@ get_tool_version() {
     fi
   done
   echo "unknown"
+}
+
+# ---------------------------------------------------------------------------
+# Rich doctor logic (Python — used by cmd_doctor)
+# ---------------------------------------------------------------------------
+
+# Runs doctor with filters and outputs text or JSON.
+# Env vars used: DOCTOR_FILTER_TYPE, DOCTOR_FILTER_VALUE, DOCTOR_FILTER_VALUE2, DOCTOR_JSON
+# Reads registry JSON from stdin, reads tools list from stdin via DOCTOR_TOOLS_FILE
+python_doctor_run() {
+  local tools_file="$1"
+  local json_out="${2:-false}"
+  local filter_type="${3:-all}"
+  local filter_val="${4:-}"
+  local filter_val2="${5:-}"
+
+  export DOCTOR_TOOLS_FILE="$tools_file"
+  export DOCTOR_JSON="$json_out"
+  export DOCTOR_FILTER_TYPE="$filter_type"
+  export DOCTOR_FILTER_VALUE="$filter_val"
+  export DOCTOR_FILTER_VALUE2="$filter_val2"
+
+  if [ -x "$SCRIPT_DIR/bb-tools-doctor.py" ]; then
+    "$SCRIPT_DIR/bb-tools-doctor.py"
+  else
+    python3 <<'PYEOF'
+import json, sys, os, shutil, subprocess
+from datetime import datetime, timezone
+
+tools_file = os.environ.get("DOCTOR_TOOLS_FILE", "")
+json_out = os.environ.get("DOCTOR_JSON", "false") == "true"
+filter_type = os.environ.get("DOCTOR_FILTER_TYPE", "all")
+filter_val = os.environ.get("DOCTOR_FILTER_VALUE", "")
+filter_val2 = os.environ.get("DOCTOR_FILTER_VALUE2", "")
+
+registry = json.load(sys.stdin)
+
+tool_names = []
+if tools_file and os.path.isfile(tools_file):
+    with open(tools_file) as f:
+        tool_names = [line.strip() for line in f if line.strip()]
+
+if not tool_names:
+    tool_names = sorted(registry.keys())
+
+ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def get_tool_version_info(binary, vcmd):
+    if vcmd:
+        try:
+            r = subprocess.run(vcmd, shell=True, capture_output=True, text=True, timeout=5)
+            lines = [l.strip() for l in (r.stdout + r.stderr).splitlines() if l.strip()]
+            hits = [l for l in lines if "version" in l.lower() or "current" in l.lower()]
+            return (hits or lines or ["unknown"])[0]
+        except Exception:
+            pass
+    for flag in ["--version", "-version", "-V", "version"]:
+        try:
+            r = subprocess.run([binary, flag], capture_output=True, text=True, timeout=5)
+            lines = [l.strip() for l in (r.stdout + r.stderr).splitlines() if l.strip()]
+            hits = [l for l in lines if "version" in l.lower() or "current" in l.lower()]
+            v = (hits or lines or [""])[0]
+            if v:
+                return v
+        except Exception:
+            pass
+    return "unknown"
+
+results = []
+ok_count = 0
+missing_count = 0
+unhealthy_count = 0
+
+for name in tool_names:
+    if not name:
+        continue
+    info = registry.get(name, {})
+    binary = info.get("binary", name)
+    method = info.get("install_method", "unknown")
+    if method == "pipx":
+        method = "pip"
+    vcmd = info.get("version_cmd", "")
+    installed = shutil.which(binary) is not None
+    version = ""
+    health = "ok"
+
+    if installed:
+        version = get_tool_version_info(binary, vcmd)
+    else:
+        if method == "system":
+            health = "system_missing"
+        else:
+            health = "missing"
+
+    if health == "ok":
+        ok_count += 1
+    elif health == "missing":
+        missing_count += 1
+    else:
+        unhealthy_count += 1
+
+    entry = {
+        "name": name,
+        "binary": binary,
+        "method": method,
+        "installed": installed,
+        "version": version,
+        "health": health
+    }
+    if not installed and method not in ("system", "manual"):
+        entry["fix"] = f"bin/bb-tools install {name}"
+    results.append(entry)
+
+if json_out:
+    filter_display_val = filter_val
+    if filter_type == "workflow" and filter_val2:
+        filter_display_val = f"{filter_val}/{filter_val2}"
+    output = {
+        "timestamp": ts,
+        "filter": {"type": filter_type, "value": filter_display_val},
+        "tools": results,
+        "summary": {"total": len(results), "ok": ok_count, "missing": missing_count, "unhealthy": unhealthy_count}
+    }
+    print(json.dumps(output, indent=2))
+else:
+    col_fmt = "{:22s}  {:10s}  {:7s}  {}"
+    print(col_fmt.format("Tool", "Method", "Status", "Version/Info"))
+    for r in results:
+        status_display = "OK" if r["health"] == "ok" else r["health"].upper()
+        info_col = r.get("version", "") if r["installed"] else f'run: bin/bb-tools install {r["name"]}'
+        print(col_fmt.format(r["name"], r["method"], status_display, info_col))
+
+    if missing_count > 0 or unhealthy_count > 0:
+        print("")
+        print("Some tools are missing or unhealthy.")
+        sys.exit(1)
+    print("")
+    print("All checked tools are healthy.")
+PYEOF
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -205,53 +483,251 @@ for name in sorted(d):
 
 cmd_doctor() {
   load_registry
-  local skill_filter="${1:-}"
-  local tools_to_check=""
-  local missing=0
-  local unhealthy=0
 
-  if [ -n "$skill_filter" ]; then
-    echo "=== Doctor: skill=$skill_filter ==="
-    tools_to_check=$(python_skill_tools "$skill_filter")
-    if [ -z "$tools_to_check" ]; then
-      echo "ERROR: skill '$skill_filter' not found or has no tools_required"
+  local skill_filter=""
+  local workflow_skill=""
+  local workflow_name=""
+  local profile_filter=""
+  local json_out="false"
+  local fix_safe="false"
+  local filter_type="all"
+  local filter_val=""
+  local filter_val2=""
+
+  # Parse doctor-specific arguments
+  local args=("$@")
+  local i=0
+  while [ $i -lt ${#args[@]} ]; do
+    case "${args[$i]}" in
+      --skill)
+        skill_filter="${args[$((i+1))]}"
+        filter_type="skill"
+        filter_val="$skill_filter"
+        ((i+=2))
+        ;;
+      --workflow)
+        workflow_skill="${args[$((i+1))]}"
+        workflow_name="${args[$((i+2))]}"
+        filter_type="workflow"
+        filter_val="$workflow_skill"
+        filter_val2="$workflow_name"
+        ((i+=3))
+        ;;
+      --profile)
+        profile_filter="${args[$((i+1))]}"
+        filter_type="profile"
+        filter_val="$profile_filter"
+        ((i+=2))
+        ;;
+      --json)
+        json_out="true"
+        ((i++))
+        ;;
+      --fix-safe)
+        fix_safe="true"
+        ((i++))
+        ;;
+      *)
+        echo "ERROR: unknown doctor flag '${args[$i]}'"
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
+  # --fix-safe: create .bb/ directories and refresh lock
+  local fixes_applied=()
+  if [ "$fix_safe" = "true" ]; then
+    if [ ! -d ".bb" ]; then
+      mkdir -p .bb
+      fixes_applied+=("Created .bb/ directory")
+    fi
+    # Refresh tool-lock.json
+    if [ -f "$LOCK_FILE" ]; then
+      echo "$REGISTRY_JSON" | python3 -c "
+import json, sys, shutil, subprocess
+from datetime import datetime, timezone
+registry = json.load(sys.stdin)
+ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+lock = {'timestamp': ts, 'tools': {}}
+def sel(text):
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    hits = [line for line in lines if 'version' in line.lower() or 'current' in line.lower()]
+    return (hits or lines or ['unknown'])[0]
+for name, info in registry.items():
+    binary = info.get('binary', name)
+    path = shutil.which(binary)
+    if not path:
+        continue
+    version = 'unknown'
+    vcmd = info.get('version_cmd', '')
+    if vcmd:
+        try:
+            r = subprocess.run(vcmd, shell=True, capture_output=True, text=True, timeout=5)
+            version = sel(r.stdout or r.stderr or '')
+        except Exception:
+            pass
+    else:
+        for flag in ['--version', '-version', '-V']:
+            try:
+                r = subprocess.run([path, flag], capture_output=True, text=True, timeout=5)
+                version = sel(r.stdout or r.stderr or '')
+                if version != 'unknown':
+                    break
+            except Exception:
+                pass
+    lock['tools'][name] = {'binary_path': path, 'version': version, 'install_method': info.get('install_method','unknown'), 'timestamp': ts}
+with open('.bb/tool-lock.json', 'w') as f:
+    json.dump(lock, f, indent=2)
+" 2>/dev/null
+      fixes_applied+=("Refreshed .bb/tool-lock.json")
+    fi
+    if [ ${#fixes_applied[@]} -gt 0 ]; then
+      for fix in "${fixes_applied[@]}"; do
+        echo "fix: $fix"
+      done
+    fi
+  fi
+
+  # Determine tools list
+  local tools_list=""
+  if [ "$filter_type" = "skill" ]; then
+    tools_list=$(python_skill_tools "$skill_filter")
+    if [ -z "$tools_list" ]; then
+      if [ "$json_out" = "true" ]; then
+        echo "{\"error\": \"skill '$skill_filter' not found or has no tools_required\"}"
+      else
+        echo "ERROR: skill '$skill_filter' not found or has no tools_required"
+      fi
+      return 1
+    fi
+  elif [ "$filter_type" = "workflow" ]; then
+    tools_list=$(python_workflow_tools "$workflow_skill" "$workflow_name" 2>/dev/null) || {
+      if [ "$json_out" = "true" ]; then
+        echo "{\"error\": \"workflow '$workflow_skill/$workflow_name' not found\"}"
+      else
+        echo "ERROR: workflow '$workflow_skill/$workflow_name' not found"
+      fi
+      return 1
+    }
+    if [ -z "$tools_list" ]; then
+      if [ "$json_out" = "true" ]; then
+        echo "{\"error\": \"workflow '$workflow_skill/$workflow_name' has no tools_required\"}"
+      else
+        echo "ERROR: workflow '$workflow_skill/$workflow_name' has no tools_required"
+      fi
+      return 1
+    fi
+  elif [ "$filter_type" = "profile" ]; then
+    tools_list=$(echo "$REGISTRY_JSON" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+for name, info in d.items():
+    if info.get('profile','') == '$profile_filter':
+        print(name)
+" 2>/dev/null)
+    if [ -z "$tools_list" ]; then
+      if [ "$json_out" = "true" ]; then
+        echo "{\"error\": \"profile '$profile_filter' not found or empty\"}"
+      else
+        echo "ERROR: profile '$profile_filter' not found or empty"
+      fi
       return 1
     fi
   else
-    echo "=== Doctor: all registry tools ==="
-    tools_to_check=$(echo "$REGISTRY_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print('\n'.join(sorted(d)))" 2>/dev/null)
+    # all — get all tools from registry
+    tools_list=$(echo "$REGISTRY_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print('\n'.join(sorted(d)))" 2>/dev/null)
   fi
 
-  local tool
-  while IFS= read -r tool; do
-    [ -z "$tool" ] && continue
-    local bin method vcmd
-    bin=$(echo "$REGISTRY_JSON" | registry_field "$tool" "binary")
-    [ -z "$bin" ] && bin="$tool"
-    method=$(echo "$REGISTRY_JSON" | registry_field "$tool" "install_method")
-    [ -z "$method" ] && method="unknown"
-    vcmd=$(echo "$REGISTRY_JSON" | registry_field "$tool" "version_cmd")
+  # Write tools to a temp file for the doctor Python script
+  local tools_tmp
+  tools_tmp=$(mktemp)
+  echo "$tools_list" > "$tools_tmp"
 
-    if binary_on_path "$bin"; then
-      local ver
-      ver=$(get_tool_version "$tool" "$bin" "$vcmd" 2>/dev/null || echo "unknown")
-      printf "%-22s  %-10s  OK   %s\n" "$tool" "$method" "$ver"
-    else
-      printf "%-22s  %-10s  MISSING\n" "$tool" "$method"
-      missing=1
-      if [ "$method" != "system" ]; then
-        unhealthy=1
-      fi
-    fi
-  done <<< "$tools_to_check"
+  # Run the doctor and capture exit code
+  echo "$REGISTRY_JSON" | python_doctor_run "$tools_tmp" "$json_out" "$filter_type" "$filter_val" "$filter_val2"
+  local rc=$?
+  rm -f "$tools_tmp"
 
-  if [ "$missing" = "1" ]; then
-    echo ""
-    echo "Some tools are missing."
+  return $rc
+}
+
+cmd_explain() {
+  load_registry
+  local name="$1"
+  if [ -z "$name" ]; then
+    echo "Usage: bb-tools explain <tool-name>"
+    exit 1
+  fi
+
+  local explain_json
+  explain_json=$(python_json_explain "$name")
+
+  if [ -z "$explain_json" ] || [ "$explain_json" = "null" ]; then
+    echo "Tool '$name' not found in registry or skills."
     return 1
   fi
-  echo ""
-  echo "All checked tools are healthy."
+
+  echo "$explain_json" | python3 -c "
+import json, sys
+
+d = json.load(sys.stdin)
+
+print(f'=== {d.get(\"name\", \"?\")} ===')
+print()
+
+desc = d.get('description', '') or d.get('desc', '')
+if desc:
+    print(f'Description:  {desc}')
+else:
+    caps = d.get('capabilities', [])
+    if caps:
+        print(f'Capabilities: {', '.join(caps[:6])}')
+        if len(caps) > 6:
+            print(f'               (and {len(caps) - 6} more)')
+    else:
+        print('Description:  (no description in registry)')
+
+print()
+
+skills = d.get('referencing_skills', [])
+if skills:
+    print(f'Required by:  {', '.join(skills)}')
+else:
+    print('Required by:  (no skills reference this tool)')
+
+print()
+
+risk = d.get('risk_tier', 'unknown')
+print(f'Risk tier:    {risk}')
+
+print()
+
+method = d.get('install_method', 'unknown')
+repo = d.get('repo', '')
+if method in ('go', 'pip', 'brew', 'pdtm'):
+    print(f'Install via:  {method}')
+    if repo:
+        print(f'  Install:    bin/bb-tools install {d[\"name\"]}')
+        if method == 'go':
+            print(f'  Repo:       {repo}')
+    else:
+        print(f'  Install:    bin/bb-tools install {d[\"name\"]}')
+elif method == 'manual':
+    print(f'Install via:  manual (not automatable)')
+elif method == 'system':
+    print(f'Install via:  system (pre-installed OS tool)')
+else:
+    print(f'Install via:  {method}')
+
+print()
+
+src = d.get('source_file', '')
+if src:
+    print(f'Registry:     {src}')
+else:
+    print('Registry:     (not in registry — referenced by skill tools_required only)')
+" 2>/dev/null
 }
 
 cmd_install() {
@@ -268,7 +744,7 @@ cmd_install() {
 import json,sys
 d=json.load(sys.stdin)
 for name,info in d.items():
-    if info.get('profile','') == '$profile' or info.get('profile','') == '$profile':
+    if info.get('profile','') == '$profile':
         print(name)
 " 2>/dev/null)
     if [ -z "$tools_list" ]; then
@@ -595,37 +1071,49 @@ main() {
   local cmd="$1"
   shift
 
-  local dry_run="false"
-  local args=()
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --dry-run)
-        dry_run="true"
-        shift ;;
-      *)
-        args+=("$1")
-        shift ;;
-    esac
-  done
-
   case "$cmd" in
     list)
+      local dry_run="false"
       local mode="all"
-      if [ "${args[0]:-}" = "--installed" ]; then
-        mode="installed"
-      elif [ "${args[0]:-}" = "--missing" ]; then
-        mode="missing"
-      fi
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --installed)
+            mode="installed"
+            shift ;;
+          --missing)
+            mode="missing"
+            shift ;;
+          *)
+            echo "ERROR: unknown flag '$1' for list"
+            usage
+            exit 1 ;;
+        esac
+      done
       cmd_list "$mode"
       ;;
     doctor)
-      local skill=""
-      if [ "${args[0]:-}" = "--skill" ] && [ -n "${args[1]:-}" ]; then
-        skill="${args[1]}"
+      cmd_doctor "$@"
+      ;;
+    explain)
+      if [ $# -eq 0 ]; then
+        echo "Usage: bb-tools explain <tool-name>"
+        exit 1
       fi
-      cmd_doctor "$skill"
+      cmd_explain "$1"
       ;;
     install)
+      local dry_run="false"
+      local args=()
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --dry-run)
+            dry_run="true"
+            shift ;;
+          *)
+            args+=("$1")
+            shift ;;
+        esac
+      done
       if [ "${args[0]:-}" = "--profile" ] && [ -n "${args[1]:-}" ]; then
         cmd_install "--profile" "${args[1]}" "$dry_run"
       elif [ -n "${args[0]:-}" ]; then
@@ -636,6 +1124,18 @@ main() {
       fi
       ;;
     update)
+      local dry_run="false"
+      local args=()
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --dry-run)
+            dry_run="true"
+            shift ;;
+          *)
+            args+=("$1")
+            shift ;;
+        esac
+      done
       if [ -n "${args[0]:-}" ]; then
         cmd_update "${args[0]}" "$dry_run"
       else

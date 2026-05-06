@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: make test
+        run: make test
+
+      - name: make validate
+        run: make validate
+
+      - name: Release gate audit
+        run: python3 tools/validate_skills.py audit-release
+
+      - name: Secret scan
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_amd64.tar.gz -o gitleaks.tar.gz
+          tar xzf gitleaks.tar.gz
+          ./gitleaks detect --source . --no-git -v
+
+      - name: Check no private dirs tracked
+        run: |
+          test ! -d .bb && echo ".bb ok" || (echo ".bb present - check .gitignore"; exit 1)
+          test ! -d output && echo "output ok" || (echo "output present - check .gitignore"; exit 1)
+          test ! -d engagements && echo "engagements ok" || (echo "engagements present - check .gitignore"; exit 1)
+
+      - name: Check no vendored nuclei templates
+        run: |
+          test ! -d templates/nuclei-templates && echo "nuclei-templates ok" || exit 1

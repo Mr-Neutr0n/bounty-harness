@@ -5,6 +5,11 @@ Plan Validator
 Validates a planner JSON output against plan_schema.yaml.
 Checks structural completeness, required fields, value ranges,
 metadata sanity, and summary consistency.
+
+Also provides DAG validation for playbooks:
+- Dependency cycle detection
+- Safety tier monotonicity checks
+- Tool availability validation per step
 """
 
 import argparse
@@ -12,6 +17,7 @@ import json
 import os
 import sys
 import math
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +29,9 @@ except ImportError:
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_SCHEMA = SKILL_DIR / "plan_schema.yaml"
+PLAYBOOK_SCHEMA_PATH = SKILL_DIR / "playbook_schema.yaml"
+PLAYBOOKS_DIR = SKILL_DIR / "playbooks"
+SKILLS_DIR = SKILL_DIR.parent  # .claude/skills/
 
 REQUIRED_META_FIELDS = ["target", "program", "generated_at", "standards_coverage_pct",
                          "total_techniques_available", "techniques_matched", "techniques_filtered"]
@@ -269,6 +278,153 @@ def validate(plan: dict[str, Any], schema: dict[str, Any]) -> list[str]:
     return errors
 
 
+def load_skill_workflow_registry() -> dict[str, set[str]]:
+    registry: dict[str, set[str]] = {}
+    if not SKILLS_DIR.is_dir():
+        return registry
+    for skill_yaml_path in sorted(SKILLS_DIR.glob("*/skill.yaml")):
+        try:
+            if yaml is None:
+                break
+            with open(skill_yaml_path, "r") as fh:
+                data = yaml.safe_load(fh)
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        name = data.get("name")
+        if not name:
+            continue
+        workflows = data.get("workflows", {})
+        if isinstance(workflows, dict):
+            registry[str(name)] = set(workflows.keys())
+    return registry
+
+
+def validate_playbook_dag(playbook_path: str) -> list[str]:
+    """Validate a playbook YAML for DAG issues: cycles, safety monotonicity,
+    tool availability."""
+    errors: list[str] = []
+
+    if not os.path.isfile(playbook_path):
+        return [f"playbook not found: {playbook_path}"]
+
+    try:
+        with open(playbook_path, "r") as fh:
+            pb = yaml.safe_load(fh) if yaml is not None else None
+    except Exception as exc:
+        return [f"cannot parse playbook: {exc}"]
+
+    if not isinstance(pb, dict):
+        return ["playbook must be a mapping"]
+
+    phases = pb.get("phases", [])
+    if not isinstance(phases, list) or not phases:
+        return ["phases must be a non-empty list"]
+
+    ordering = {"passive": 0, "active-safe": 1, "intrusive": 2, "destructive-manual": 3}
+
+    # Dependency cycle detection
+    phase_ids: dict[str, int] = {}
+    adj: dict[str, list[str]] = {}
+
+    for i, phase in enumerate(phases):
+        if not isinstance(phase, dict):
+            continue
+        pid = phase.get("id")
+        if pid and isinstance(pid, str):
+            phase_ids[pid] = i
+
+    for phase in phases:
+        if not isinstance(phase, dict):
+            continue
+        pid = phase.get("id")
+        if not pid:
+            continue
+        deps = phase.get("depends_on", [])
+        if isinstance(deps, list):
+            adj[pid] = [str(d) for d in deps if str(d) in phase_ids]
+        else:
+            adj[pid] = []
+
+    color: dict[str, int] = {pid: 0 for pid in phase_ids}
+
+    def dfs_cycle(node: str, stack: list[str]) -> list[str] | None:
+        color[node] = 1
+        for neighbor in adj.get(node, []):
+            if color[neighbor] == 0:
+                result = dfs_cycle(neighbor, stack + [neighbor])
+                if result:
+                    return result
+            elif color[neighbor] == 1:
+                start = stack.index(neighbor) if neighbor in stack else 0
+                return stack[start:] + [neighbor]
+        color[node] = 2
+        return None
+
+    for pid in phase_ids:
+        if color[pid] == 0:
+            cycle = dfs_cycle(pid, [pid])
+            if cycle:
+                errors.append(f"DAG cycle detected: {' -> '.join(cycle)}")
+                break
+
+    # Safety tier monotonicity
+    prev_level = -1
+    prev_name = ""
+    had_approval = False
+
+    for i, phase in enumerate(phases):
+        if not isinstance(phase, dict):
+            continue
+        pname = phase.get("id", f"#{i}")
+        tier = phase.get("safety_tier", "")
+        current = ordering.get(tier, -1)
+
+        if current < prev_level and not had_approval:
+            errors.append(
+                f"phase '{pname}' ({tier}) is lower risk than '{prev_name}' "
+                f"without approval_required=true"
+            )
+
+        if current >= 2:
+            had_approval = had_approval or bool(phase.get("approval_required"))
+
+        if tier == "destructive-manual" and not phase.get("approval_required"):
+            errors.append(
+                f"phase '{pname}': destructive-manual requires approval_required=true"
+            )
+
+        prev_level = current
+        prev_name = pname
+        had_approval = bool(phase.get("approval_required"))
+
+    # Tool availability per step
+    registry = load_skill_workflow_registry()
+    for i, phase in enumerate(phases):
+        if not isinstance(phase, dict):
+            continue
+        pname = phase.get("id", f"#{i}")
+        steps = phase.get("steps", [])
+        if not isinstance(steps, list):
+            continue
+        for j, step in enumerate(steps):
+            if not isinstance(step, dict):
+                continue
+            sid = step.get("id", f"step#{j}")
+            skill = step.get("skill", "")
+            workflow_name = step.get("workflow", "")
+
+            registered = registry.get(str(skill), set())
+            if str(workflow_name) not in registered:
+                errors.append(
+                    f"phase '{pname}' step '{sid}': skill/workflow "
+                    f"'{skill}/{workflow_name}' not found in registry"
+                )
+
+    return errors
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Plan Validator — validate plan JSON against schema",
@@ -277,17 +433,43 @@ def build_parser() -> argparse.ArgumentParser:
 examples:
   python3 plan_validator.py --plan plan.json
   python3 plan_validator.py --plan plan.json --schema /path/to/plan_schema.yaml
+  python3 plan_validator.py --validate-playbook-dag playbooks/new-target-passive.yaml
         """,
     )
-    parser.add_argument("--plan", required=True, help="Path to plan JSON file")
+    parser.add_argument("--plan", required=False, default=None,
+                        help="Path to plan JSON file")
     parser.add_argument("--schema", default=None,
                         help="Path to plan_schema.yaml (default: skill's plan_schema.yaml)")
+    parser.add_argument("--validate-playbook-dag", default=None,
+                        help="Validate a playbook YAML for DAG issues (cycles, safety, tools)")
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.validate_playbook_dag:
+        if yaml is None:
+            print("error: PyYAML required for DAG validation", file=sys.stderr)
+            sys.exit(1)
+
+        errors = validate_playbook_dag(args.validate_playbook_dag)
+
+        if errors:
+            print(f"Playbook DAG Validation FAILED — {len(errors)} issues found:\n")
+            for e in errors:
+                print(f"  - {e}")
+            print()
+            sys.exit(1)
+        else:
+            print(f"Playbook DAG validation PASSED")
+            print(f"  File: {args.validate_playbook_dag}")
+        return
+
+    if not args.plan:
+        print("error: --plan is required (or use --validate-playbook-dag)", file=sys.stderr)
+        sys.exit(1)
 
     if not os.path.isfile(args.plan):
         print(f"error: plan file not found: {args.plan}", file=sys.stderr)

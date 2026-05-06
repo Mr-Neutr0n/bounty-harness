@@ -1,0 +1,56 @@
+id: cors-csrf-safe
+version: "1.0"
+name: "CORS and CSRF Testing"
+description: >
+  Active-safe CORS and CSRF testing pipeline. Tests CORS origin reflection
+  on discovered hosts, checks for missing CSRF tokens on forms, and probes
+  SameSite cookie bypass scenarios. All phases are active-safe.
+
+phases:
+  - id: cors-matrix-test
+    name: "CORS Matrix Testing"
+    safety_tier: active-safe
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: cors-matrix
+        skill: cors-csrf
+        workflow: cors-matrix
+        inputs:
+          TARGET_URL: "$TARGET_URL"
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/cors/findings.jsonl"
+        evidence_required: false
+        stop_on: error
+
+  - id: csrf-token-check
+    name: "CSRF Token Verification"
+    safety_tier: active-safe
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: csrf-check
+        skill: cors-csrf
+        workflow: csrf-poc
+        inputs:
+          TARGET_URL: "$TARGET_URL"
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/csrf/poc.html"
+        evidence_required: false
+        stop_on: error
+
+  - id: samesite-bypass-checks
+    name: "SameSite Bypass Testing"
+    safety_tier: active-safe
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: samesite-bypass
+        skill: cors-csrf
+        workflow: samesite-bypass
+        inputs:
+          TARGET_URL: "$TARGET_URL"
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/samesite/findings.jsonl"
+        evidence_required: false
+        stop_on: error

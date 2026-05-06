@@ -106,6 +106,59 @@ WF_CMD="${WF_CMD//\$TARGET_HOST/${TARGET_HOST:-$TARGET}}"
 WF_CMD="${WF_CMD//\$OUTDIR/$OUTDIR}"
 WF_CMD="${WF_CMD//\$TARGET/$TARGET}"
 
+STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+TARGET_HASH=$(echo -n "${TARGET:-}" | shasum -a 256 | cut -d' ' -f1)
+SCOPE_HASH=""
+if [ -n "${SCOPE_FILE:-}" ] && [ -f "$SCOPE_FILE" ]; then
+  SCOPE_HASH=$(shasum -a 256 "$SCOPE_FILE" | cut -d' ' -f1)
+fi
+SAFETY_TIER=$(python3 -c "
+import glob, yaml
+tools = []
+with open('${SCRIPT_DIR}/skill.yaml') as f:
+    tools = yaml.safe_load(f).get('tools_required', [])
+registry = {}
+for rf in glob.glob('tools/registry/*.yaml'):
+    try:
+        for t in yaml.safe_load(open(rf)).get('registry',{}).get('tools',[]):
+            n = t.get('name')
+            if n: registry[n] = t.get('risk_tier','active-safe')
+            b = t.get('binary')
+            if b and b != n: registry[b] = t.get('risk_tier','active-safe')
+    except: pass
+order = {'passive':0,'active-safe':1,'intrusive':2,'destructive-manual':3}
+highest, hval = 'passive', 0
+for tool in tools:
+    tier = registry.get(tool, 'active-safe')
+    v = order.get(tier, 1)
+    if v > hval:
+        hval = v
+        highest = tier
+print(highest if registry else 'active-safe')
+")
+
 echo "=== Running: ${SKILL}/${WORKFLOW} ==="
 echo "$WF_CMD"
+set +e
 eval "$WF_CMD"
+EXIT_CODE=$?
+set -e
+
+ENDED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+S_SECS=$(python3 -c "import datetime,sys; d=datetime.datetime.strptime(sys.argv[1],'%Y-%m-%dT%H:%M:%SZ'); print(int(d.timestamp()*1000))" "$STARTED_AT")
+E_SECS=$(python3 -c "import datetime,sys; d=datetime.datetime.strptime(sys.argv[1],'%Y-%m-%dT%H:%M:%SZ'); print(int(d.timestamp()*1000))" "$ENDED_AT")
+DURATION_MS=$((E_SECS - S_SECS))
+
+python3 tools/run_trace.py record \
+  --skill "$SKILL" \
+  --workflow "$WORKFLOW" \
+  --safety-tier "$SAFETY_TIER" \
+  --exit-code "$EXIT_CODE" \
+  --duration-ms "$DURATION_MS" \
+  --target-hash "$TARGET_HASH" \
+  --program "${PROGRAM:-}" \
+  --scope-file-hash "$SCOPE_HASH" \
+  --started-at "$STARTED_AT" \
+  --ended-at "$ENDED_AT"
+
+exit $EXIT_CODE

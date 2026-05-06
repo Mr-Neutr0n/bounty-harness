@@ -1,0 +1,23 @@
+Verify URL is in scope
+No auto-login with real credentials
+No payment/card capture
+No PII scraping
+Redact all auth from saved artifacts
+Rate limit: max 1 req/sec
+Single tab only, no parallel browsing
+Close browser session after capture
+Confirm persona auth is valid before capture
+Check SCOPE_FILE against target URL domain
+Reject forbidden paths (login, signup, payment, billing, password-reset)
+Headless mode only — no visible browser window
+No JavaScript interactions beyond page load
+No form auto-submission
+No link clicking
+No button pressing
+No scroll interactions
+No file downloads
+No cookie export beyond what persona already has
+Artifact storage: encrypted or in-memory only for creds, redacted for everything else
+Post-capture: run agent-safety scan on interactables
+Post-capture: verify no raw tokens in output files
+Post-capture: destroy browser session immediately

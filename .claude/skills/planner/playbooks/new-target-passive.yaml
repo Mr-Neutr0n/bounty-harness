@@ -1,0 +1,138 @@
+id: new-target-passive
+version: "1.0"
+name: "New Target Passive Reconnaissance"
+description: >
+  Full passive and active-safe reconnaissance pipeline for a new bug bounty target.
+  Enumerates subdomains, discovers live hosts, extracts JavaScript assets,
+  classifies the domain model, maps attack surfaces, matches techniques,
+  and generates a ranked safe test plan. All phases are passive or active-safe.
+
+phases:
+  - id: recon-passive
+    name: "Passive Reconnaissance"
+    safety_tier: passive
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: subdomain-enum
+        skill: recon
+        workflow: passive-subdomains
+        inputs:
+          TARGET: "$TARGET"
+        outputs:
+          - "$OUTDIR/recon/subdomains/subs.txt"
+          - "$OUTDIR/recon/subdomains/findings.jsonl"
+        evidence_required: false
+        stop_on: error
+
+      - id: live-discovery
+        skill: recon
+        workflow: live-discovery
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/recon/live/live_hosts.txt"
+          - "$OUTDIR/recon/live/live_full.csv"
+          - "$OUTDIR/recon/live/findings.jsonl"
+        evidence_required: false
+        stop_on: error
+
+  - id: js-recon
+    name: "JavaScript Reconnaissance"
+    safety_tier: passive
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: js-extraction
+        skill: recon
+        workflow: js-recon
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/recon/js/js_files.txt"
+          - "$OUTDIR/recon/js/js_secrets.txt"
+          - "$OUTDIR/recon/js/js_endpoints.txt"
+          - "$OUTDIR/recon/js/findings.jsonl"
+        evidence_required: false
+        stop_on: error
+
+  - id: domain-model
+    name: "Domain Model Classification and Surface Mapping"
+    safety_tier: passive
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: classify-archetypes
+        skill: domain-model
+        workflow: classify
+        inputs:
+          TARGET: "$TARGET"
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/domain-model/archetypes.json"
+        evidence_required: false
+        stop_on: error
+
+      - id: map-surfaces
+        skill: domain-model
+        workflow: map-surfaces
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/domain-model/surfaces.json"
+        evidence_required: false
+        stop_on: error
+
+      - id: profile-domain
+        skill: domain-model
+        workflow: profile
+        inputs:
+          TARGET: "$TARGET"
+          PROGRAM: "$PROGRAM"
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/domain-model/domain-profile.md"
+          - "$OUTDIR/domain-model/domain-profile.json"
+        evidence_required: false
+        stop_on: error
+
+  - id: technique-match
+    name: "Technique Matching"
+    safety_tier: passive
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: match-techniques
+        skill: technique-kb
+        workflow: match
+        inputs:
+          OUTDIR: "$OUTDIR"
+          ARCHETYPES_FILE: "$OUTDIR/domain-model/archetypes.json"
+          SURFACES_FILE: "$OUTDIR/domain-model/surfaces.json"
+        outputs:
+          - "$OUTDIR/technique-kb/matches.json"
+        evidence_required: false
+        stop_on: error
+
+  - id: generate-plan
+    name: "Generate Safe Test Plan"
+    safety_tier: passive
+    resume_policy: always-run
+    steps:
+      - id: generate-plan-safe
+        skill: planner
+        workflow: generate-plan-safe
+        inputs:
+          OUTDIR: "$OUTDIR"
+          DOMAIN_PROFILE: "$OUTDIR/domain-model/domain-profile.json"
+        outputs:
+          - "$OUTDIR/planner/plan.json"
+        evidence_required: false
+        stop_on: error
+
+      - id: visualize-plan
+        skill: planner
+        workflow: visualize-plan
+        inputs:
+          OUTDIR: "$OUTDIR"
+          PLAN: "$OUTDIR/planner/plan.json"
+        outputs:
+          - "$OUTDIR/planner/plan.md"
+        evidence_required: false
+        stop_on: error

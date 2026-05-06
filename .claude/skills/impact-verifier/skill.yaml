@@ -20,6 +20,8 @@ workflows:
       python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action collect --outdir $OUTDIR --output $OUTDIR/impact-verifier/candidates.jsonl
     outputs:
       - $OUTDIR/impact-verifier/candidates.jsonl
+      - kind: finding
+        path: $OUTDIR/impact-verifier/candidates.jsonl
     evidence_dir: null
     next:
       if_findings: classify-impact

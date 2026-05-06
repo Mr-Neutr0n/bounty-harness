@@ -77,6 +77,12 @@ Common variables:
 
 Workflow-specific variables are allowed, but `skill.yaml` should provide safe defaults where practical. Examples: `QUERY`, `PLAN`, `PLAN_OUTPUT`, `DOMAIN_PROFILE`, `COVERAGE_MATRIX`, `ARCHETYPES_FILE`, `SURFACES_FILE`.
 
+## Workflow Tracing
+
+Every `bin/bb-run` execution creates a local redacted trace record under `.bb/traces/runs.jsonl`.
+Traces include timing, safety tier, exit code, tool versions, and artifact references —
+but never raw credentials, cookies, tokens, or target responses.
+
 ## Default Workflow
 
 For a new target with no prior recon:

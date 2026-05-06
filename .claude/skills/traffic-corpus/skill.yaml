@@ -23,6 +23,8 @@ workflows:
       python3 .claude/skills/traffic-corpus/scripts/corpus_importer.py --context .bb/context.json --sources ${TRAFFIC_SOURCES:-$OUTDIR/traffic-corpus/raw} --output $OUTDIR/traffic-corpus/samples.jsonl
     outputs:
       - $OUTDIR/traffic-corpus/samples.jsonl
+      - kind: traffic
+        path: $OUTDIR/traffic-corpus/
     evidence_dir: null
     next:
       if_findings: normalize-corpus

@@ -43,6 +43,8 @@ workflows:
     outputs:
       - $OUTDIR/recon/subdomains/subs.txt
       - $OUTDIR/recon/subdomains/findings.jsonl
+      - kind: asset
+        path: $OUTDIR/recon/subdomains/subs.txt
     evidence_dir: $OUTDIR/recon/subdomains/evidence/
     detection_signals:
       - "passive sources return target-owned subdomains"

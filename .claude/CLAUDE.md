@@ -144,6 +144,15 @@ Always prefer `bin/bb-run <skill> <workflow>` after context is initialized. If y
 | 25 | `auto-research` | Public security knowledge import, normalization, deduplication, and candidate review. |
 | 26 | `evaluation-harness` | Vulnerable-by-design fixtures and precision/recall/F1 skill evaluation. |
 | 27 | `skill-scientist` | Hypothesize, design, run, review, and propose skill improvements. |
+| 28 | `persona` | Attacker/victim/admin persona management, credential storage, session validation. |
+| 29 | `traffic-corpus` | HAR/Burp/mitmproxy traffic import, route normalization, object extraction. |
+| 30 | `asset-graph` | SQLite-based persistent asset graph with delta, hotlist, and planner integration. |
+| 31 | `cross-account` | Cross-persona request replay for BOLA/IDOR/tenant isolation testing. |
+| 32 | `business-logic` | Workflow state machine testing for skip, repeat, reorder, race, and invariants. |
+| 33 | `oob-infra` | Interactsh-based OOB callback infrastructure for blind vulnerability detection. |
+| 34 | `impact-verifier` | Candidate-to-bounty-grade verification gate with impact classification. |
+| 35 | `agent-safety` | AI agent guardrails against prompt injection in target content. |
+| 36 | `program-memory` | Per-program knowledge persistence across engagements. |
 
 ## Dispatch Rules
 
@@ -176,7 +185,17 @@ Always prefer `bin/bb-run <skill> <workflow>` after context is initialized. If y
 | Measure skill precision/recall/F1 | `evaluation-harness` |
 | Propose new skill experiments | `skill-scientist` |
 
-If multiple skills match, pick the most specific vulnerability class after recon. If no skill matches but a domain is provided, start with `recon`. If scope is unclear, ask for authorization before intrusive testing.
+| Authenticated testing, multi-account, session management | `persona` then `cross-account` |
+| Import traffic, build replay corpus | `traffic-corpus` |
+| Asset relationship graph, hotlists, delta analysis | `asset-graph` |
+| IDOR, BOLA, tenant isolation, cross-account diffs | `cross-account` |
+| Workflow abuse, state transitions, business invariants | `business-logic` |
+| Blind vulns, OOB callbacks, interactsh management | `oob-infra` |
+| Verify finding impact before reporting | `impact-verifier` |
+| Protect AI agent from prompt injection | `agent-safety` |
+| Program knowledge, false-positive history | `program-memory` |
+
+If multiple skills matchIf multiple skills match, pick the most specific vulnerability class after recon. If no skill matches but a domain is provided, start with `recon`. If scope is unclear, ask for authorization before intrusive testing.
 
 ## Evidence Standard
 

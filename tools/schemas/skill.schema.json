@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bug-bounty-toolkit/schemas/skill.schema.json",
+  "title": "Skill Definition Schema",
+  "description": "Schema for skill.yaml files defining skill packages with workflows, tool dependencies, and safety configuration.",
+  "type": "object",
+  "required": ["name", "version", "description", "workflows"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique skill identifier, lowercase kebab-case (e.g. recon, xss, sqli)",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version string (e.g. 1.0.0, 2.0.0)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the skill's purpose and capabilities",
+      "minLength": 10
+    },
+    "bounded_context": {
+      "type": "string",
+      "description": "Domain-driven design bounded context name"
+    },
+    "owasp_wstg": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "OWASP WSTG standard references"
+    },
+    "owasp_api_top10": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "OWASP API Security Top 10 references"
+    },
+    "severity_range": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["info", "low", "medium", "high", "critical"]
+      },
+      "description": "Severity range this skill's findings may fall into"
+    },
+    "tools_required": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "External tools required by this skill's workflows"
+    },
+    "input_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Expected input files from recon pipeline"
+    },
+    "safety_tier": {
+      "type": "string",
+      "enum": ["passive", "active-safe", "intrusive", "destructive-manual"],
+      "description": "Default safety tier for this skill's workflows"
+    },
+    "auth_required": {
+      "type": "boolean",
+      "description": "Whether authentication is required for this skill's workflows"
+    },
+    "rate_limit": {
+      "type": "integer",
+      "description": "Default rate limit (requests per second) for workflows"
+    },
+    "evidence_templates": {
+      "type": "object",
+      "description": "Named evidence templates for findings",
+      "additionalProperties": { "type": "string" }
+    },
+    "workflows": {
+      "type": "object",
+      "description": "Named workflows available in this skill",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["command"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of this workflow"
+          },
+          "inputs": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Context variables required by this workflow"
+          },
+          "command": {
+            "type": "string",
+            "description": "Shell command to execute the workflow",
+            "minLength": 1
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                { "type": "string" },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string" },
+                    "path": { "type": "string" }
+                  }
+                }
+              ]
+            },
+            "description": "Expected output file paths or structured output descriptors"
+          },
+          "evidence_dir": {
+            "type": ["string", "null"],
+            "description": "Path for collected evidence artifacts"
+          },
+          "evidence_required": {
+            "type": "boolean",
+            "description": "Whether evidence collection is required"
+          },
+          "detection_signals": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Positive detection signals"
+          },
+          "false_positives": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Known false positive scenarios"
+          },
+          "safety_tier": {
+            "type": "string",
+            "enum": ["passive", "active-safe", "intrusive", "destructive-manual"],
+            "description": "Override safety tier for this workflow"
+          },
+          "auth_required": {
+            "type": "boolean",
+            "description": "Whether this workflow requires authentication"
+          },
+          "rate_limit": {
+            "type": "integer",
+            "description": "Workflow-specific rate limit override"
+          },
+          "next": {
+            "type": "object",
+            "description": "Next workflow recommendations based on findings",
+            "properties": {
+              "if_findings": {
+                "type": ["string", "null"],
+                "description": "Next workflow when findings are discovered"
+              },
+              "if_no_findings": {
+                "type": ["string", "null"],
+                "description": "Next workflow when no findings are discovered"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

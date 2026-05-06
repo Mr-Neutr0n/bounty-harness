@@ -1,4 +1,4 @@
-.PHONY: init validate test clean
+.PHONY: init validate test clean audit secrets release-check doctor
 
 init:
 	@echo "Run: bin/bb-init <target>"
@@ -19,3 +19,17 @@ test:
 
 clean:
 	rm -rf output/test-* output/quality_report.json
+
+audit:
+	python3 tools/validate_skills.py audit-workflows
+	python3 tools/validate_skills.py audit-security
+
+secrets:
+	gitleaks detect --source . --no-git -v
+
+release-check: test validate secrets
+	python3 tools/validate_skills.py audit-release
+	@echo "=== Release gate passed ==="
+
+doctor:
+	bin/bb-tools doctor

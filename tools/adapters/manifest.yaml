@@ -1,0 +1,33 @@
+version: "1.0"
+targets:
+  claude-code:
+    output_dir: "."
+    files:
+      - name: "CLAUDE.md"
+        template: "claude_code.md.j2"
+        sections:
+          - header
+          - skill_catalog
+          - dispatch_rules
+          - safety_rules
+          - environment
+  opencode:
+    output_dir: "."
+    files:
+      - name: "AGENTS.md"
+        template: "generic_agents.md.j2"
+  codex:
+    output_dir: "."
+    files:
+      - name: ".codex/instructions.md"
+        template: "generic_agents.md.j2"
+  cursor:
+    output_dir: ".cursor/rules"
+    files:
+      - name: "bb_toolkit.md"
+        template: "cursor_rules.md.j2"
+  generic:
+    output_dir: "docs"
+    files:
+      - name: "bb_toolkit_agent_guide.md"
+        template: "generic_agents.md.j2"

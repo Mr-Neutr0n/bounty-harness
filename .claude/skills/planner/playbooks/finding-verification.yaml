@@ -1,0 +1,115 @@
+id: finding-verification
+version: "1.0"
+name: "Finding Verification and Impact Assessment"
+description: >
+  Multi-tier finding verification pipeline. Collects candidate findings from
+  all skills, classifies by impact category, verifies with evidence, runs
+  false-positive checks, and produces a submission readiness report.
+  Mixed safety tiers — passive collection, active-safe verification,
+  intrusive re-verification where needed.
+
+phases:
+  - id: collect-candidates
+    name: "Collect Candidate Findings"
+    safety_tier: passive
+    resume_policy: always-run
+    steps:
+      - id: collect
+        skill: impact-verifier
+        workflow: collect-candidates
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/impact-verifier/candidates.jsonl"
+        evidence_required: false
+        stop_on: no_findings
+
+  - id: classify-impact
+    name: "Classify by Impact"
+    safety_tier: passive
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: classify
+        skill: impact-verifier
+        workflow: classify-impact
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/impact-verifier/candidates.jsonl"
+        evidence_required: false
+        stop_on: error
+
+  - id: verify-evidence
+    name: "Verify with Evidence"
+    safety_tier: active-safe
+    resume_policy: skip-if-output-exists
+    approval_required: true
+    steps:
+      - id: verify-data-exposure
+        skill: impact-verifier
+        workflow: verify-data-exposure
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/impact-verifier/verified.jsonl"
+          - "$OUTDIR/impact-verifier/rejected.jsonl"
+        evidence_required: true
+        stop_on: error
+
+      - id: verify-privilege-escalation
+        skill: impact-verifier
+        workflow: verify-privilege-escalation
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/impact-verifier/verified.jsonl"
+          - "$OUTDIR/impact-verifier/rejected.jsonl"
+        evidence_required: true
+        stop_on: error
+
+      - id: verify-account-takeover
+        skill: impact-verifier
+        workflow: verify-account-takeover
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/impact-verifier/verified.jsonl"
+          - "$OUTDIR/impact-verifier/rejected.jsonl"
+        evidence_required: true
+        stop_on: error
+
+      - id: verify-tenant-break
+        skill: impact-verifier
+        workflow: verify-tenant-break
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/impact-verifier/verified.jsonl"
+          - "$OUTDIR/impact-verifier/rejected.jsonl"
+        evidence_required: true
+        stop_on: error
+
+  - id: readiness-report
+    name: "Readiness Report"
+    safety_tier: passive
+    resume_policy: always-run
+    steps:
+      - id: false-positive-gate
+        skill: impact-verifier
+        workflow: false-positive-gate
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/impact-verifier/candidates.jsonl"
+        evidence_required: false
+        stop_on: error
+
+      - id: report-readiness
+        skill: impact-verifier
+        workflow: report-readiness
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/impact-verifier/readiness_report.md"
+        evidence_required: false
+        stop_on: error

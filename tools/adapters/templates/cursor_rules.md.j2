@@ -1,0 +1,25 @@
+# Bug Bounty Agent Toolkit
+
+$HEADER
+
+## Skill Catalog
+
+$SKILL_CATALOG
+
+## Dispatch Rules
+
+$DISPATCH_RULES
+
+## Safety Rules
+
+$SAFETY_RULES
+
+## Environment
+
+$ENVIRONMENT
+
+## Additional Rules
+
+- Always prefer `bin/bb-run <skill> <workflow>` after context is initialized.
+- Do not move bug bounty logic into the harness. Add or change workflows inside the relevant skill package.
+- Run `make test && python3 tools/validate_skills.py` before committing changes.

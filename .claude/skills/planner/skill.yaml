@@ -95,4 +95,67 @@ workflows:
       if_findings: null
       if_no_findings: null
 
+  validate-playbook:
+    description: "Validate all playbook YAML files against playbook_schema.yaml"
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/planner/scripts/playbook_validator.py --all
+    outputs: []
+    evidence_dir: null
+    detection_signals:
+      - "all playbooks validate against schema with PASS status"
+      - "no cycle, missing-ref, or safety-mismatch errors"
+    false_positives:
+      - "skill registry empty warns about missing skills but playbook may be valid"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  validate-playbook-dag:
+    description: "Validate a playbook for DAG issues (cycles, safety, tools)"
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/planner/scripts/plan_validator.py \
+        --validate-playbook-dag ${PLAYBOOK_FILE}
+    outputs: []
+    evidence_dir: null
+    detection_signals:
+      - "no DAG cycles, safety tier monotonicity holds, tools available"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  run-playbook:
+    description: "Execute a playbook (safe execution — requires --auto-safe for auto-run)"
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/planner/scripts/playbook_runner.py \
+        ${PLAYBOOK_FILE:-playbooks/new-target-passive.yaml} \
+        --auto-safe
+    outputs: []
+    evidence_dir: null
+    detection_signals:
+      - "playbook phases executed in order with resume_policy and safety checks"
+    false_positives:
+      - "empty or missing context may cause step failures unrelated to playbook"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  list-playbooks:
+    description: "List available playbooks"
+    inputs: []
+    command: |
+      ls .claude/skills/planner/playbooks/*.yaml
+    outputs: []
+    evidence_dir: null
+    detection_signals:
+      - "playbook YAML files found in playbooks/ directory"
+    false_positives:
+      - "empty directory returns error from ls"
+    next:
+      if_findings: null
+      if_no_findings: null
+
 evidence_templates: {}

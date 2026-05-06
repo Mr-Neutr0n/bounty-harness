@@ -1,6 +1,6 @@
 name: program-memory
-version: 1.0.0
-description: Persist target-specific knowledge across engagements and feed learning back into planner rankings.
+version: 2.0.0
+description: Governed program memory with corrections, confidence, decay, and strict program isolation. Persist target-specific knowledge across engagements and feed learning back into planner rankings.
 bounded_context: ProgramMemoryContext
 owasp_wstg:
   - WSTG-INFO-01
@@ -13,99 +13,96 @@ tools_required:
 input_files: []
 workflows:
   init-memory:
-    description: Create program memory store for the current program.
-    inputs: [OUTDIR, PROGRAM]
+    description: Initialize the SQLite memory store for the current program.
+    inputs: [PROGRAM]
     command: |
-      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
-      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action init --memory-dir engagements/${PROGRAM}/memory --output $OUTDIR/program-memory/init.json
+      python3 .claude/skills/program-memory/scripts/memory_store.py init --program $PROGRAM
     outputs:
-      - engagements/${PROGRAM}/memory/program_memory.json
+      - .bb/memory.sqlite
     evidence_dir: null
-    next:
-      if_findings: import-run
-      if_no_findings: import-run
-
-  import-run:
-    description: Ingest findings, facts, and patterns from current run into program memory.
-    inputs: [OUTDIR, PROGRAM]
-    command: |
-      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
-      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action import --memory-dir engagements/${PROGRAM}/memory --run-dir $OUTDIR --output $OUTDIR/program-memory/import_report.json
-    outputs:
-      - engagements/${PROGRAM}/memory/program_memory.json
-    evidence_dir: null
-    next:
-      if_findings: summarize-memory
-      if_no_findings: summarize-memory
 
   record-fact:
-    description: Add a manual fact about the program to memory.
-    inputs: [OUTDIR, PROGRAM]
+    description: Record a program fact into governed memory.
+    inputs: [PROGRAM, FACT_CATEGORY, FACT_CONTENT]
     command: |
-      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
-      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action record-fact --memory-dir engagements/${PROGRAM}/memory --fact-category "${FACT_CATEGORY:?Set FACT_CATEGORY}" --fact-value "${FACT_VALUE:?Set FACT_VALUE}" --confidence "${FACT_CONFIDENCE:-medium}" --output $OUTDIR/program-memory/fact_record.json
+      python3 .claude/skills/program-memory/scripts/memory_store.py record \
+        --program $PROGRAM \
+        --category "${FACT_CATEGORY:?Set FACT_CATEGORY}" \
+        --content "${FACT_CONTENT:?Set FACT_CONTENT}" \
+        --confidence "${FACT_CONFIDENCE:-medium}" \
+        --sensitivity "${FACT_SENSITIVITY:-program-private}" \
+        ${FACT_SOURCE_ARTIFACT:+--source-artifact "$FACT_SOURCE_ARTIFACT"} \
+        ${FACT_EXPIRES_AT:+--expires-at "$FACT_EXPIRES_AT"} \
+        ${FACT_REVIEWED:+--reviewed}
     outputs:
-      - engagements/${PROGRAM}/memory/program_memory.json
+      - .bb/memory.sqlite
     evidence_dir: null
-    next:
-      if_findings: null
-      if_no_findings: null
 
-  record-false-positive:
-    description: Record a confirmed false-positive pattern.
-    inputs: [OUTDIR, PROGRAM]
+  search-facts:
+    description: Search program memory for facts.
+    inputs: [PROGRAM]
     command: |
-      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
-      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action record-fp --memory-dir engagements/${PROGRAM}/memory --pattern "${FP_PATTERN:?Set FP_PATTERN}" --description "${FP_DESCRIPTION:?Set FP_DESCRIPTION}" --output $OUTDIR/program-memory/fp_record.json
+      python3 .claude/skills/program-memory/scripts/memory_store.py search \
+        --program $PROGRAM \
+        ${MEMORY_CATEGORY:+--category "$MEMORY_CATEGORY"} \
+        ${MEMORY_STATUS:+--status "$MEMORY_STATUS"} \
+        ${MEMORY_QUERY:+--query "$MEMORY_QUERY"}
+    evidence_dir: null
+
+  record-correction:
+    description: Correct a previously recorded fact.
+    inputs: [FACT_ID, CORRECTION_CONTENT, CORRECTION_REASON]
+    command: |
+      python3 .claude/skills/program-memory/scripts/memory_store.py correct \
+        --fact-id "${FACT_ID:?Set FACT_ID}" \
+        --new-content "${CORRECTION_CONTENT:?Set CORRECTION_CONTENT}" \
+        --reason "${CORRECTION_REASON:?Set CORRECTION_REASON}"
     outputs:
-      - engagements/${PROGRAM}/memory/false_positives.jsonl
+      - .bb/memory.sqlite
     evidence_dir: null
-    next:
-      if_findings: null
-      if_no_findings: null
 
-  record-finding:
-    description: Record a submitted or finalized finding.
-    inputs: [OUTDIR, PROGRAM]
+  decay-facts:
+    description: Mark expired facts as stale for the program.
+    inputs: [PROGRAM]
     command: |
-      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
-      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action record-finding --memory-dir engagements/${PROGRAM}/memory --finding "${FINDING_JSON:?Set FINDING_JSON}" --output $OUTDIR/program-memory/finding_record.json
+      python3 .claude/skills/program-memory/scripts/memory_store.py decay --program $PROGRAM
     outputs:
-      - engagements/${PROGRAM}/memory/findings_history.jsonl
+      - .bb/memory.sqlite
     evidence_dir: null
-    next:
-      if_findings: null
-      if_no_findings: null
 
-  summarize-memory:
-    description: Produce human-readable memory summary.
-    inputs: [OUTDIR, PROGRAM]
+  summarize:
+    description: Produce a redacted program memory summary safe for planner context.
+    inputs: [PROGRAM, OUTDIR]
     command: |
-      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
-      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action summarize --memory-dir engagements/${PROGRAM}/memory --output $OUTDIR/program-memory/memory_summary.md
+      mkdir -p $OUTDIR/program-memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py summarize \
+        --program $PROGRAM \
+        --output $OUTDIR/program-memory/memory_summary.md
     outputs:
       - $OUTDIR/program-memory/memory_summary.md
     evidence_dir: null
-    next:
-      if_findings: export-planner-hints
-      if_no_findings: export-planner-hints
 
-  export-planner-hints:
-    description: Export planner-weighting hints from accumulated memory.
-    inputs: [OUTDIR, PROGRAM]
+  check-contradictions:
+    description: Find contradictory facts for human review.
+    inputs: [PROGRAM]
     command: |
-      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
-      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action hints --memory-dir engagements/${PROGRAM}/memory --output $OUTDIR/program-memory/planner_hints.json
-    outputs:
-      - $OUTDIR/program-memory/planner_hints.json
+      python3 .claude/skills/program-memory/scripts/memory_store.py contradictions --program $PROGRAM
     evidence_dir: null
-    detection_signals:
-      - "false-positive patterns downranked"
-      - "accepted finding types upranked for similar surfaces"
-    next:
-      if_findings: null
-      if_no_findings: null
+
+  export-safe:
+    description: Export report-safe facts.
+    inputs: [PROGRAM, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/program-memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py export \
+        --program $PROGRAM \
+        --output $OUTDIR/program-memory/safe_export.jsonl
+    outputs:
+      - $OUTDIR/program-memory/safe_export.jsonl
+    evidence_dir: null
 
 evidence_templates:
-  program_facts: "Learned facts with source, category, confidence, and timestamp"
-  false_positive_pattern: "Pattern with description, example, and affected skills"
+  program_fact: "Governed fact with fact_id, category, confidence, sensitivity, source_artifact, and review status"
+  false_positive_pattern: "False positive entry with explanation and affected endpoint"
+  correction: "Superseding fact linked to original via correction_of field"
+  contradiction_pair: "Two active facts in the same category with conflicting signals"

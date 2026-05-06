@@ -94,6 +94,77 @@ workflows:
       if_findings: null
       if_no_findings: null
 
+  browser-capture:
+    description: Capture browser page state with persona auth
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/browser && \
+      python3 .claude/skills/persona/scripts/browser_capture.py --persona ${PERSONA_NAME:?Set PERSONA_NAME} --url ${CAPTURE_URL:?Set CAPTURE_URL} --output $OUTDIR/browser/ --context .bb/context.json --persona-dir $OUTDIR/persona
+    outputs:
+      - $OUTDIR/browser/page_state.json
+      - $OUTDIR/browser/interactables.json
+      - $OUTDIR/browser/model_summary.json
+      - $OUTDIR/browser/capture_result.json
+    evidence_dir: $OUTDIR/browser/
+    safety_tier: active-safe
+    auth_required: true
+    tools_required:
+      - playwright
+      - python3
+    safety:
+      requires_confirmation: true
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  browser-capture-with-screenshot:
+    description: Capture browser page state with persona auth including screenshot
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/browser && \
+      python3 .claude/skills/persona/scripts/browser_capture.py --persona ${PERSONA_NAME:?Set PERSONA_NAME} --url ${CAPTURE_URL:?Set CAPTURE_URL} --output $OUTDIR/browser/ --capture-screenshot --context .bb/context.json --persona-dir $OUTDIR/persona
+    outputs:
+      - $OUTDIR/browser/page_state.json
+      - $OUTDIR/browser/interactables.json
+      - $OUTDIR/browser/model_summary.json
+      - $OUTDIR/browser/capture_result.json
+      - $OUTDIR/browser/screenshot.png
+    evidence_dir: $OUTDIR/browser/
+    safety_tier: active-safe
+    auth_required: true
+    tools_required:
+      - playwright
+      - python3
+    safety:
+      requires_confirmation: true
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  browser-capture-with-har:
+    description: Capture browser page state with persona auth and HAR recording
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/browser && \
+      python3 .claude/skills/persona/scripts/browser_capture.py --persona ${PERSONA_NAME:?Set PERSONA_NAME} --url ${CAPTURE_URL:?Set CAPTURE_URL} --output $OUTDIR/browser/ --save-har --context .bb/context.json --persona-dir $OUTDIR/persona
+    outputs:
+      - $OUTDIR/browser/page_state.json
+      - $OUTDIR/browser/interactables.json
+      - $OUTDIR/browser/model_summary.json
+      - $OUTDIR/browser/capture_result.json
+      - $OUTDIR/browser/traffic.har
+    evidence_dir: $OUTDIR/browser/
+    safety_tier: active-safe
+    auth_required: true
+    tools_required:
+      - playwright
+      - python3
+    safety:
+      requires_confirmation: true
+    next:
+      if_findings: null
+      if_no_findings: null
+
 evidence_templates:
   persona_manifest: "Redacted persona manifest with hashed credential identifiers"
   session_validation: "Auth state classification per persona"

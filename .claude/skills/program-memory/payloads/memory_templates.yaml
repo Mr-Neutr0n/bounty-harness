@@ -1,0 +1,55 @@
+templates:
+  false_positive:
+    category: false_positive
+    confidence: high
+    content: "False positive: {finding} on {endpoint} - actual cause: {explanation}"
+
+  tech_fact:
+    category: tech_fact
+    content: "Technology: {technology} detected at {endpoint}"
+
+  rate_limit_fact:
+    category: rate_limit_note
+    content: "Safe rate: {requests_per_second} rps on {endpoint}"
+
+  scope_note:
+    category: scope_note
+    content: "{subdomain_pattern} {in_or_out} of scope"
+
+  accepted_finding:
+    category: accepted_finding
+    confidence: high
+    content: "Accepted finding: {vulnerability_type} via {vector} on {endpoint}"
+
+  credential_note:
+    category: credential_note
+    sensitivity: high-sensitivity
+    confidence: medium
+    content: "Auth mechanism: {mechanism} for {endpoint}"
+
+  decision:
+    category: decision
+    confidence: medium
+    content: "Decision: {context} -> {outcome}. Reasoning: {reasoning}"
+    reviewed: false
+
+  program_fact:
+    category: program_fact
+    content: "Program info: {fact_description}"
+    confidence: medium
+
+placeholders:
+  finding: "e.g. reflected XSS, SQLi, SSRF"
+  endpoint: "e.g. /api/v1/users, https://sub.example.com"
+  explanation: "e.g. WAF false match on error page, captive portal redirect"
+  technology: "e.g. React 18, Django 4.2, AWS Lambda, Cloudflare"
+  requests_per_second: "e.g. 10"
+  subdomain_pattern: "e.g. *.staging.example.com, admin.*"
+  in_or_out: "in or out"
+  vulnerability_type: "e.g. Stored XSS, Blind SSRF, IDOR"
+  vector: "e.g. user profile bio field, import URL parameter"
+  mechanism: "e.g. OAuth2 with Google, JWT in Authorization header, session cookie"
+  context: "e.g. rate limit bypass attempt, WAF behavior analysis"
+  outcome: "e.g. confirmed bypass possible, confirmed blocked"
+  reasoning: "e.g. response timing confirms bypass, multiple retries succeeded"
+  fact_description: "e.g. uses Cloudfront CDN, primary language is PHP, WAF is Cloudflare"

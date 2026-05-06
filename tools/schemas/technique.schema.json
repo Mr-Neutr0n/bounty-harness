@@ -1,0 +1,189 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bug-bounty-toolkit/schemas/technique.schema.json",
+  "title": "Technique Entry Schema",
+  "description": "Schema for technique YAML entries in the technique knowledge base.",
+  "type": "object",
+  "required": ["id", "name", "category", "severity", "preconditions", "detection_signals", "evidence_rules", "related_skills", "safety_tier"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique technique identifier (e.g. xss-reflected-get)",
+      "pattern": "^[a-z][a-z0-9_-]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable technique name",
+      "minLength": 3
+    },
+    "category": {
+      "type": "string",
+      "description": "Top-level vulnerability category",
+      "enum": [
+        "xss", "sqli", "ssrf", "rce", "auth", "api",
+        "file-upload", "cors-csrf", "http-protocol", "cloud",
+        "ai-llm", "race", "webhooks", "billing", "authz",
+        "business", "oob", "mobile", "osint", "reporting"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "Full explanation of the technique and attacker goals"
+    },
+    "severity": {
+      "type": "string",
+      "description": "Default severity if confirmed",
+      "enum": ["critical", "high", "medium", "low", "info"]
+    },
+    "preconditions": {
+      "type": "object",
+      "description": "Preconditions that must be met before the technique is applicable",
+      "required": ["archetypes", "surfaces", "inputs", "tools"],
+      "properties": {
+        "archetypes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Domain-model archetype IDs"
+        },
+        "surfaces": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Domain-model surface IDs"
+        },
+        "auth": {
+          "type": "string",
+          "enum": ["none", "single_account", "two_accounts", "admin", "session_cookie", "api_key"],
+          "description": "Authentication level required"
+        },
+        "inputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required recon data inputs"
+        },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required CLI tools"
+        }
+      }
+    },
+    "detection_signals": {
+      "type": "object",
+      "description": "Signals used to confirm or rule out the vulnerability",
+      "required": ["positive", "negative"],
+      "properties": {
+        "positive": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What indicates the vulnerability EXISTS"
+        },
+        "negative": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What indicates it's NOT vulnerable (false positive patterns)"
+        }
+      }
+    },
+    "false_positive_risks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Known false positive scenarios and how to rule them out"
+    },
+    "evidence_rules": {
+      "type": "object",
+      "description": "Evidence collection requirements for this technique",
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Mandatory evidence artifacts that must be collected"
+        },
+        "optional": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Supplemental evidence artifacts"
+        }
+      }
+    },
+    "related_skills": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Skill directories that implement this technique",
+      "minItems": 1
+    },
+    "related_standards": {
+      "type": "object",
+      "description": "Related security standards and compliance frameworks",
+      "properties": {
+        "wstg": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "OWASP WSTG identifiers"
+        },
+        "asvs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "OWASP ASVS requirement identifiers"
+        },
+        "api_top10": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "OWASP API Security Top 10 identifiers"
+        },
+        "vrt": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "HackerOne VRT category paths"
+        },
+        "cwe": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "CWE identifiers (e.g. CWE-79)"
+        }
+      }
+    },
+    "safety_tier": {
+      "type": "string",
+      "enum": ["passive", "active-safe", "intrusive", "destructive-manual"],
+      "description": "Safety classification for this technique"
+    },
+    "references": {
+      "type": "object",
+      "description": "External references and resources",
+      "properties": {
+        "urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "papers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "writeups": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "workflow_mapping": {
+      "type": "object",
+      "description": "Maps this technique to runnable skill workflows",
+      "properties": {
+        "skill": {
+          "type": "string",
+          "description": "Skill directory name"
+        },
+        "workflow": {
+          "type": "string",
+          "description": "Workflow name within the skill"
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Searchable tags for technique discovery"
+    }
+  }
+}

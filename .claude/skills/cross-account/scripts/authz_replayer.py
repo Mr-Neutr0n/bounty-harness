@@ -124,6 +124,51 @@ def anonymous_replay(routes_path, output_path, rate_limit):
     Path(output_path).write_text("\n".join(json.dumps(r) for r in results))
     print(json.dumps({"status": "anonymous_replay_done"}))
 
+def replay_from_browser_capture(browser_dir, persona_dir, output_path, rate_limit):
+    src = Path(browser_dir)
+    page_state_file = src / "page_state.json"
+    interactables_file = src / "interactables.json"
+    routes_to_test = []
+    if page_state_file.exists():
+        ps = json.loads(page_state_file.read_text())
+        url = ps.get("url", ps.get("final_url", ""))
+        if url and url.startswith("http"):
+            routes_to_test.append({"url": url, "method": "GET", "source": "page_state"})
+    if interactables_file.exists():
+        inter = json.loads(interactables_file.read_text())
+        for link in inter.get("links", []):
+            href = link.get("href", "")
+            if href and href.startswith(("http://", "https://", "/")):
+                routes_to_test.append({"url": href, "method": "GET", "source": f"link:{link.get('text','')[:40]}"})
+        for form in inter.get("forms", []):
+            action = form.get("action", "")
+            method = form.get("method", "GET")
+            if action and action.startswith(("http://", "https://", "/")):
+                routes_to_test.append({"url": action, "method": method, "source": f"form:{form.get('id','')}"})
+    personas_file = Path(persona_dir) / "personas.json"
+    if not personas_file.exists():
+        print(json.dumps({"error": "personas.json not found"}))
+        return
+    personas = json.loads(personas_file.read_text())
+    results = []
+    delay = 1.0 / max(rate_limit, 1)
+    for route in routes_to_test[:50]:
+        for pid in personas.get("personas", {}):
+            headers = read_persona_headers(persona_dir, pid)
+            if not headers:
+                continue
+            resp = replay_request(persona_dir, pid, route["url"], route["method"])
+            resp["persona"] = pid
+            resp["route"] = route["url"]
+            resp["method"] = route["method"]
+            resp["source"] = route["source"]
+            resp["experiment_id"] = f"bc_{len(results):05d}"
+            resp["timestamp"] = datetime.now(timezone.utc).isoformat()
+            results.append(resp)
+            time.sleep(delay)
+    Path(output_path).write_text("\n".join(json.dumps(r) for r in results))
+    print(json.dumps({"status": "browser_capture_replayed", "experiments": len(results), "routes_tested": len(routes_to_test)}))
+
 def diff_results(replay_dir, output_path):
     findings = []
     replay_path = Path(replay_dir)
@@ -170,6 +215,7 @@ def main():
     parser.add_argument("--routes")
     parser.add_argument("--objects")
     parser.add_argument("--samples")
+    parser.add_argument("--source")
     parser.add_argument("--route")
     parser.add_argument("--method", default="GET")
     parser.add_argument("--rate-limit", type=int, default=25)
@@ -184,6 +230,8 @@ def main():
         replay_corpus(args.matrix, args.persona_dir, args.samples, args.output, args.rate_limit)
     elif args.action == "replay-route":
         replay_single_route(args.persona_dir, args.route, args.method, args.output)
+    elif args.action == "replay-browser-capture":
+        replay_from_browser_capture(args.source, args.persona_dir, args.output, args.rate_limit)
     elif args.action == "object-swap":
         object_swap(args.persona_dir, args.objects, args.output, args.rate_limit)
     elif args.action == "tenant-swap":

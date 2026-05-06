@@ -1,0 +1,93 @@
+id: api-authz-safe
+version: "1.0"
+name: "API Authorization Testing (Safe + Intrusive)"
+description: >
+  Traffic-driven API authorization testing pipeline. Imports real traffic,
+  normalizes routes, extracts objects, builds an authorization matrix across
+  personas, and replays cross-account. Phases 1-3 are active-safe.
+  Phase 4 is intrusive and requires explicit approval.
+
+phases:
+  - id: traffic-import
+    name: "Import and Normalize Traffic"
+    safety_tier: active-safe
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: import-traffic
+        skill: traffic-corpus
+        workflow: import-traffic
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/traffic-corpus/samples.jsonl"
+        evidence_required: false
+        stop_on: error
+
+      - id: normalize-routes
+        skill: traffic-corpus
+        workflow: normalize-corpus
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/traffic-corpus/routes.jsonl"
+        evidence_required: false
+        stop_on: error
+
+  - id: route-object-extraction
+    name: "Route Normalization and Object Extraction"
+    safety_tier: active-safe
+    resume_policy: skip-if-output-exists
+    steps:
+      - id: extract-routes
+        skill: traffic-corpus
+        workflow: extract-routes
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/traffic-corpus/routes.jsonl"
+        evidence_required: false
+        stop_on: error
+
+      - id: extract-objects
+        skill: traffic-corpus
+        workflow: extract-objects
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/traffic-corpus/objects.jsonl"
+        evidence_required: false
+        stop_on: error
+
+  - id: build-authz-matrix
+    name: "Build Authorization Matrix"
+    safety_tier: active-safe
+    resume_policy: skip-if-output-exists
+    approval_required: true
+    steps:
+      - id: build-matrix
+        skill: cross-account
+        workflow: build-matrix
+        inputs:
+          OUTDIR: "$OUTDIR"
+        outputs:
+          - "$OUTDIR/cross-account/matrix.json"
+        evidence_required: false
+        stop_on: error
+
+  - id: cross-account-replay
+    name: "Cross-Account Request Replay"
+    safety_tier: intrusive
+    resume_policy: ask
+    approval_required: true
+    rate_limit: 25
+    steps:
+      - id: replay-corpus
+        skill: cross-account
+        workflow: replay-corpus
+        inputs:
+          OUTDIR: "$OUTDIR"
+          RATE_LIMIT: "25"
+        outputs:
+          - "$OUTDIR/cross-account/replay_results.jsonl"
+        evidence_required: true
+        stop_on: error

@@ -1,0 +1,60 @@
+# Playbook schema
+# Defines the format for multi-phase test flow playbooks
+version: "1.0"
+
+required_fields:
+  - id
+  - version
+  - name
+  - description
+  - phases
+
+phase_fields:
+  required:
+    - id
+    - name
+    - safety_tier
+  optional:
+    - depends_on
+    - steps
+    - resume_policy
+    - approval_required
+    - rate_limit
+
+step_fields:
+  required:
+    - id
+    - skill
+    - workflow
+  optional:
+    - inputs
+    - outputs
+    - evidence_required
+    - stop_on
+
+# Valid safety tiers in ascending order of risk
+safety_tiers:
+  - passive
+  - active-safe
+  - intrusive
+  - destructive-manual
+
+# Safety tier ordering for monotonicity checks
+safety_tier_order:
+  passive: 0
+  active-safe: 1
+  intrusive: 2
+  destructive-manual: 3
+
+# Valid resume policies
+resume_policies:
+  - skip-if-output-exists
+  - always-run
+  - ask
+
+# Valid stop_on conditions
+stop_on_conditions:
+  - no_findings
+  - error
+  - timeout
+  - rate_limited

@@ -198,7 +198,7 @@ registry:
       capabilities: [browser_automation]
       risk_tier: active-safe
       output_support: [stdout, files]
-      skills: [cors-csrf, file-upload, modern-browser, xss]
+      skills: [agent-safety, cors-csrf, cross-account, file-upload, modern-browser, persona, traffic-corpus, xss]
 
     - name: jwt_tool
       repo: github.com/ticarpi/jwt_tool
