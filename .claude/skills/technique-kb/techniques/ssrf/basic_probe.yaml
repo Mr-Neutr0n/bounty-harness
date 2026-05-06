@@ -1,0 +1,100 @@
+id: ssrf-basic-probe
+name: SSRF Basic Internal Probe
+category: ssrf
+description: >
+  Application accepts a URL or hostname from user input and makes an HTTP
+  request to it. By providing internal addresses (127.0.0.1, 10.x, 172.x,
+  192.168.x) or internal service ports, the attacker reaches services not
+  exposed to the internet. Found in webhooks, URL fetchers, image proxies,
+  file imports, and PDF generators.
+severity: high
+standards:
+  wstg:
+    - WSTG-INPV-08
+  asvs:
+    - "V13.1.1"
+  api_top10:
+    - "API7:2023"
+  vrt:
+    - server_side_request_forgery_ssrf.basic
+  cwe:
+    - CWE-918
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - webhook-callbacks
+    - url-import-fields
+    - image-proxy-endpoints
+    - pdf-generators
+    - link-preview-renderers
+    - file-include-urls
+requires:
+  auth: none
+  inputs:
+    - list of endpoints that accept URLs as parameters
+    - webhook or OOB callback URL for blind SSRF detection
+  tools:
+    - curl
+    - interact_sh_client
+signals:
+  positive:
+    - Request to localhost or 127.0.0.1 returns internal service response
+    - Response content differs from direct browser fetch (internal response)
+    - Internal IP addresses return valid HTTP responses
+    - Cloud metadata endpoint (169.254.169.254) returns JSON with credentials
+    - Callback received on OOB listener from target IP
+    - Different error messages for reachable vs unreachable internal hosts
+  negative:
+    - Application validates URL scheme (only https allowed, internal IP blocked)
+    - DNS rebinding protections in place (resolved IP checked against blocklist)
+    - URL only used client-side (JS fetch, no server request)
+    - Response always a fixed error for any unreachable destination
+    - IPv6-only internal network when probing IPv4
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl command with internal IP/URL as parameter value
+    - Response showing internal service output or metadata
+    - Screenshot or text of internal response content
+    - DNS/HTTP log from OOB listener confirming server-side request
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/08-Testing_for_SSRF
+    - https://portswigger.net/web-security/ssrf
+  papers:
+    - "A New Era of SSRF (Orange Tsai, Black Hat 2017)"
+  writeups: []
+workflow_mapping:
+  skill: ssrf
+  workflow: W1 (basic SSRF probe)
+payload_families:
+  - name: localhost_probe
+    description: Direct localhost and loopback address probes
+    examples:
+      - "http://127.0.0.1:80/"
+      - "http://localhost:8080/"
+      - "http://0.0.0.0:3000/"
+      - "http://[::1]:80/"
+  - name: internal_ip_probe
+    description: RFC 1918 private address range probes
+    examples:
+      - "http://10.0.0.1/"
+      - "http://172.16.0.1/"
+      - "http://192.168.0.1/"
+  - name: cloud_metadata
+    description: Cloud-specific metadata endpoints via HTTP
+    examples:
+      - "http://169.254.169.254/latest/meta-data/"
+      - "http://metadata.google.internal/"
+tags:
+  - server-side-request
+  - internal-network
+  - url-parameter
+  - proxy-abuse
+  - localhost
+  - rfc1918

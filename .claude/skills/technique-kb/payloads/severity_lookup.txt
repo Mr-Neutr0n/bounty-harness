@@ -1,0 +1,76 @@
+# Severity Level Definitions
+# Aligned with CVSS 3.1 qualitative ratings and HackerOne VRT
+
+critical:
+  definition: >
+    Direct and immediate impact to confidentiality, integrity, or availability
+    of the system or user data. Typically unauthenticated, remotely exploitable,
+    and leads to full system compromise.
+  examples:
+    - Remote code execution without authentication
+    - SQL injection exposing all database records
+    - SSRF to cloud metadata returning IAM credentials
+    - Authentication bypass granting admin access
+    - Unrestricted file upload leading to shell execution
+    - Mass assignment granting admin privileges
+  cvss_range: "9.0 - 10.0"
+  reward_multiplier: "1.0x (base)"
+
+high:
+  definition: >
+    Significant impact requiring limited attacker capabilities or specific
+    conditions. Usually authenticated or requiring user interaction, but with
+    severe consequences.
+  examples:
+    - Stored XSS on public pages
+    - Blind XSS in admin panels
+    - SQL injection (all non-trivial variants)
+    - SSRF to internal services
+    - BOLA/IDOR exposing other users' data
+    - Subdomain takeover
+    - JWT algorithm confusion (token forgery)
+    - Web cache poisoning
+    - Open S3 bucket with sensitive data
+  cvss_range: "7.0 - 8.9"
+  reward_multiplier: "0.7x"
+
+medium:
+  definition: >
+    Moderate impact requiring specific conditions, authenticated access,
+    or user interaction. Exploitation possible but limited in scope.
+  examples:
+    - Reflected XSS (non-self)
+    - DOM-based XSS
+    - CSRF on sensitive actions
+    - CORS misconfiguration with credentials
+    - GraphQL introspection in production
+    - Session fixation
+    - Blind SSRF via OOB (unconfirmed impact)
+    - Race conditions with limited impact
+    - SVG file upload XSS
+  cvss_range: "4.0 - 6.9"
+  reward_multiplier: "0.4x"
+
+low:
+  definition: >
+    Minor impact, typically informational or requiring improbable conditions.
+    Defense-in-depth issues without direct exploit path.
+  examples:
+    - Self-XSS (only affects attacker)
+    - Missing security headers without known exploit
+    - Verbose error messages without sensitive data
+    - Rate limiting not enforced (no demonstrated abuse)
+  cvss_range: "0.1 - 3.9"
+  reward_multiplier: "0.1x"
+
+info:
+  definition: >
+    No direct security impact. Informational findings that may assist in
+    further attacks or indicate poor security posture.
+  examples:
+    - Technology stack fingerprinting
+    - Version disclosure without known CVEs
+    - Publicly accessible files with no sensitive content
+    - Best practice recommendations
+  cvss_range: "0.0"
+  reward_multiplier: "0.0x (no reward)"

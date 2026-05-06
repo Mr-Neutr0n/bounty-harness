@@ -1,0 +1,102 @@
+feeds:
+  - id: "wstg-latest"
+    type: "github_repo"
+    url: "https://github.com/OWASP/wstg"
+    branch: "master"
+    content_path: "document/"
+    extraction: "owasp_wstg"
+    check_frequency: "monthly"
+    priority: "high"
+
+  - id: "asvs-5.0"
+    type: "github_release"
+    url: "https://github.com/OWASP/ASVS"
+    content_path: "5.0/"
+    extraction: "owasp_asvs"
+    check_frequency: "monthly"
+    priority: "medium"
+
+  - id: "nuclei-templates"
+    type: "github_repo"
+    url: "https://github.com/projectdiscovery/nuclei-templates"
+    content_path: "http/"
+    extraction: "nuclei_template"
+    check_frequency: "weekly"
+    priority: "high"
+
+  - id: "payloads-all-the-things"
+    type: "github_repo"
+    url: "https://github.com/swisskyrepo/PayloadsAllTheThings"
+    extraction: "payload_catalog"
+    check_frequency: "monthly"
+    priority: "medium"
+
+  - id: "hacktricks"
+    type: "git_repo"
+    url: "https://github.com/HackTricks-wiki/hacktricks"
+    extraction: "technique_doc"
+    check_frequency: "monthly"
+    priority: "medium"
+
+  - id: "seclists"
+    type: "github_repo"
+    url: "https://github.com/danielmiessler/SecLists"
+    extraction: "wordlist"
+    check_frequency: "monthly"
+    priority: "low"
+
+  - id: "bugcrowd-vrt"
+    type: "json_url"
+    url: "https://bugcrowd.com/vulnerability-rating-taxonomy/1.18.json"
+    extraction: "vrt_taxonomy"
+    check_frequency: "monthly"
+    priority: "low"
+
+  - id: "cisa-kev"
+    type: "json_url"
+    url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    extraction: "kev_cve"
+    check_frequency: "daily"
+    priority: "high"
+
+  - id: "portswigger-research"
+    type: "web_page"
+    url: "https://portswigger.net/research"
+    extraction: "research_topic"
+    check_frequency: "weekly"
+    priority: "high"
+
+  - id: "assetnote-wordlists"
+    type: "web_page"
+    url: "https://wordlists.assetnote.io/"
+    extraction: "wordlist_index"
+    check_frequency: "monthly"
+    priority: "low"
+
+  - id: "owasp-masvs"
+    type: "github_repo"
+    url: "https://github.com/OWASP/owasp-masvs"
+    extraction: "mobile_checklist"
+    check_frequency: "monthly"
+    priority: "medium"
+
+cache:
+  path: "cache/source_state.json"
+  retention_days: 90
+
+version_check:
+  github_repo:
+    method: "latest_commit_sha"
+    check_command: "git ls-remote {url} refs/heads/{branch} | cut -f1"
+  github_release:
+    method: "latest_release_tag"
+    check_command: "gh release list --repo $(echo {url} | sed 's|https://github.com/||') --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || echo 'unknown'"
+  git_repo:
+    method: "latest_commit_sha"
+    check_command: "git ls-remote {url} HEAD | cut -f1"
+  json_url:
+    method: "http_last_modified"
+    check_command: "curl -sI {url} | grep -i 'last-modified' | cut -d: -f2- | tr -d ' \\r'"
+  web_page:
+    method: "http_last_modified"
+    check_command: "curl -sI {url} | grep -i 'last-modified' | cut -d: -f2- | tr -d ' \\r'"

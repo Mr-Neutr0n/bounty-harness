@@ -1,0 +1,10 @@
+name: "sqli-error"
+skill_tested: "sqli"
+vulnerability_class: "sql-injection-error-based"
+severity: "high"
+description: "Webapp that builds SQL queries by concatenating unsanitized user input and exposes error messages"
+requirements:
+  port: 8082
+  timeout: 10
+positive_control: "GET /search?username=admin' OR '1'='1 should return multiple rows via SQL injection"
+negative_control: "GET /search?username=admin should return only the admin row without SQL errors"

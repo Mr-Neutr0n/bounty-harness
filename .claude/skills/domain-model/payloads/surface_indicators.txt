@@ -1,0 +1,260 @@
+# Surface Indicators — pattern library for attack surface detection
+# Each line is a signal that surface_mapper.py matches against recon corpus.
+# Grouped by surface type. Add new indicators here and in surfaces.yaml.
+
+# --- upload-pipeline ---
+multipart/form-data
+upload
+file input
+drag and drop upload
+chunked upload
+resumable upload
+s3 presigned upload
+transcode status
+ffmpeg
+imagemagick
+image processing
+video processing
+file type validation
+file size limit
+upload progress
+
+# --- player-embed ---
+player subdomain
+embed subdomain
+video embed
+iframe player
+hls manifest
+dash manifest
+video source parameter
+media token
+signature parameter
+streaming key
+postmessage
+cross origin embed
+playback policy
+
+# --- api-object-crud ---
+uuid
+object id
+get endpoint
+put endpoint
+patch endpoint
+delete endpoint
+post endpoint
+api version
+bearer token
+api key
+pagination
+restful
+hateoas
+hypermedia
+resource id
+
+# --- graphql ---
+/graphql
+graphql endpoint
+introspection
+apollo client
+relay
+graphql playground
+graphiql
+query operation
+mutation operation
+subscription operation
+persisted query
+graphql schema
+
+# --- websocket ---
+ws://
+wss://
+websocket
+socket.io
+server sent events
+text/event-stream
+pubnub
+pusher
+ably
+realtime connection
+channel subscription
+graphql subscription
+firebase realtime
+firestore listener
+
+# --- oauth-flow ---
+oauth/authorize
+/authorize
+oauth/token
+/token
+redirect_uri
+client_id
+response_type=code
+response_type=token
+scope parameter
+state parameter
+pkce
+code_challenge
+code_verifier
+openid-configuration
+grant_type
+authorization_code
+client_credentials
+refresh_token
+
+# --- checkout-payment ---
+checkout
+payment
+stripe.js
+stripe elements
+paypal checkout
+paddle.js
+braintree
+amount
+currency
+coupon
+discount code
+order confirmation
+payment method
+3d secure
+sca
+
+# --- webhook ---
+webhook
+/hooks/
+x-hub-signature
+x-webhook-signature
+hmac
+signature verification
+incoming webhook
+webhook secret
+event type
+payload signing
+webhook url
+
+# --- file-download ---
+download subdomain
+dl subdomain
+content-disposition
+attachment
+s3 signed url
+file proxy
+streaming download
+range header
+file path parameter
+file id parameter
+download token
+
+# --- cdn-cache ---
+x-cache
+x-served-by
+cloudfront
+cloudflare
+fastly
+akamai
+cdn hostname
+static subdomain
+origin subdomain
+cache-control
+x-cache-ttl
+vary header
+surrogate-control
+cdn provider
+
+# --- auth-flow ---
+login
+signin
+register
+signup
+forgot-password
+reset-password
+email verification
+mfa
+2fa
+totp
+authenticator app
+passkey
+webauthn
+session cookie
+jwt
+csrf token
+rate limit
+social login
+oauth login
+
+# --- admin-panel ---
+admin subdomain
+internal subdomain
+dashboard subdomain
+admin login
+internal tool
+grafana
+kibana
+phpmyadmin
+adminer
+status page
+staff portal
+moderator portal
+super admin
+privileged access
+
+# --- llm-endpoint ---
+openai api
+anthropic api
+chat completions
+streaming sse
+mcp server
+tool call
+system prompt
+system message
+function calling
+tool use
+token usage
+model parameter
+embeddings endpoint
+ai chat
+ai completion
+
+# --- mobile-deep-link ---
+url scheme
+universal link
+android app link
+deeplink
+intent filter
+mobile redirect
+app scheme
+custom scheme
+mobile deeplink
+app link
+
+# --- subdomain-takeover ---
+cname record
+unclaimed service
+nxdomain
+not found
+no such
+dangling
+cloudfront distribution
+heroku app
+github pages
+s3 bucket
+azure cdn
+azure storage
+shopify cname
+unused resource
+
+# --- email-handling ---
+inbound email
+email verification link
+transactional email
+bounce processing
+unsubscribe link
+sendgrid
+mailgun
+postmark
+ses
+email-to-post
+email ingestion
+dmarc
+spf
+dkim
+email delivery

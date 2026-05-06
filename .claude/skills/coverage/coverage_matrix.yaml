@@ -1,0 +1,1874 @@
+version: "1.0"
+last_updated: "2026-05-05"
+description: "Master coverage ledger mapping every standard security testing item to implemented skills, scripts, and workflows"
+toolkit_version: "3.0.0"
+toolkit_skills: 36
+
+standards:
+  - standard: "WSTG"
+    version: "5.0"
+    total_items: 99
+    sections:
+      - section: "WSTG-INFO"
+        section_name: "Information Gathering"
+        items:
+          - id: "WSTG-INFO-01"
+            name: "Conduct Search Engine Discovery and Reconnaissance for Information Leakage"
+            covered_by:
+              - skill: "osint"
+                workflow: "google-dorks"
+                scripts: [".claude/skills/osint/scripts/google_dork_runner.py"]
+                status: "covered"
+                notes: "Google dork runner generates and executes queries for target domain; GitHub secret scanner covers code search"
+              - skill: "recon"
+                workflow: null
+                scripts: [".claude/skills/recon/scripts/subdomain_enum.py"]
+                status: "partial"
+                notes: "Indirect coverage via subdomain enumeration and passive discovery"
+            priority_gap: "low"
+
+          - id: "WSTG-INFO-02"
+            name: "Fingerprint Web Server"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "covered"
+                notes: "httpx probes include server headers, version banners, and tech fingerprint; wafw00f for WAF detection"
+              - skill: "modern-browser"
+                workflow: "browser-fingerprint"
+                scripts: []
+                status: "partial"
+                notes: "Header-only fingerprint; no full Shodan/Censys integration"
+            priority_gap: "low"
+
+          - id: "WSTG-INFO-03"
+            name: "Review Webserver Metafiles for Information Leakage"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "partial"
+                notes: "httpx crawls robots.txt/sitemap but no dedicated meta-file analyzer for sensitive paths"
+            priority_gap: "medium"
+
+          - id: "WSTG-INFO-04"
+            name: "Enumerate Applications on Webserver"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "covered"
+                notes: "httpx title/status/tech detection; katana crawling discovers web applications"
+            priority_gap: "low"
+
+          - id: "WSTG-INFO-05"
+            name: "Review Webpage Content for Information Leakage"
+            covered_by:
+              - skill: "recon"
+                workflow: "js-recon"
+                scripts: [".claude/skills/recon/scripts/js_recon.py"]
+                status: "partial"
+                notes: "JS recon finds commented-out endpoints and secrets; no HTML comment/visible content scraper"
+              - skill: "osint"
+                workflow: "github-secrets"
+                scripts: [".claude/skills/osint/scripts/github_secret_scanner.py"]
+                status: "partial"
+                notes: "Covers leaked source code comments"
+            priority_gap: "medium"
+
+          - id: "WSTG-INFO-06"
+            name: "Identify Application Entry Points"
+            covered_by:
+              - skill: "recon"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "katana/gau/waybackurls discovery of URLs provides entry point mapping; no dedicated attack surface mapper"
+              - skill: "api"
+                workflow: null
+                scripts: [".claude/skills/api/scripts/graphql_mapper.py"]
+                status: "partial"
+                notes: "GraphQL introspection discovers API entry points"
+            priority_gap: "medium"
+
+          - id: "WSTG-INFO-07"
+            name: "Map Execution Paths Through Application"
+            covered_by:
+              - skill: "recon"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "katana crawling maps navigation paths; no authenticated flow mapping"
+            priority_gap: "medium"
+
+          - id: "WSTG-INFO-08"
+            name: "Fingerprint Web Application Framework"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "covered"
+                notes: "httpx tech detection + WAF fingerprint via wafw00f; nuclei template-based CMS fingerprinting"
+            priority_gap: "low"
+
+          - id: "WSTG-INFO-09"
+            name: "Fingerprint Web Application"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "covered"
+                notes: "httpx comprehensive fingerprinting including headers, cookies, JS libs, and response patterns"
+            priority_gap: "low"
+
+          - id: "WSTG-INFO-10"
+            name: "Map Application Architecture"
+            covered_by:
+              - skill: "recon"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "DNS/subdomain/port data available but no architecture diagramming or service relationship mapping"
+              - skill: "osint"
+                workflow: null
+                scripts: [".claude/skills/osint/scripts/google_dork_runner.py"]
+                status: "partial"
+                notes: "Dorking may reveal architecture documentation"
+            priority_gap: "medium"
+
+      - section: "WSTG-CONF"
+        section_name: "Configuration and Deployment Management Testing"
+        items:
+          - id: "WSTG-CONF-01"
+            name: "Test Network Infrastructure Configuration"
+            covered_by:
+              - skill: "http-protocol"
+                workflow: "url-parser-differential"
+                scripts: [".claude/skills/http-protocol/scripts/url_parser_differential.py"]
+                status: "partial"
+                notes: "URL parser differentials test CDN/proxy config; no comprehensive network infra audit"
+              - skill: "cloud"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "S3 bucket enumeration covers storage configuration"
+            priority_gap: "medium"
+
+          - id: "WSTG-CONF-02"
+            name: "Test Application Platform Configuration"
+            covered_by:
+              - skill: "nuclei-scanner"
+                workflow: "standard-scan"
+                scripts: [".claude/skills/nuclei-scanner/scripts/nuclei_runner.py"]
+                status: "partial"
+                notes: "Nuclei templates cover platform misconfigs; no dedicated platform hardening audit"
+            priority_gap: "medium"
+
+          - id: "WSTG-CONF-03"
+            name: "Test File Extensions Handling for Sensitive Information"
+            covered_by:
+              - skill: "recon"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated backup file/source code/extension discovery workflow"
+            priority_gap: "high"
+
+          - id: "WSTG-CONF-04"
+            name: "Review Old Backup and Unreferenced Files for Sensitive Information"
+            covered_by:
+              - skill: "recon"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated .bak, .old, .swp, .git discovery; nuclei has some templates but not comprehensive"
+            priority_gap: "high"
+
+          - id: "WSTG-CONF-05"
+            name: "Enumerate Infrastructure and Admin Interfaces"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "partial"
+                notes: "httpx identifies /admin, /wp-admin, /panel paths; no comprehensive admin panel brute-force"
+            priority_gap: "medium"
+
+          - id: "WSTG-CONF-06"
+            name: "Test HTTP Methods"
+            covered_by:
+              - skill: "nuclei-scanner"
+                workflow: "standard-scan"
+                scripts: [".claude/skills/nuclei-scanner/scripts/nuclei_runner.py"]
+                status: "partial"
+                notes: "Nuclei templates test OPTIONS, PUT, DELETE; no comprehensive method enumeration"
+            priority_gap: "medium"
+
+          - id: "WSTG-CONF-07"
+            name: "Test HTTP Strict Transport Security"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "partial"
+                notes: "httpx reports HSTS headers; no max-age/includeSubDomains/preload analysis"
+            priority_gap: "medium"
+
+          - id: "WSTG-CONF-08"
+            name: "Test RIA Cross Domain Policy"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "cors-matrix"
+                scripts: [".claude/skills/cors-csrf/scripts/cors_matrix_tester.py"]
+                status: "partial"
+                notes: "CORS testing covers cross-origin policies; no Flash/Silverlight specific"
+            priority_gap: "low"
+
+          - id: "WSTG-CONF-09"
+            name: "Test File Permission"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "not_applicable"
+                notes: "Requires server filesystem access; not in scope for black-box bug bounty"
+            priority_gap: "low"
+
+          - id: "WSTG-CONF-10"
+            name: "Test for Subdomain Takeover"
+            covered_by:
+              - skill: "recon"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Subdomain enumeration identifies potential candidates; no automated takeover verification or CNAME fingerprinting"
+              - skill: "cloud"
+                workflow: "s3-buckets"
+                scripts: [".claude/skills/cloud/scripts/s3_bucket_enumerator.py"]
+                status: "partial"
+                notes: "S3 bucket enumeration covers cloud service takeovers"
+            priority_gap: "medium"
+
+          - id: "WSTG-CONF-11"
+            name: "Test Cloud Storage"
+            covered_by:
+              - skill: "cloud"
+                workflow: "s3-buckets"
+                scripts: [".claude/skills/cloud/scripts/s3_bucket_enumerator.py"]
+                status: "covered"
+                notes: "S3 bucket enumerator + IAM privesc scanner cover AWS cloud storage"
+            priority_gap: "low"
+
+      - section: "WSTG-IDNT"
+        section_name: "Identity Management Testing"
+        items:
+          - id: "WSTG-IDNT-01"
+            name: "Test Role Definitions"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "manual"
+                notes: "Requires manual analysis of role matrices and privilege boundaries"
+              - skill: "api"
+                workflow: "bola-bfla"
+                scripts: [".claude/skills/api/scripts/bola_fuzzer.py"]
+                status: "partial"
+                notes: "BOLA fuzzer detects role access control failures"
+            priority_gap: "medium"
+
+          - id: "WSTG-IDNT-02"
+            name: "Test User Registration Process"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated registration flow testing (duplicate registration, weak password policy, enumeration)"
+            priority_gap: "high"
+
+          - id: "WSTG-IDNT-03"
+            name: "Test Account Provisioning Process"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated provisioning flow testing"
+            priority_gap: "high"
+
+          - id: "WSTG-IDNT-04"
+            name: "Testing for Account Enumeration and Guessable User Account"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No username enumeration via timing/error response differentials"
+            priority_gap: "high"
+
+          - id: "WSTG-IDNT-05"
+            name: "Testing for Weak or Unenforced Username Policy"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No username policy validation"
+            priority_gap: "medium"
+
+      - section: "WSTG-ATHN"
+        section_name: "Authentication Testing"
+        items:
+          - id: "WSTG-ATHN-01"
+            name: "Testing for Credentials Transported over an Encrypted Channel"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Auth skill includes encrypted channel checks; no dedicated form-over-HTTP detection"
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "partial"
+                notes: "httpx identifies HTTP vs HTTPS"
+            priority_gap: "low"
+
+          - id: "WSTG-ATHN-02"
+            name: "Testing for Default Credentials"
+            covered_by:
+              - skill: "nuclei-scanner"
+                workflow: "standard-scan"
+                scripts: [".claude/skills/nuclei-scanner/scripts/nuclei_runner.py"]
+                status: "partial"
+                notes: "Nuclei templates for default creds (admin panels, routers); no comprehensive multi-protocol default cred testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-ATHN-03"
+            name: "Testing for Weak Lock Out Mechanism"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated lockout/brute-force protection testing"
+            priority_gap: "high"
+
+          - id: "WSTG-ATHN-04"
+            name: "Testing for Bypassing Authentication Schema"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "No comprehensive auth bypass testing; indirect via HTTP method/header manipulation"
+              - skill: "http-protocol"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "HTTP smuggling/cache poisoning may enable auth bypass"
+            priority_gap: "high"
+
+          - id: "WSTG-ATHN-05"
+            name: "Testing for Vulnerable Remember Password"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No remember-me cookie or persistent login token testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-ATHN-06"
+            name: "Testing for Browser Cache Weaknesses"
+            covered_by:
+              - skill: "http-protocol"
+                workflow: "cache-deception"
+                scripts: [".claude/skills/http-protocol/scripts/cache_deception_probe.py"]
+                status: "partial"
+                notes: "Cache deception covers sensitive page caching; no browser cache directive testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-ATHN-07"
+            name: "Testing for Weak Password Policy"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No weak password detection or password policy validation"
+            priority_gap: "medium"
+
+          - id: "WSTG-ATHN-08"
+            name: "Testing for Weak Security Question Answer"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No security question testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-ATHN-09"
+            name: "Testing for Weak Password Change or Reset Functionality"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated password reset flow testing (CSRF, enumeration, weak tokens)"
+            priority_gap: "high"
+
+          - id: "WSTG-ATHN-10"
+            name: "Testing for Weak Authentication in Alternative Channel"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No mobile API/auth channel or alternative protocol testing"
+            priority_gap: "medium"
+
+      - section: "WSTG-ATHZ"
+        section_name: "Authorization Testing"
+        items:
+          - id: "WSTG-ATHZ-01"
+            name: "Testing Directory Traversal File Include"
+            covered_by:
+              - skill: "rce"
+                workflow: "lfi-probe"
+                scripts: [".claude/skills/rce/scripts/lfi_probe.py"]
+                status: "covered"
+                notes: "LFI probe tests path traversal, wrapper abuse, and file inclusion"
+              - skill: "http-protocol"
+                workflow: "url-parser-differential"
+                scripts: [".claude/skills/http-protocol/scripts/url_parser_differential.py"]
+                status: "partial"
+                notes: "URL parser differentials include encoding traversal"
+            priority_gap: "low"
+
+          - id: "WSTG-ATHZ-02"
+            name: "Testing for Bypassing Authorization Schema"
+            covered_by:
+              - skill: "api"
+                workflow: "bola-bfla"
+                scripts: [".claude/skills/api/scripts/bola_fuzzer.py"]
+                status: "covered"
+                notes: "BOLA/BFLA fuzzer detects horizontal and vertical privilege escalation"
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Auth skill covers auth flow but no path-based auth bypass scanning"
+            priority_gap: "medium"
+
+          - id: "WSTG-ATHZ-03"
+            name: "Testing for Privilege Escalation"
+            covered_by:
+              - skill: "privesc"
+                workflow: "linux-quick-enum"
+                scripts: []
+                status: "covered"
+                notes: "SUID/sudo/cron/capability enumeration with GTFOBins cross-reference"
+              - skill: "cloud"
+                workflow: "aws-iam-privesc"
+                scripts: [".claude/skills/cloud/scripts/iam_privesc_scanner.py"]
+                status: "covered"
+                notes: "AWS IAM privilege escalation path detection"
+            priority_gap: "low"
+
+          - id: "WSTG-ATHZ-04"
+            name: "Testing for Insecure Direct Object References"
+            covered_by:
+              - skill: "api"
+                workflow: "bola-bfla"
+                scripts: [".claude/skills/api/scripts/bola_fuzzer.py"]
+                status: "covered"
+                notes: "ID fuzzing across 100 sequential resource IDs with cross-account cookie support"
+            priority_gap: "low"
+
+      - section: "WSTG-SESS"
+        section_name: "Session Management Testing"
+        items:
+          - id: "WSTG-SESS-01"
+            name: "Testing for Session Management Schema"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "General auth testing covers session cookies; no full session lifecycle analysis"
+            priority_gap: "medium"
+
+          - id: "WSTG-SESS-02"
+            name: "Testing for Cookies Attributes"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated cookie attribute audit (HttpOnly, Secure, SameSite, Domain, Path, Expires)"
+            priority_gap: "high"
+
+          - id: "WSTG-SESS-03"
+            name: "Testing for Session Fixation"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No session fixation detection (pre/post auth token change)"
+            priority_gap: "high"
+
+          - id: "WSTG-SESS-04"
+            name: "Testing for Exposed Session Variables"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No session variable/state leak testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-SESS-05"
+            name: "Testing for Cross Site Request Forgery"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "csrf-poc"
+                scripts: [".claude/skills/cors-csrf/scripts/csrf_poc_generator.py"]
+                status: "covered"
+                notes: "CSRF PoC generator creates proof-of-concept forms for state-changing endpoints"
+            priority_gap: "low"
+
+          - id: "WSTG-SESS-06"
+            name: "Testing for Logout Functionality"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No logout/post-logout session validation"
+            priority_gap: "medium"
+
+          - id: "WSTG-SESS-07"
+            name: "Testing Session Timeout"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No session timeout/inactivity testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-SESS-08"
+            name: "Testing for Session Puzzling"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No session puzzling/variable reuse testing"
+            priority_gap: "medium"
+
+      - section: "WSTG-INPV"
+        section_name: "Input Validation Testing"
+        items:
+          - id: "WSTG-INPV-01"
+            name: "Testing for Reflected Cross Site Scripting"
+            covered_by:
+              - skill: "xss"
+                workflow: "reflected"
+                scripts: [".claude/skills/xss/scripts/xss_reflected_probe.py"]
+                status: "covered"
+                notes: "Reflected XSS probe with context-aware payload generation and CSP analysis"
+            priority_gap: "low"
+
+          - id: "WSTG-INPV-02"
+            name: "Testing for Stored Cross Site Scripting"
+            covered_by:
+              - skill: "xss"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Indirect via dalfox/nuclei; no dedicated stored XSS workflow for input→output chain"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-03"
+            name: "Testing for HTTP Verb Tampering"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No HTTP verb tampering/method override testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-04"
+            name: "Testing for HTTP Parameter Pollution"
+            covered_by:
+              - skill: "http-protocol"
+                workflow: "cache-poisoning"
+                scripts: [".claude/skills/http-protocol/scripts/cache_poison_probe.py"]
+                status: "partial"
+                notes: "Parameter cloaking covered in cache poisoning; no dedicated HPP testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-05"
+            name: "Testing for SQL Injection"
+            covered_by:
+              - skill: "sqli"
+                workflow: "sql-injection"
+                scripts: [".claude/skills/sqli/scripts/sqli_detector.py"]
+                status: "covered"
+                notes: "Error/boolean/time-based SQLi detection with rate limiting"
+            priority_gap: "low"
+
+          - id: "WSTG-INPV-06"
+            name: "Testing for LDAP Injection"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No LDAP injection testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-07"
+            name: "Testing for XML Injection"
+            covered_by:
+              - skill: "file-upload"
+                workflow: "svg-payloads"
+                scripts: [".claude/skills/file-upload/scripts/svg_xxe_generator.py"]
+                status: "partial"
+                notes: "SVG XXE/XSS generator covers XML injection in SVG; no general XML injection"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-08"
+            name: "Testing for SSI Injection"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No SSI (Server Side Include) injection testing"
+            priority_gap: "low"
+
+          - id: "WSTG-INPV-09"
+            name: "Testing for XPath Injection"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No XPath injection testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-10"
+            name: "Testing for IMAP/SMTP Injection"
+            covered_by:
+              - skill: "http-protocol"
+                workflow: "email-parser-bypass"
+                scripts: [".claude/skills/http-protocol/scripts/email_parser_bypass.py"]
+                status: "partial"
+                notes: "Email parser bypass covers email injection vectors"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-11"
+            name: "Testing for Code Injection"
+            covered_by:
+              - skill: "rce"
+                workflow: "command-injection"
+                scripts: [".claude/skills/rce/scripts/cmd_injection_fuzzer.py"]
+                status: "covered"
+                notes: "Command injection fuzzer covers OS command injection"
+            priority_gap: "low"
+
+          - id: "WSTG-INPV-12"
+            name: "Testing for Command Injection"
+            covered_by:
+              - skill: "rce"
+                workflow: "command-injection"
+                scripts: [".claude/skills/rce/scripts/cmd_injection_fuzzer.py"]
+                status: "covered"
+                notes: "Full command injection fuzzing with OAST callbacks and timing detection"
+            priority_gap: "low"
+
+          - id: "WSTG-INPV-13"
+            name: "Testing for Format String Injection"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No format string testing; rarely applicable to web but critical when present"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-14"
+            name: "Testing for Incubated Vulnerability"
+            covered_by:
+              - skill: "rce"
+                workflow: "ssti-detection"
+                scripts: [".claude/skills/rce/scripts/ssti_detector.py"]
+                status: "partial"
+                notes: "SSTI detection covers template engine vulnerabilities; no general incubated vuln testing"
+              - skill: "ai-llm"
+                workflow: "rag-poison"
+                scripts: [".claude/skills/ai-llm/scripts/rag_poison_tester.py"]
+                status: "partial"
+                notes: "RAG poisoning covers incubated content attacks on LLM"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-15"
+            name: "Testing for HTTP Splitting / Smuggling"
+            covered_by:
+              - skill: "http-protocol"
+                workflow: "http1-smuggling"
+                scripts: [".claude/skills/http-protocol/scripts/http_smuggling_probe.py"]
+                status: "covered"
+                notes: "HTTP/1 CL.TE/TE.CL/TE.TE smuggling with obfuscation variants; HTTP/2 downgrade smuggling"
+            priority_gap: "low"
+
+          - id: "WSTG-INPV-16"
+            name: "Testing for HTTP Incoming Requests"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Indirect via header injection in http-protocol skill; no comprehensive host/forwarded header injection"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-17"
+            name: "Testing for Host Header Injection"
+            covered_by:
+              - skill: "http-protocol"
+                workflow: "cache-poisoning"
+                scripts: [".claude/skills/http-protocol/scripts/cache_poison_probe.py"]
+                status: "partial"
+                notes: "X-Forwarded-Host/scheme covered in cache poisoning; no dedicated host header injection"
+            priority_gap: "medium"
+
+          - id: "WSTG-INPV-18"
+            name: "Testing for Server-side Template Injection"
+            covered_by:
+              - skill: "rce"
+                workflow: "ssti-detection"
+                scripts: [".claude/skills/rce/scripts/ssti_detector.py"]
+                status: "covered"
+                notes: "Dedicated SSTI detection with engine-specific arithmetic payloads and fingerprinting"
+            priority_gap: "low"
+
+          - id: "WSTG-INPV-19"
+            name: "Testing for Server-Side Request Forgery"
+            covered_by:
+              - skill: "ssrf"
+                workflow: "ssrf-probe"
+                scripts: [".claude/skills/ssrf/scripts/ssrf_probe.py"]
+                status: "covered"
+                notes: "Dedicated SSRF detection with cloud metadata, internal probing, parser bypass, and OAST"
+            priority_gap: "low"
+
+      - section: "WSTG-ERR"
+        section_name: "Error Handling"
+        items:
+          - id: "WSTG-ERR-01"
+            name: "Testing for Improper Error Handling"
+            covered_by:
+              - skill: "nuclei-scanner"
+                workflow: "standard-scan"
+                scripts: [".claude/skills/nuclei-scanner/scripts/nuclei_runner.py"]
+                status: "partial"
+                notes: "Nuclei templates detect stack traces and verbose errors; no comprehensive error boundary fuzzing"
+            priority_gap: "medium"
+
+          - id: "WSTG-ERR-02"
+            name: "Testing for Stack Traces"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Indirect via SQLi/XSS/RCE probes that may trigger verbose errors; no dedicated stack trace hunter"
+            priority_gap: "medium"
+
+      - section: "WSTG-CRYP"
+        section_name: "Weak Cryptography"
+        items:
+          - id: "WSTG-CRYP-01"
+            name: "Testing for Weak Transport Layer Security"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "partial"
+                notes: "httpx checks TLS; no comprehensive SSL/TLS cipher suite audit"
+            priority_gap: "high"
+
+          - id: "WSTG-CRYP-02"
+            name: "Testing for Weak Encryption"
+            covered_by:
+              - skill: "auth"
+                workflow: "jwt-analysis"
+                scripts: [".claude/skills/auth/scripts/jwt_analyzer.py"]
+                status: "partial"
+                notes: "JWT analysis covers weak signing; no general weak cipher detection"
+            priority_gap: "medium"
+
+          - id: "WSTG-CRYP-03"
+            name: "Testing for Sensitive Information Sent via Unencrypted Channels"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "partial"
+                notes: "httpx identifies HTTP vs HTTPS; no content-level cleartext sensitive data detection"
+            priority_gap: "high"
+
+      - section: "WSTG-BUSL"
+        section_name: "Business Logic Testing"
+        items:
+          - id: "WSTG-BUSL-01"
+            name: "Test Business Logic Data Validation"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "manual"
+                notes: "Requires understanding of application domain and business rules"
+            priority_gap: "medium"
+
+          - id: "WSTG-BUSL-02"
+            name: "Test Ability to Forge Requests"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "csrf-poc"
+                scripts: [".claude/skills/cors-csrf/scripts/csrf_poc_generator.py"]
+                status: "partial"
+                notes: "CSRF testing covers request forgery; no workflow manipulation testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-BUSL-03"
+            name: "Test Integrity Checks"
+            covered_by:
+              - skill: "auth"
+                workflow: "jwt-attack-matrix"
+                scripts: [".claude/skills/auth/scripts/jwt_attack_matrix.py"]
+                status: "partial"
+                notes: "JWT integrity attacks covered; no general checksum/integrity bypass testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-BUSL-04"
+            name: "Test for Process Timing"
+            covered_by:
+              - skill: "race-condition"
+                workflow: "concurrent-requests"
+                scripts: [".claude/skills/race-condition/scripts/race_engine.py"]
+                status: "covered"
+                notes: "Race condition engine tests process timing windows"
+            priority_gap: "low"
+
+          - id: "WSTG-BUSL-05"
+            name: "Test Number of Times a Function Can Be Used Limits"
+            covered_by:
+              - skill: "race-condition"
+                workflow: "timing-token"
+                scripts: [".claude/skills/race-condition/scripts/timing_token_exploit.py"]
+                status: "covered"
+                notes: "Token collision and rate limit race testing"
+              - skill: "api"
+                workflow: "rate-limit"
+                scripts: [".claude/skills/api/scripts/rate_limit_tester.py"]
+                status: "covered"
+                notes: "Rate limit testing with burst configuration"
+            priority_gap: "low"
+
+          - id: "WSTG-BUSL-06"
+            name: "Testing for the Circumvention of Work Flows"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated multi-step workflow bypass testing"
+            priority_gap: "high"
+
+          - id: "WSTG-BUSL-07"
+            name: "Test Defenses Against Application Misuse"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated application misuse/misuse case testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-BUSL-08"
+            name: "Test Upload of Unexpected File Types"
+            covered_by:
+              - skill: "file-upload"
+                workflow: "upload-fuzz"
+                scripts: [".claude/skills/file-upload/scripts/upload_fuzzer.py"]
+                status: "covered"
+                notes: "Upload fuzzer tests extension, magic byte, MIME, and polyglot variants"
+            priority_gap: "low"
+
+          - id: "WSTG-BUSL-09"
+            name: "Test Upload of Malicious Files"
+            covered_by:
+              - skill: "file-upload"
+                workflow: "svg-payloads"
+                scripts: [".claude/skills/file-upload/scripts/svg_xxe_generator.py"]
+                status: "covered"
+                notes: "SVG XSS/XXE/SSRF payloads + polyglot factory"
+            priority_gap: "low"
+
+      - section: "WSTG-CLNT"
+        section_name: "Client-side Testing"
+        items:
+          - id: "WSTG-CLNT-01"
+            name: "Testing for DOM-based Cross Site Scripting"
+            covered_by:
+              - skill: "xss"
+                workflow: "dom"
+                scripts: [".claude/skills/xss/scripts/xss_dom_sink_scanner.py"]
+                status: "covered"
+                notes: "DOM sink scanner traces sources (URL, hash, storage, postMessage) to dangerous sinks"
+              - skill: "modern-browser"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Browser isolation context for DOM XSS; no dedicated DOM fuzzing"
+            priority_gap: "low"
+
+          - id: "WSTG-CLNT-02"
+            name: "Testing for JavaScript Execution"
+            covered_by:
+              - skill: "xss"
+                workflow: "reflected"
+                scripts: [".claude/skills/xss/scripts/xss_reflected_probe.py"]
+                status: "partial"
+                notes: "XSS reflects in executable context; no general eval()/Function()/setTimeout injection scanning"
+              - skill: "modern-browser"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Browser isolation headers and CSP testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-CLNT-03"
+            name: "Testing for HTML Injection"
+            covered_by:
+              - skill: "xss"
+                workflow: "reflected"
+                scripts: [".claude/skills/xss/scripts/xss_reflected_probe.py"]
+                status: "partial"
+                notes: "XSS probe covers HTML injection as a subset; no dedicated HTML injection for non-script vectors"
+            priority_gap: "medium"
+
+          - id: "WSTG-CLNT-04"
+            name: "Testing for Client-side URL Redirect"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No open redirect detection (header, meta refresh, JavaScript redirects)"
+            priority_gap: "high"
+
+          - id: "WSTG-CLNT-05"
+            name: "Testing for CSS Injection"
+            covered_by:
+              - skill: "modern-browser"
+                workflow: "xsleak-probe"
+                scripts: [".claude/skills/modern-browser/scripts/xsleak_probe.py"]
+                status: "partial"
+                notes: "XS-Leak testing includes CSS-based leak detection; no explicit CSS injection"
+            priority_gap: "medium"
+
+          - id: "WSTG-CLNT-06"
+            name: "Testing for Client-side Resource Manipulation"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No JSON hijacking, resource manipulation testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-CLNT-07"
+            name: "Testing Cross Origin Resource Sharing"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "cors-matrix"
+                scripts: [".claude/skills/cors-csrf/scripts/cors_matrix_tester.py"]
+                status: "covered"
+                notes: "CORS matrix testing with origin reflection, credentialed CORS, and null-origin cases"
+            priority_gap: "low"
+
+          - id: "WSTG-CLNT-08"
+            name: "Testing for Cross Site Flashing"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "not_applicable"
+                notes: "Flash is end-of-life and disabled in all modern browsers"
+            priority_gap: "low"
+
+          - id: "WSTG-CLNT-09"
+            name: "Testing for Clickjacking"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No X-Frame-Options/CSP frame-ancestors testing or clickjacking PoC generation"
+            priority_gap: "high"
+
+          - id: "WSTG-CLNT-10"
+            name: "Testing WebSockets"
+            covered_by:
+              - skill: "api"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "Skill description mentions WebSocket but no WebSocket-specific workflow or script"
+            priority_gap: "medium"
+
+          - id: "WSTG-CLNT-11"
+            name: "Testing Web Messaging"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "postmessage"
+                scripts: [".claude/skills/cors-csrf/scripts/postmessage_auditor.py"]
+                status: "covered"
+                notes: "PostMessage auditor detects missing origin checks and dangerous sink flow"
+            priority_gap: "low"
+
+          - id: "WSTG-CLNT-12"
+            name: "Testing for Browser Storage"
+            covered_by:
+              - skill: "modern-browser"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No localStorage/sessionStorage/IndexedDB sensitive data scanning"
+            priority_gap: "medium"
+
+          - id: "WSTG-CLNT-13"
+            name: "Testing for Cross Site Script Inclusion"
+            covered_by:
+              - skill: "modern-browser"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No XSSI detection; no cross-origin script inclusion testing"
+            priority_gap: "medium"
+
+      - section: "WSTG-APIT"
+        section_name: "API Testing"
+        items:
+          - id: "WSTG-APIT-01"
+            name: "Testing GraphQL"
+            covered_by:
+              - skill: "api"
+                workflow: "graphql"
+                scripts: [".claude/skills/api/scripts/graphql_mapper.py"]
+                status: "covered"
+                notes: "GraphQL schema mapping, introspection testing, depth/aliasing checks"
+            priority_gap: "low"
+
+          - id: "WSTG-APIT-02"
+            name: "Testing RESTful APIs"
+            covered_by:
+              - skill: "api"
+                workflow: "bola-bfla"
+                scripts: [".claude/skills/api/scripts/bola_fuzzer.py"]
+                status: "partial"
+                notes: "BOLA covers API auth; rate-limit covers throttling; no comprehensive API endpoint schema testing"
+            priority_gap: "medium"
+
+          - id: "WSTG-APIT-03"
+            name: "Testing SOAP APIs"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No SOAP/WSDL enumeration or SOAP-specific injection testing"
+            priority_gap: "low"
+
+  - standard: "ASVS"
+    version: "5.0"
+    total_items: 36
+    focus: "L1 and L2 items most relevant to bug bounty"
+    sections:
+      - section: "V1"
+        section_name: "Architecture, Design and Threat Modeling"
+        items:
+          - id: "ASVS-V1.5"
+            name: "Input and Output Trust Boundaries"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "not_applicable"
+                notes: "Architecture-level requirement; not testable via black-box"
+            priority_gap: "low"
+
+      - section: "V2"
+        section_name: "Authentication"
+        items:
+          - id: "ASVS-V2.1"
+            name: "Password Security Requirements"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No password length/complexity/common-password testing"
+            priority_gap: "medium"
+
+          - id: "ASVS-V2.2"
+            name: "General Authenticator Requirements"
+            covered_by:
+              - skill: "auth"
+                workflow: "mfa-flow"
+                scripts: [".claude/skills/auth/scripts/mfa_flow_tester.py"]
+                status: "partial"
+                notes: "MFA testing covers some authenticator requirements; no general authenticator lifecycle testing"
+            priority_gap: "medium"
+
+          - id: "ASVS-V2.3"
+            name: "Authenticator Lifecycle"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No authenticator enrollment/recovery lifecycle testing"
+            priority_gap: "medium"
+
+          - id: "ASVS-V2.4"
+            name: "Credential Storage Requirements"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "not_applicable"
+                notes: "Server-side storage; cannot be verified via black-box"
+            priority_gap: "low"
+
+          - id: "ASVS-V2.5"
+            name: "Password Reset and Recovery"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No automated password reset/recovery flow testing"
+            priority_gap: "high"
+
+          - id: "ASVS-V2.8"
+            name: "Out of Band Verifier"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No out-of-band verifier (SMS/email/push) enumeration or bypass testing"
+            priority_gap: "high"
+
+      - section: "V3"
+        section_name: "Session Management"
+        items:
+          - id: "ASVS-V3.1"
+            name: "Fundamental Session Management Requirements"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No session generation, entropy, or fundamental management testing"
+            priority_gap: "high"
+
+          - id: "ASVS-V3.2"
+            name: "Session Binding Requirements"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No session-to-IP/User-Agent binding bypass testing"
+            priority_gap: "medium"
+
+          - id: "ASVS-V3.3"
+            name: "Session Logout and Timeout"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No logout/post-logout session testing or timeout validation"
+            priority_gap: "medium"
+
+          - id: "ASVS-V3.4"
+            name: "Cookie-based Session Tokens"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "samesite-bypass"
+                scripts: [".claude/skills/cors-csrf/scripts/samesite_bypass_tester.py"]
+                status: "partial"
+                notes: "SameSite testing covers cookie security partially; no comprehensive cookie attribute audit"
+            priority_gap: "high"
+
+          - id: "ASVS-V3.5"
+            name: "Cross-Site Request Forgery"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "csrf-poc"
+                scripts: [".claude/skills/cors-csrf/scripts/csrf_poc_generator.py"]
+                status: "covered"
+                notes: "CSRF PoC generation and SameSite bypass testing"
+            priority_gap: "low"
+
+      - section: "V4"
+        section_name: "Access Control"
+        items:
+          - id: "ASVS-V4.1"
+            name: "General Access Control Design"
+            covered_by:
+              - skill: "api"
+                workflow: "bola-bfla"
+                scripts: [".claude/skills/api/scripts/bola_fuzzer.py"]
+                status: "covered"
+                notes: "BOLA/BFLA testing covers object-level access control"
+            priority_gap: "low"
+
+          - id: "ASVS-V4.2"
+            name: "Operation Level Access Control"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "No automated function-level access control enumeration"
+            priority_gap: "high"
+
+          - id: "ASVS-V4.3"
+            name: "Other Access Control"
+            covered_by:
+              - skill: "privesc"
+                workflow: "linux-quick-enum"
+                scripts: []
+                status: "partial"
+                notes: "Privilege escalation covers OS-level access control; no web-layer IDOR beyond BOLA"
+            priority_gap: "medium"
+
+      - section: "V5"
+        section_name: "Validation, Sanitization and Encoding"
+        items:
+          - id: "ASVS-V5.1"
+            name: "Validation Requirements"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Indirect via fuzzing skills (XSS/SQLi/RCE) that reveal validation gaps; no dedicated validation testing"
+            priority_gap: "medium"
+
+          - id: "ASVS-V5.2"
+            name: "Sanitization and Sandboxing Requirements"
+            covered_by:
+              - skill: "xss"
+                workflow: null
+                scripts: [".claude/skills/xss/scripts/xss_context_encoder.py"]
+                status: "partial"
+                notes: "Context encoder helps test sanitization; no comprehensive sanitization bypass testing"
+            priority_gap: "medium"
+
+          - id: "ASVS-V5.3"
+            name: "Output Encoding and Injection Prevention"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No dedicated output encoding/bypass testing"
+            priority_gap: "high"
+
+          - id: "ASVS-V5.5"
+            name: "Deserialization Prevention"
+            covered_by:
+              - skill: "rce"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "Skill description mentions deserialization but no deserialization-specific workflow or scripts exist"
+            priority_gap: "high"
+
+      - section: "V6"
+        section_name: "Stored Cryptography"
+        items:
+          - id: "ASVS-V6.1"
+            name: "Data Classification"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "not_applicable"
+                notes: "Policy/architectural requirement; not testable via black-box"
+            priority_gap: "low"
+
+          - id: "ASVS-V6.2"
+            name: "Algorithms"
+            covered_by:
+              - skill: "auth"
+                workflow: "jwt-analysis"
+                scripts: [".claude/skills/auth/scripts/jwt_analyzer.py"]
+                status: "partial"
+                notes: "JWT algorithm detection is a subset; no general crypto algorithm weakness detection"
+            priority_gap: "medium"
+
+      - section: "V7"
+        section_name: "Error Handling and Logging"
+        items:
+          - id: "ASVS-V7.1"
+            name: "Log Content Requirements"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "not_applicable"
+                notes: "Server-side logging; not directly testable via black-box"
+            priority_gap: "low"
+
+          - id: "ASVS-V7.4"
+            name: "Error Handling"
+            covered_by:
+              - skill: "nuclei-scanner"
+                workflow: "standard-scan"
+                scripts: [".claude/skills/nuclei-scanner/scripts/nuclei_runner.py"]
+                status: "partial"
+                notes: "Nuclei templates detect verbose errors; no comprehensive error boundary fuzzing"
+            priority_gap: "medium"
+
+      - section: "V8"
+        section_name: "Data Protection"
+        items:
+          - id: "ASVS-V8.3"
+            name: "Sensitive Private Information"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No PII/sensitive data exposure detection in responses or API output"
+            priority_gap: "high"
+
+      - section: "V9"
+        section_name: "Communications"
+        items:
+          - id: "ASVS-V9.1"
+            name: "Client Communication Security"
+            covered_by:
+              - skill: "recon"
+                workflow: "live-discovery"
+                scripts: [".claude/skills/recon/scripts/live_discovery.py"]
+                status: "partial"
+                notes: "httpx checks TLS; no comprehensive certificate chain/HSTS preload/cert pinning testing"
+            priority_gap: "high"
+
+          - id: "ASVS-V9.2"
+            name: "Server Communication Security"
+            covered_by:
+              - skill: "http-protocol"
+                workflow: "early-data-probe"
+                scripts: [".claude/skills/http-protocol/scripts/early_data_probe.py"]
+                status: "partial"
+                notes: "TLS early data replay covered; no server-to-server communication security testing"
+            priority_gap: "medium"
+
+      - section: "V10"
+        section_name: "Malicious Code"
+        items:
+          - id: "ASVS-V10.1"
+            name: "Code Integrity"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "not_applicable"
+                notes: "CI/CD supply chain; not in scope for black-box bug bounty"
+            priority_gap: "low"
+
+      - section: "V11"
+        section_name: "Business Logic"
+        items:
+          - id: "ASVS-V11.1"
+            name: "Business Logic Requirements"
+            covered_by:
+              - skill: "race-condition"
+                workflow: "concurrent-requests"
+                scripts: [".claude/skills/race-condition/scripts/race_engine.py"]
+                status: "partial"
+                notes: "Race condition and rate limit testing cover some business logic; no comprehensive logic testing"
+            priority_gap: "high"
+
+      - section: "V12"
+        section_name: "Files and Resources"
+        items:
+          - id: "ASVS-V12.1"
+            name: "File Upload Requirements"
+            covered_by:
+              - skill: "file-upload"
+                workflow: "upload-fuzz"
+                scripts: [".claude/skills/file-upload/scripts/upload_fuzzer.py"]
+                status: "covered"
+                notes: "Upload fuzzing covers extension, MIME, magic byte, and polyglot testing"
+            priority_gap: "low"
+
+          - id: "ASVS-V12.3"
+            name: "File Execution"
+            covered_by:
+              - skill: "rce"
+                workflow: "lfi-probe"
+                scripts: [".claude/skills/rce/scripts/lfi_probe.py"]
+                status: "partial"
+                notes: "LFI covers file execution via inclusion; no direct file execution in upload context"
+            priority_gap: "medium"
+
+          - id: "ASVS-V12.5"
+            name: "File Unpacking"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No zip bomb/decompression bomb or archive unpacking testing"
+            priority_gap: "low"
+
+          - id: "ASVS-V12.6"
+            name: "SSRF Protection"
+            covered_by:
+              - skill: "ssrf"
+                workflow: "ssrf-probe"
+                scripts: [".claude/skills/ssrf/scripts/ssrf_probe.py"]
+                status: "covered"
+                notes: "Full SSRF suite including metadata, internal, parser bypass, and OAST"
+            priority_gap: "low"
+
+      - section: "V13"
+        section_name: "API and Web Service"
+        items:
+          - id: "ASVS-V13.1"
+            name: "Generic Web Service Security"
+            covered_by:
+              - skill: "api"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "API skill covers REST/GraphQL but no comprehensive web service security audit"
+            priority_gap: "medium"
+
+          - id: "ASVS-V13.2"
+            name: "RESTful Web Service"
+            covered_by:
+              - skill: "api"
+                workflow: "rate-limit"
+                scripts: [".claude/skills/api/scripts/rate_limit_tester.py"]
+                status: "covered"
+                notes: "Rate limit and BOLA testing cover many REST API security concerns"
+            priority_gap: "low"
+
+          - id: "ASVS-V13.3"
+            name: "GraphQL"
+            covered_by:
+              - skill: "api"
+                workflow: "graphql"
+                scripts: [".claude/skills/api/scripts/graphql_mapper.py"]
+                status: "covered"
+                notes: "GraphQL introspection + schema discovery"
+            priority_gap: "low"
+
+      - section: "V14"
+        section_name: "Configuration"
+        items:
+          - id: "ASVS-V14.2"
+            name: "Dependency"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No CVE/dependency vulnerability scanning of frontend libs or JS dependencies"
+            priority_gap: "high"
+
+          - id: "ASVS-V14.3"
+            name: "Unintended Security Disclosures"
+            covered_by:
+              - skill: "recon"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Indirect via JS recon and secret scanning; no comprehensive security header audit"
+            priority_gap: "medium"
+
+  - standard: "API_TOP10"
+    version: "2023"
+    total_items: 10
+    sections:
+      - section: "OWASP_API_Security_Top_10_2023"
+        section_name: "API Security Top 10 (2023)"
+        items:
+          - id: "API1:2023"
+            name: "Broken Object Level Authorization"
+            covered_by:
+              - skill: "api"
+                workflow: "bola-bfla"
+                scripts: [".claude/skills/api/scripts/bola_fuzzer.py"]
+                status: "covered"
+                notes: "BOLA fuzzer with ID range, cross-account cookie, and multi-user credential testing"
+            priority_gap: "low"
+
+          - id: "API2:2023"
+            name: "Broken Authentication"
+            covered_by:
+              - skill: "auth"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "JWT/OAuth/MFA workflows cover auth issues; no comprehensive API-specific auth testing"
+            priority_gap: "medium"
+
+          - id: "API3:2023"
+            name: "Broken Object Property Level Authorization"
+            covered_by:
+              - skill: "api"
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No mass assignment or property-level auth testing workflow"
+            priority_gap: "high"
+
+          - id: "API4:2023"
+            name: "Unrestricted Resource Consumption"
+            covered_by:
+              - skill: "api"
+                workflow: "rate-limit"
+                scripts: [".claude/skills/api/scripts/rate_limit_tester.py"]
+                status: "covered"
+                notes: "Rate limit tester with configurable burst count; covers resource consumption"
+            priority_gap: "low"
+
+          - id: "API5:2023"
+            name: "Broken Function Level Authorization"
+            covered_by:
+              - skill: "api"
+                workflow: "bola-bfla"
+                scripts: [".claude/skills/api/scripts/bola_fuzzer.py"]
+                status: "partial"
+                notes: "BOLA covers object-level; no admin API endpoint probing or cross-role testing"
+            priority_gap: "high"
+
+          - id: "API6:2023"
+            name: "Unrestricted Access to Sensitive Business Flows"
+            covered_by:
+              - skill: "api"
+                workflow: "rate-limit"
+                scripts: [".claude/skills/api/scripts/rate_limit_tester.py"]
+                status: "partial"
+                notes: "Rate limiting partially covers; no business flow enumeration"
+            priority_gap: "medium"
+
+          - id: "API7:2023"
+            name: "Server Side Request Forgery"
+            covered_by:
+              - skill: "ssrf"
+                workflow: "ssrf-probe"
+                scripts: [".claude/skills/ssrf/scripts/ssrf_probe.py"]
+                status: "covered"
+                notes: "Comprehensive SSRF suite; API-specific SSRF via parameterized URL endpoint testing"
+            priority_gap: "low"
+
+          - id: "API8:2023"
+            name: "Security Misconfiguration"
+            covered_by:
+              - skill: "nuclei-scanner"
+                workflow: "standard-scan"
+                scripts: [".claude/skills/nuclei-scanner/scripts/nuclei_runner.py"]
+                status: "partial"
+                notes: "Nuclei templates detect common misconfigs; no comprehensive API security header/config audit"
+            priority_gap: "medium"
+
+          - id: "API9:2023"
+            name: "Improper Inventory Management"
+            covered_by:
+              - skill: "recon"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "Recon covers subdomain discovery and URL gathering for old/staging versions; no API version enumeration"
+            priority_gap: "medium"
+
+          - id: "API10:2023"
+            name: "Unsafe Consumption of APIs"
+            covered_by:
+              - skill: "ssrf"
+                workflow: "ssrf-probe"
+                scripts: [".claude/skills/ssrf/scripts/ssrf_probe.py"]
+                status: "partial"
+                notes: "SSRF covers server-side API consumption; no specific third-party API trust testing"
+            priority_gap: "medium"
+
+  - standard: "BUGCROWD_VRT"
+    version: "2026.2"
+    total_items: 20
+    sections:
+      - section: "BUG_BOUNTY_TOP_CATEGORIES"
+        section_name: "Bugcrowd VRT — Top High-Value Categories"
+        items:
+          - id: "VRT-Server-Security-Misconfiguration"
+            name: "Server Security Misconfiguration"
+            covered_by:
+              - skill: "nuclei-scanner"
+                workflow: "standard-scan"
+                scripts: [".claude/skills/nuclei-scanner/scripts/nuclei_runner.py"]
+                status: "covered"
+                notes: "Nuclei standard profile covers known CVEs and misconfigurations"
+            priority_gap: "low"
+
+          - id: "VRT-Cross-Site-Scripting-Reflected"
+            name: "Cross-Site Scripting (XSS) — Reflected"
+            covered_by:
+              - skill: "xss"
+                workflow: "reflected"
+                scripts: [".claude/skills/xss/scripts/xss_reflected_probe.py"]
+                status: "covered"
+                notes: "Reflected XSS probe with Playwright-based verification"
+            priority_gap: "low"
+
+          - id: "VRT-Cross-Site-Scripting-Stored"
+            name: "Cross-Site Scripting (XSS) — Stored"
+            covered_by:
+              - skill: "xss"
+                workflow: null
+                scripts: []
+                status: "partial"
+                notes: "No dedicated stored XSS workflow; indirect via dalfox/nuclei"
+            priority_gap: "high"
+
+          - id: "VRT-SQL-Injection"
+            name: "SQL Injection"
+            covered_by:
+              - skill: "sqli"
+                workflow: "sql-injection"
+                scripts: [".claude/skills/sqli/scripts/sqli_detector.py"]
+                status: "covered"
+                notes: "Dedicated SQL injection detection with error/boolean/time based"
+            priority_gap: "low"
+
+          - id: "VRT-Server-Side-Request-Forgery"
+            name: "Server-Side Request Forgery (SSRF)"
+            covered_by:
+              - skill: "ssrf"
+                workflow: "ssrf-probe"
+                scripts: [".claude/skills/ssrf/scripts/ssrf_probe.py"]
+                status: "covered"
+                notes: "Full SSRF probe with cloud metadata, internal, and parser bypass"
+            priority_gap: "low"
+
+          - id: "VRT-Remote-Code-Execution"
+            name: "Remote Code Execution (RCE)"
+            covered_by:
+              - skill: "rce"
+                workflow: "command-injection"
+                scripts: [".claude/skills/rce/scripts/cmd_injection_fuzzer.py"]
+                status: "covered"
+                notes: "Command injection fuzzer + SSTI detector + LFI probe = broad RCE coverage"
+            priority_gap: "low"
+
+          - id: "VRT-Information-Disclosure"
+            name: "Information Disclosure"
+            covered_by:
+              - skill: "osint"
+                workflow: "github-secrets"
+                scripts: [".claude/skills/osint/scripts/github_secret_scanner.py"]
+                status: "partial"
+                notes: "GitHub secret scanning covers leaked data; no API response data leak scanner"
+            priority_gap: "high"
+
+          - id: "VRT-Unrestricted-File-Upload"
+            name: "Unrestricted File Upload"
+            covered_by:
+              - skill: "file-upload"
+                workflow: "upload-fuzz"
+                scripts: [".claude/skills/file-upload/scripts/upload_fuzzer.py"]
+                status: "covered"
+                notes: "Upload fuzzer with extension/MIME/magic byte polyglot testing"
+            priority_gap: "low"
+
+          - id: "VRT-Sensitive-Data-Exposure"
+            name: "Sensitive Data Exposure"
+            covered_by:
+              - skill: "cloud"
+                workflow: "s3-buckets"
+                scripts: [".claude/skills/cloud/scripts/s3_bucket_enumerator.py"]
+                status: "partial"
+                notes: "S3 bucket testing covers cloud data exposure; no API/JS response data leak detection"
+            priority_gap: "high"
+
+          - id: "VRT-CSRF"
+            name: "Cross-Site Request Forgery (CSRF)"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "csrf-poc"
+                scripts: [".claude/skills/cors-csrf/scripts/csrf_poc_generator.py"]
+                status: "covered"
+                notes: "CSRF PoC generator + SameSite bypass testing"
+            priority_gap: "low"
+
+          - id: "VRT-CORS-Misconfiguration"
+            name: "CORS Misconfiguration"
+            covered_by:
+              - skill: "cors-csrf"
+                workflow: "cors-matrix"
+                scripts: [".claude/skills/cors-csrf/scripts/cors_matrix_tester.py"]
+                status: "covered"
+                notes: "CORS matrix with origin reflection, credentialed CORS, null-origin"
+            priority_gap: "low"
+
+          - id: "VRT-Open-Redirect"
+            name: "Open Redirect"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "No open redirect detection workflow exists in any skill"
+            priority_gap: "high"
+
+          - id: "VRT-IDOR"
+            name: "Insecure Direct Object References (IDOR)"
+            covered_by:
+              - skill: "api"
+                workflow: "bola-bfla"
+                scripts: [".claude/skills/api/scripts/bola_fuzzer.py"]
+                status: "covered"
+                notes: "ID fuzzing 1-100 with cross-account cookie testing"
+            priority_gap: "low"
+
+          - id: "VRT-Rate-Limiting"
+            name: "Rate Limiting Issues"
+            covered_by:
+              - skill: "api"
+                workflow: "rate-limit"
+                scripts: [".claude/skills/api/scripts/rate_limit_tester.py"]
+                status: "covered"
+                notes: "Rate limit tester with burst testing"
+            priority_gap: "low"
+
+          - id: "VRT-Authentication-Bypass"
+            name: "Authentication Bypass"
+            covered_by:
+              - skill: "auth"
+                workflow: "jwt-attack-matrix"
+                scripts: [".claude/skills/auth/scripts/jwt_attack_matrix.py"]
+                status: "partial"
+                notes: "JWT attacks cover token-based auth bypass; no comprehensive auth bypass suite"
+            priority_gap: "high"
+
+          - id: "VRT-Cloud-Storage-Security"
+            name: "Cloud Storage Security"
+            covered_by:
+              - skill: "cloud"
+                workflow: "s3-buckets"
+                scripts: [".claude/skills/cloud/scripts/s3_bucket_enumerator.py"]
+                status: "covered"
+                notes: "S3 bucket enumerator + IAM privesc scanner"
+            priority_gap: "low"
+
+          - id: "VRT-Subdomain-Takeover"
+            name: "Subdomain Takeover"
+            covered_by:
+              - skill: "cloud"
+                workflow: "s3-buckets"
+                scripts: [".claude/skills/cloud/scripts/s3_bucket_enumerator.py"]
+                status: "partial"
+                notes: "S3 enumeration covers cloud takeovers; no comprehensive DNS/CNAME takeover detection"
+            priority_gap: "high"
+
+          - id: "VRT-JWT-Security"
+            name: "JWT Security Issues"
+            covered_by:
+              - skill: "auth"
+                workflow: "jwt-analysis"
+                scripts: [".claude/skills/auth/scripts/jwt_analyzer.py"]
+                status: "covered"
+                notes: "JWT analysis + JWT attack matrix (none/HS/RS confusion, replay)"
+            priority_gap: "low"
+
+          - id: "VRT-OAuth-Security"
+            name: "OAuth Security Issues"
+            covered_by:
+              - skill: "auth"
+                workflow: "oauth-redirects"
+                scripts: [".claude/skills/auth/scripts/oauth_redirect_matrix.py"]
+                status: "covered"
+                notes: "OAuth redirect URI bypass matrix"
+            priority_gap: "low"
+
+          - id: "VRT-Mass-Assignment"
+            name: "Mass Assignment"
+            covered_by:
+              - skill: null
+                workflow: null
+                scripts: []
+                status: "missing"
+                notes: "Skill description mentions mass assignment but no dedicated workflow or script exists"
+            priority_gap: "high"
+
+generated_stats:
+  wstg_coverage:
+    total: 99
+    covered: 32
+    partial: 33
+    missing: 25
+    manual: 2
+    not_applicable: 2
+    covered_percentage: 32.3
+    any_coverage_percentage: 65.7
+  asvs_coverage:
+    total: 36
+    covered: 8
+    partial: 12
+    missing: 12
+    not_applicable: 4
+    covered_percentage: 22.2
+    any_coverage_percentage: 55.6
+  api_top10_coverage:
+    total: 10
+    covered: 4
+    partial: 5
+    missing: 1
+    covered_percentage: 40.0
+    any_coverage_percentage: 90.0
+  bugcrowd_vrt_coverage:
+    total: 20
+    covered: 11
+    partial: 5
+    missing: 4
+    covered_percentage: 55.0
+    any_coverage_percentage: 80.0
+  overall:
+    total_items: 165
+    total_covered: 55
+    total_partial: 55
+    total_missing: 42
+    total_manual: 2
+    total_not_applicable: 6
+    overall_covered_pct: 33.3
+    overall_any_coverage_pct: 66.7

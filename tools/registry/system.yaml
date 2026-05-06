@@ -1,0 +1,289 @@
+registry:
+  category: system
+  source: local package managers and system PATH
+  tools:
+    - name: bash
+      repo: gnu.org/software/bash
+      install_method: system
+      binary: bash
+      version_cmd: "bash --version"
+      health_cmd: "bash --version"
+      capabilities: [shell]
+      risk_tier: passive
+      output_support: [stdout, files]
+      skills: [skill-scientist]
+
+    - name: curl
+      repo: curl.se
+      install_method: system
+      binary: curl
+      version_cmd: "curl -V"
+      health_cmd: "curl -V"
+      capabilities: [http_client]
+      risk_tier: active-safe
+      output_support: [stdout, files]
+      skills: [recon, xss, sqli, ssrf, rce, auth, api, cors-csrf, cloud, file-upload, http-protocol, modern-browser, osint, privesc, race-condition, reporting, ai-llm, evaluation-harness]
+
+    - name: date
+      repo: gnu.org/software/coreutils
+      install_method: system
+      binary: date
+      version_cmd: "date --version"
+      health_cmd: "date"
+      capabilities: [timestamp]
+      risk_tier: passive
+      output_support: [stdout]
+      skills: [reporting]
+
+    - name: find
+      repo: gnu.org/software/findutils
+      install_method: system
+      binary: find
+      version_cmd: "find --version"
+      health_cmd: "find . -maxdepth 0"
+      capabilities: [file_search]
+      risk_tier: passive
+      output_support: [stdout, files]
+      skills: [privesc]
+
+    - name: git
+      repo: git-scm.com
+      install_method: brew
+      binary: git
+      version_cmd: "git --version"
+      health_cmd: "git --version"
+      capabilities: [source_control]
+      risk_tier: passive
+      output_support: [stdout, files]
+      skills: [osint]
+
+    - name: nc
+      repo: openbsd.org
+      install_method: system
+      binary: nc
+      version_cmd: "nc -h"
+      health_cmd: "nc -h"
+      capabilities: [raw_socket]
+      risk_tier: active-safe
+      output_support: [stdout]
+      skills: [http-protocol]
+
+    - name: netstat
+      repo: system
+      install_method: system
+      binary: netstat
+      version_cmd: "netstat -an"
+      health_cmd: "netstat -an"
+      capabilities: [network_inspection]
+      risk_tier: passive
+      output_support: [stdout]
+      skills: [privesc]
+
+    - name: openssl
+      repo: openssl.org
+      install_method: brew
+      binary: openssl
+      version_cmd: "openssl version"
+      health_cmd: "openssl version"
+      capabilities: [tls_profile, crypto]
+      risk_tier: active-safe
+      output_support: [stdout, files]
+      skills: [recon, auth, cloud, file-upload, http-protocol, mobile, osint, rce]
+
+    - name: python3
+      repo: python.org
+      install_method: system
+      binary: python3
+      version_cmd: "python3 -V"
+      health_cmd: "python3 -V"
+      capabilities: [script_runtime]
+      risk_tier: passive
+      output_support: [stdout, files]
+      skills: [ai-llm, api, auth, auto-research, cloud, cors-csrf, coverage, domain-model, evaluation-harness, file-upload, http-protocol, mobile, modern-browser, nuclei-scanner, osint, planner, privesc, race-condition, rce, recon, reporting, skill-scientist, sqli, ssrf, standard-catalog, technique-kb, xss]
+
+    - name: docker
+      repo: docker.com
+      install_method: brew
+      binary: docker
+      version_cmd: "docker --version"
+      health_cmd: "docker --version"
+      capabilities: [container_runtime]
+      risk_tier: active-safe
+      output_support: [stdout, files]
+      skills: [evaluation-harness, privesc]
+
+    - name: jq
+      repo: jqlang.github.io/jq
+      install_method: brew
+      binary: jq
+      version_cmd: "jq --version"
+      health_cmd: "jq --version"
+      capabilities: [json_processing]
+      risk_tier: passive
+      output_support: [stdout, files]
+      skills: [ai-llm, api, auth, auto-research, cloud, evaluation-harness, http-protocol, mobile, nuclei-scanner, osint, planner, rce, recon, reporting, skill-scientist, sqli, ssrf, technique-kb]
+
+    - name: yq
+      repo: github.com/mikefarah/yq
+      install_method: brew
+      binary: yq
+      version_cmd: "yq --version"
+      health_cmd: "yq --version"
+      capabilities: [yaml_processing]
+      risk_tier: passive
+      output_support: [stdout, files]
+      skills: [planner]
+
+    - name: hashcat
+      repo: hashcat.net/hashcat
+      install_method: brew
+      binary: hashcat
+      version_cmd: "hashcat --version"
+      health_cmd: "hashcat --version"
+      capabilities: [password_cracking]
+      risk_tier: passive
+      output_support: [stdout, files]
+      skills: [auth]
+
+    - name: nmap
+      repo: nmap.org
+      install_method: brew
+      binary: nmap
+      version_cmd: "nmap -V"
+      health_cmd: "nmap -V"
+      capabilities: [port_scan, service_detection]
+      risk_tier: active-safe
+      output_support: [stdout, files]
+      skills: [recon]
+
+    - name: sqlmap
+      repo: sqlmap.org
+      install_method: pip
+      binary: sqlmap
+      version_cmd: "sqlmap --version"
+      health_cmd: "sqlmap --version"
+      capabilities: [sqli_scan]
+      risk_tier: intrusive
+      output_support: [stdout, files]
+      skills: [api, rce, sqli]
+
+    - name: mitmproxy
+      repo: mitmproxy.org
+      install_method: brew
+      binary: mitmproxy
+      version_cmd: "mitmproxy --version"
+      health_cmd: "mitmproxy --version"
+      capabilities: [traffic_capture]
+      risk_tier: active-safe
+      output_support: [stdout, files]
+      skills: [mobile]
+
+    - name: semgrep
+      repo: semgrep.dev
+      install_method: brew
+      binary: semgrep
+      version_cmd: "semgrep --version"
+      health_cmd: "semgrep --version"
+      capabilities: [static_analysis, secret_scan]
+      risk_tier: passive
+      output_support: [json, stdout, files]
+      skills: [osint]
+
+    - name: playwright
+      repo: playwright.dev
+      install_method: pip
+      binary: playwright
+      version_cmd: "playwright --version"
+      health_cmd: "playwright --version"
+      capabilities: [browser_automation]
+      risk_tier: active-safe
+      output_support: [stdout, files]
+      skills: [cors-csrf, file-upload, modern-browser, xss]
+
+    - name: jwt_tool
+      repo: github.com/ticarpi/jwt_tool
+      install_method: pip
+      binary: jwt_tool
+      version_cmd: "jwt_tool -h"
+      health_cmd: "jwt_tool -h"
+      capabilities: [jwt_analysis]
+      risk_tier: passive
+      output_support: [stdout, files]
+      skills: [auth]
+
+    - name: wafw00f
+      repo: github.com/EnableSecurity/wafw00f
+      install_method: brew
+      binary: wafw00f
+      version_cmd: "wafw00f -V"
+      health_cmd: "wafw00f -V"
+      capabilities: [waf_detection]
+      risk_tier: active-safe
+      output_support: [stdout, files]
+      skills: [recon, xss]
+
+    - name: frida
+      repo: github.com/frida/frida
+      install_method: pip
+      binary: frida
+      version_cmd: "frida --version"
+      health_cmd: "frida --version"
+      capabilities: [dynamic_instrumentation]
+      risk_tier: intrusive
+      output_support: [stdout, files]
+      skills: [mobile]
+
+    - name: adb
+      repo: developer.android.com/tools/adb
+      install_method: brew
+      binary: adb
+      version_cmd: "adb version"
+      health_cmd: "adb version"
+      capabilities: [android_debug_bridge]
+      risk_tier: active-safe
+      output_support: [stdout, files]
+      skills: [mobile]
+
+    - name: aws
+      repo: aws.amazon.com/cli
+      install_method: brew
+      binary: aws
+      version_cmd: "aws --version"
+      health_cmd: "aws --version"
+      capabilities: [cloud_cli]
+      risk_tier: active-safe
+      output_support: [json, stdout, files]
+      skills: [cloud]
+
+    - name: az
+      repo: learn.microsoft.com/cli/azure
+      install_method: brew
+      binary: az
+      version_cmd: "az --version"
+      health_cmd: "az --version"
+      capabilities: [cloud_cli]
+      risk_tier: active-safe
+      output_support: [json, stdout, files]
+      skills: [cloud]
+
+    - name: gcloud
+      repo: cloud.google.com/sdk
+      install_method: brew
+      binary: gcloud
+      version_cmd: "gcloud version"
+      health_cmd: "gcloud version"
+      capabilities: [cloud_cli]
+      risk_tier: active-safe
+      output_support: [json, stdout, files]
+      skills: [cloud]
+
+    - name: kubectl
+      repo: kubernetes.io/docs/reference/kubectl
+      install_method: brew
+      binary: kubectl
+      version_cmd: "kubectl version --client"
+      health_cmd: "kubectl version --client"
+      capabilities: [kubernetes_cli]
+      risk_tier: destructive-manual
+      output_support: [json, stdout, files]
+      skills: [privesc]

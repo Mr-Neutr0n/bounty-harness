@@ -1,0 +1,109 @@
+name: api
+version: 2.0.0
+description: API security testing — REST/GraphQL/WebSocket/gRPC/SOAP, mass assignment, rate limiting, BOLA/BFLA, swagger/OpenAPI discovery
+bounded_context: ApiContext
+owasp_wstg:
+  - WSTG-APIT-01
+  - WSTG-APIT-02
+  - WSTG-APIT-03
+owasp_api_top10:
+  - API1:2023
+  - API2:2023
+  - API3:2023
+  - API4:2023
+  - API5:2023
+  - API6:2023
+  - API7:2023
+  - API8:2023
+  - API9:2023
+  - API10:2023
+severity_range: [low, medium, high, critical]
+tools_required:
+  - curl
+  - ffuf
+  - python3
+  - arjun
+  - jq
+  - katana
+  - dalfox
+  - sqlmap
+input_files:
+  - api_endpoints.txt
+  - all_urls.txt
+  - js_files.txt
+workflows:
+  param-discovery:
+    description: Discover hidden parameters using arjun
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/api/params && \
+      python3 .claude/skills/api/scripts/param_discovery.py --context .bb/context.json --input $OUTDIR/recon/live/live_hosts.txt --output $OUTDIR/api/params/findings.jsonl
+    outputs:
+      - $OUTDIR/api/params/findings.jsonl
+    evidence_dir: $OUTDIR/api/params/evidence/
+    next:
+      if_findings: rate-limit
+      if_no_findings: rate-limit
+
+  rate-limit:
+    description: Test API rate limiting on a selected endpoint.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/api/ratelimit && \
+      python3 .claude/skills/api/scripts/rate_limit_tester.py --context .bb/context.json --url $TARGET_URL --method ${API_METHOD:-GET} --burst ${API_BURST:-50} --cookie "${SESSION_COOKIE:-}" --output $OUTDIR/api/ratelimit/findings.jsonl
+    outputs:
+      - $OUTDIR/api/ratelimit/findings.jsonl
+    evidence_dir: $OUTDIR/api/ratelimit/evidence/
+    detection_signals:
+      - "large request bursts succeed without HTTP 429 or throttling"
+      - "authenticated endpoint allows excessive repeated actions"
+    false_positives:
+      - "endpoint is intentionally unauthenticated or public"
+      - "rate limit exists at a threshold higher than the configured burst"
+    next:
+      if_findings: bola-bfla
+      if_no_findings: bola-bfla
+
+  bola-bfla:
+    description: Fuzz object IDs on an API resource path with optional cross-account credentials.
+    inputs: [TARGET_URL, RESOURCE_PATH, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/api/bola && \
+      python3 .claude/skills/api/scripts/bola_fuzzer.py --context .bb/context.json --api-base $TARGET_URL --resource-path "${RESOURCE_PATH:?Set RESOURCE_PATH with a {id} placeholder}" --id-start ${ID_START:-1} --id-end ${ID_END:-100} --cookie "${SESSION_COOKIE:-}" --unauth-cookie "${OTHER_SESSION_COOKIE:-}" --output $OUTDIR/api/bola/findings.jsonl
+    outputs:
+      - $OUTDIR/api/bola/findings.jsonl
+    evidence_dir: $OUTDIR/api/bola/evidence/
+    detection_signals:
+      - "resource IDs outside the authenticated account return private data"
+      - "cross-account request succeeds with a different user's credentials"
+    false_positives:
+      - "resource is intentionally public or shared"
+      - "403/404 responses are correctly returned for unauthorized IDs"
+    next:
+      if_findings: graphql
+      if_no_findings: graphql
+
+  graphql:
+    description: Map GraphQL schema and run safe introspection/depth checks.
+    inputs: [GRAPHQL_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/api/graphql && \
+      python3 .claude/skills/api/scripts/graphql_mapper.py --context .bb/context.json --url ${GRAPHQL_URL:?Set GRAPHQL_URL} --cookie "${SESSION_COOKIE:-}" --schema-output $OUTDIR/api/graphql/schema.json --output $OUTDIR/api/graphql/findings.jsonl
+    outputs:
+      - $OUTDIR/api/graphql/schema.json
+      - $OUTDIR/api/graphql/findings.jsonl
+    evidence_dir: $OUTDIR/api/graphql/evidence/
+    detection_signals:
+      - "GraphQL introspection exposes schema details"
+      - "sensitive queries or mutations are discoverable"
+    false_positives:
+      - "introspection is intentionally enabled on non-production endpoints"
+      - "schema exposure contains no sensitive operations"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  mass_assignment: "Registration response showing elevated role assignment"
+  bola_response: "API response containing another user's sensitive data"
+  swagger_doc: "Discovered swagger/OpenAPI document exposing internal endpoints"

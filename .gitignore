@@ -1,0 +1,52 @@
+# Local engagement state
+/engagements/
+/.bb/
+/output/
+/evidence/
+/templates/nuclei-templates/
+
+# Credentials, sessions, and captured traffic
+/.env
+/.env.*
+!.env.example
+/cookies/
+/sessions/
+/secrets/
+/*.cookie
+/*.cookies
+/*.har
+/*.saz
+/*.pcap
+/*.pcapng
+/*.burp
+/*.mitm
+/*headers*.json
+/*session*.json
+/*token*.json
+/*credential*.json
+/*credentials*.json
+/*persona*.json
+
+# Generated databases and reports
+/*.db
+/*.sqlite
+/*.sqlite3
+/*.log
+/*.tmp
+/*.bak
+
+# Python/cache artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# OS/editor artifacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

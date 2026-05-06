@@ -1,0 +1,117 @@
+id: file-upload-extension-bypass
+name: File Upload — Extension and Content-Type Bypass
+category: file-upload
+description: >
+  Application allows file uploads but restricts extensions or MIME types
+  using weak validation. Attacker bypasses via double extension (file.php.jpg),
+  case variation (file.PHP), null byte (file.php%00.jpg), polyglot files,
+  or content-type mismatch. Successful bypass can lead to RCE via shell upload,
+  stored XSS via HTML upload, or DoS via zip bomb.
+severity: critical
+standards:
+  wstg:
+    - WSTG-BUSL-08
+  asvs:
+    - "V11.1.3"
+    - "V11.1.4"
+  vrt:
+    - file_upload
+  cwe:
+    - CWE-434
+applies_to:
+  archetypes:
+    - collaboration-saas
+    - media-platform
+    - developer-platform
+    - social-network
+    - enterprise-api
+  surfaces:
+    - file-upload-endpoints
+    - avatar-upload
+    - document-upload
+    - import-endpoints
+requires:
+  auth: single_account
+  inputs:
+    - File upload endpoints from katana crawl
+    - Accepted file types and extensions
+    - Upload response showing file path or URL
+  tools:
+    - curl
+    - ffuf
+signals:
+  positive:
+    - Executable file uploaded and accessible via URL
+    - Extension bypass succeeds (blacklisted ext, but application accepted)
+    - Uploaded file served with text/html content-type (enables XSS)
+    - Server validates only MIME type, accepts any extension
+    - Upload path returned and directly accessible without auth
+    - uploaded file executes (PHP, ASPX, JSP, CGI)
+  negative:
+    - extension validation via strict allowlist (only .jpg, .png, .gif)
+    - Uploaded files stored outside web root or on CDN
+    - Content-Disposition header forces download (no inline execution)
+    - Server renames files to random names (no attacker-controlled filename)
+    - File content validated via magic bytes or content inspection
+safety:
+  intrusive: true
+  data_modifying: true
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+    - curl upload command with bypass payload
+    - Response showing uploaded file URL or path
+    - Proof that uploaded file is accessible and executable
+    - Screenshot of uploaded file execution or XSS
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/08-Test_Upload_of_Malicious_Files
+    - https://portswigger.net/web-security/file-upload
+  papers:
+    - OWASP File Upload Cheat Sheet
+  writeups: []
+workflow_mapping:
+  skill: file-upload
+  workflow: W1 (extension fuzzing)
+payload_families:
+  - name: double_extension
+    description: Append allowed extension after executable extension
+    examples:
+      - "shell.php.jpg"
+      - "shell.php.png"
+      - "shell.php5.jpg"
+  - name: case_variation
+    description: Case changes to bypass extension filters
+    examples:
+      - "shell.Php"
+      - "shell.PHP"
+      - "shell.pHp"
+  - name: null_byte
+    description: Null byte truncation (works on older PHP)
+    examples:
+      - "shell.php%00.jpg"
+      - "shell.php\\0.jpg"
+  - name: alternative_extensions
+    description: Executable extensions not in blacklist
+    examples:
+      - "shell.phtml"
+      - "shell.php5"
+      - "shell.shtml"
+      - "shell.php7"
+      - "shell.pht"
+  - name: trailing_special
+    description: Trailing dots, spaces, or slashes
+    examples:
+      - "shell.php."
+      - "shell.php "
+      - "shell.php/."
+      - "shell.php::$DATA"
+tags:
+  - upload
+  - extension-bypass
+  - rce-via-upload
+  - shell-upload
+  - requires-approval
+  - data-modifying
+  - critical

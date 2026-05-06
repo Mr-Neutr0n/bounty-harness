@@ -1,0 +1,206 @@
+registry:
+  category: web-vulnerability
+  source: various
+  tools:
+    - name: dalfox
+      repo: github.com/hahwul/dalfox
+      install_method: go
+      binary: dalfox
+      version_cmd: "dalfox version"
+      health_cmd: "dalfox version"
+      capabilities:
+        - xss_scan
+        - reflected_xss
+        - stored_xss
+        - dom_xss
+        - blind_xss
+        - param_xss
+        - header_xss
+      risk_tier: intrusive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - xss
+
+    - name: kxss
+      repo: github.com/Emoe/kxss
+      install_method: go
+      binary: kxss
+      version_cmd: "kxss -h"
+      health_cmd: "kxss -h"
+      capabilities:
+        - xss_probe
+        - reflected_probe
+        - param_probe
+        - quick_check
+      risk_tier: active-safe
+      output_support:
+        - stdout
+        - files
+      skills:
+        - xss
+
+    - name: xsstrike
+      repo: github.com/s0md3v/XSStrike
+      install_method: pipx
+      binary: xsstrike
+      version_cmd: "xsstrike --version"
+      health_cmd: "xsstrike --help"
+      capabilities:
+        - xss_scan
+        - reflected_xss
+        - dom_xss
+        - fuzz
+        - context_analysis
+        - waf_bypass
+      risk_tier: intrusive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - xss
+
+    - name: gitleaks
+      repo: github.com/gitleaks/gitleaks
+      install_method: brew
+      binary: gitleaks
+      version_cmd: "gitleaks version"
+      health_cmd: "gitleaks version"
+      capabilities:
+        - secret_scan
+        - git_history_scan
+        - regex_scan
+        - entropy_scan
+        - precommit_hook
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - osint
+        - reporting
+
+    - name: trufflehog
+      repo: github.com/trufflesecurity/trufflehog
+      install_method: brew
+      binary: trufflehog
+      version_cmd: "trufflehog --version"
+      health_cmd: "trufflehog --version"
+      capabilities:
+        - secret_scan
+        - git_history_scan
+        - s3_scan
+        - docker_scan
+        - github_scan
+        - verification
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - osint
+        - cloud
+        - reporting
+
+    - name: detect-secrets
+      repo: github.com/Yelp/detect-secrets
+      install_method: pipx
+      binary: detect-secrets
+      version_cmd: "detect-secrets --version"
+      health_cmd: "detect-secrets --version"
+      capabilities:
+        - secret_scan
+        - regex_scan
+        - baseline_scan
+        - entropy_scan
+        - plugin_scan
+      risk_tier: passive
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - osint
+        - reporting
+
+    - name: smuggler
+      repo: github.com/defparam/smuggler
+      install_method: pipx
+      binary: smuggler
+      version_cmd: "smuggler --help"
+      health_cmd: "smuggler --help"
+      capabilities:
+        - http_smuggling
+        - cl_te
+        - te_cl
+        - request_tunneling
+        - desync_detect
+      risk_tier: intrusive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - http-protocol
+
+    - name: h2csmuggler
+      repo: github.com/BishopFox/h2csmuggler
+      install_method: pipx
+      binary: h2csmuggler
+      version_cmd: "h2csmuggler --help"
+      health_cmd: "h2csmuggler --help"
+      capabilities:
+        - h2c_smuggling
+        - upgrade_smuggling
+        - http2_downgrade
+      risk_tier: intrusive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - http-protocol
+
+    - name: crlfuzz
+      repo: github.com/dwisiswant0/crlfuzz
+      install_method: go
+      binary: crlfuzz
+      version_cmd: "crlfuzz --version"
+      health_cmd: "crlfuzz --version"
+      capabilities:
+        - crlf_injection
+        - header_injection
+        - response_splitting
+        - quick_probe
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - http-protocol
+        - xss
+
+    - name: h2spec
+      repo: github.com/summerwind/h2spec
+      install_method: manual
+      binary: h2spec
+      version_cmd: "h2spec --version"
+      health_cmd: "h2spec --version"
+      capabilities:
+        - http2_compliance
+        - protocol_test
+        - rfc_compliance
+        - server_test
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - http-protocol
+        - modern-browser

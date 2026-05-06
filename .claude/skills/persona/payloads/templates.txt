@@ -1,0 +1,5 @@
+curl -s -o /dev/null -w "%{http_code}" "${TARGET_URL}/api/health" -H "${AUTH_HEADER}"
+curl -s "${TARGET_URL}/api/user/me" -H "${AUTH_HEADER}" -b "${COOKIE_JAR}"
+curl -s -X POST "${TARGET_URL}/api/auth/login" -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"test"}'
+curl -s "${TARGET_URL}/api/session" -H "${AUTH_HEADER}" -b "${COOKIE_JAR}" | jq .
+curl -X DELETE "${TARGET_URL}/api/session" -H "${AUTH_HEADER}" -w "\n%{http_code}"

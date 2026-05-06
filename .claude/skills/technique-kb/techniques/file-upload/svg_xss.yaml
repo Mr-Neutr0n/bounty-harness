@@ -1,0 +1,95 @@
+id: file-upload-svg-xss
+name: SVG File Upload XSS
+category: file-upload
+description: 'Application accepts SVG image uploads but does not sanitize embedded script or event handler elements. SVG is
+  XML-based and supports JavaScript via <script> tags and event handlers (onload, onbegin, onmouseover). When the uploaded
+  SVG is served directly or embedded via <img> (some browsers, CSP dependent), the injected JavaScript executes in the viewer''s
+  browser context. Also applicable to XML-based formats like XHTML, MathML, and EPUB.
+
+  '
+severity: medium
+standards:
+  wstg:
+  - WSTG-BUSL-08
+  asvs:
+  - V11.1.3
+  vrt:
+  - cross_site_scripting_xss.svg
+  cwe:
+  - CWE-79
+applies_to:
+  archetypes:
+  - media-platform
+  - social-network
+  - developer-platform
+  surfaces:
+  - avatar-upload
+  - image-upload
+  - logo-upload
+  - asset-upload
+requires:
+  auth: single_account
+  inputs:
+  - SVG upload endpoint that accepts image files
+  - Uploaded file URL or CDN path
+  tools:
+  - curl
+signals:
+  positive:
+  - 'Uploaded SVG served inline (Content-Type: image/svg+xml with no CSP)'
+  - SVG loads in browser and executes embedded JavaScript
+  - SVG served from same origin (no separate CDN domain for SVG only)
+  - Server does not sanitize or strip script elements from SVG content
+  - SVG viewable in browser without download prompt
+  negative:
+  - 'SVG served with Content-Disposition: attachment (forces download)'
+  - SVG served from different origin (CORS blocks access to main site)
+  - Server sanitizes SVG (script tags stripped on upload)
+  - Content-Type set to binary/octet-stream (browser treats as download)
+  - CSP with script-src 'none' blocks execution
+safety:
+  intrusive: true
+  data_modifying: true
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+  - SVG file content showing embedded script
+  - curl upload command
+  - URL of uploaded SVG
+  - Browser screenshot showing script execution
+references:
+  urls:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/08-Test_Upload_of_Malicious_Files
+  - https://portswigger.net/web-security/file-upload
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: file-upload
+  workflow: W2 (SVG XSS)
+payload_families:
+- name: script_tag
+  description: SVG with embedded script element
+  examples:
+  - <svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>
+- name: event_handler
+  description: SVG with event handler attributes
+  examples:
+  - <svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>
+  - <svg><set attributeName="onmouseover" to="alert(1)"/><rect/></svg>
+- name: foreign_object
+  description: SVG with foreignObject containing HTML/JS
+  examples:
+  - <svg><foreignObject><body xmlns="http://www.w3.org/1999/xhtml"><script>alert(1)</script></body></foreignObject></svg>
+- name: use_element
+  description: SVG use element referencing external content
+  examples:
+  - <svg><use href="data:image/svg+xml,<svg onload=alert(1)>"/></svg>
+tags:
+- svg
+- image-upload
+- xml-based
+- stored-xss
+- avatar-upload
+- requires-approval
+- data-modifying

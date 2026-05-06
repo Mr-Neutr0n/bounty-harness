@@ -1,0 +1,11 @@
+shell
+exec
+eval
+subprocess
+os.system
+rm -rf
+curl | sh
+wget -O - |
+DROP TABLE
+DELETE FROM
+chmod 777

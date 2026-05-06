@@ -1,0 +1,68 @@
+name: standard-catalog
+version: 1.0.0
+description: Canonical standards reference for bug bounty toolkit maps every test to external standards
+bounded_context: StandardCatalogContext
+owasp_wstg:
+  - WSTG-INFO-01
+  - WSTG-INFO-02
+  - WSTG-INFO-03
+  - WSTG-INFO-04
+  - WSTG-INFO-05
+  - WSTG-INFO-06
+  - WSTG-INFO-07
+  - WSTG-INFO-08
+  - WSTG-INFO-09
+  - WSTG-INFO-10
+owasp_api_top10: []
+severity_range: [info]
+tools_required:
+  - python3
+input_files: []
+workflows:
+  validate:
+    description: Validate all catalog YAML files for structure integrity.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/standard-catalog && \
+      python3 .claude/skills/standard-catalog/scripts/validate_catalog.py --catalogs-dir .claude/skills/standard-catalog/catalogs/ > $OUTDIR/standard-catalog/validation.json
+    outputs:
+      - $OUTDIR/standard-catalog/validation.json
+    evidence_dir: $OUTDIR/standard-catalog/evidence/
+    detection_signals:
+      - "all catalogs parse without error"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  search:
+    description: Search across all catalogs by keyword.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/standard-catalog && \
+      python3 .claude/skills/standard-catalog/scripts/search_standards.py --catalogs-dir .claude/skills/standard-catalog/catalogs/ --query "${QUERY:-injection}" > $OUTDIR/standard-catalog/search_results.json
+    outputs:
+      - $OUTDIR/standard-catalog/search_results.json
+    evidence_dir: $OUTDIR/standard-catalog/evidence/
+    detection_signals:
+      - "matching standard IDs found"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  export:
+    description: Export a combined reference JSON with all standard IDs.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/standard-catalog && \
+      python3 .claude/skills/standard-catalog/scripts/export_references.py --catalogs-dir .claude/skills/standard-catalog/catalogs/ --output $OUTDIR/standard-catalog/references.json --pretty
+    outputs:
+      - $OUTDIR/standard-catalog/references.json
+    evidence_dir: $OUTDIR/standard-catalog/evidence/
+    detection_signals:
+      - "exported JSON with all standards"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null

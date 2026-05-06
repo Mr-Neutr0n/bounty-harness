@@ -1,0 +1,32 @@
+admin%40target.com@attacker.com
+admin@target.com@attacker.com
+"admin@target.com"@attacker.com
+admin(comment)@target.com
+admin\@attacker.com@target.com
+àdmin@target.com
+<admin@target.com>
+admin@[127.0.0.1]
+admin@target.com%00@attacker.com
+admin@target.com.
+"target support" <admin@attacker.com>
+admin%2F@target.com
+ admin@attacker.com
+admin@target..com
+admin@target.com@
+admin@@target.com
+admin@target.com%0d%0a@attacker.com
+admin@%74arget.com
+admin@target.com%09@attacker.com
+admin@target+ext@attacker.com
+admin@target%20.com
+admin@target(dropthis).com
+admin+extra@target.com
+"\"admin@target.com\" "@attacker.com
+admin\.@target.com
+adm\x69n@target.com
+%61dmin@target.com
+admin@TARGET.com
+admin@target.c%6fm
+@target.com@attacker.com
+"target@attacker.com"
+@attacker.com,@target.com

@@ -1,0 +1,31 @@
+id: coupon_double_spend
+name: Coupon Double Spend via Race Condition
+category: business-logic
+severity: high
+description: Concurrently redeem the same coupon code from multiple requests to bypass single-use enforcement.
+preconditions:
+  auth_required: mandatory
+  tools: [curl, python3]
+  inputs: [persona/headers/]
+  personas_required: 1
+workflow: business-logic/test-coupon-race
+detection_signals:
+  positive:
+    - "Same coupon redeemed multiple times concurrently"
+    - "Balance or discount applied multiple times"
+  negative:
+    - "Atomic coupon redemption prevents double spend"
+    - "Second concurrent request returns error"
+evidence_required:
+  - "Concurrent request timestamps"
+  - "Duplicate redemption confirmation"
+false_positives:
+  - "Multi-use coupon by design"
+standards:
+  owasp_wstg: [WSTG-BUSL-04]
+references:
+  - "https://cwe.mitre.org/data/definitions/367.html"
+  - "https://cheatsheetseries.owasp.org/cheatsheets/Business_Logic_Security_Cheat_Sheet.html"
+safety:
+  risk_tier: intrusive
+  data_modifying: true

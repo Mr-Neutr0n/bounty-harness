@@ -1,0 +1,149 @@
+name: cross-account
+version: 1.0.0
+description: Automate IDOR/BOLA/BFLA/tenant isolation testing by replaying captured requests across multiple authenticated personas.
+bounded_context: AuthorizationContext
+owasp_wstg:
+  - WSTG-ATHZ-02
+  - WSTG-ATHZ-04
+owasp_api_top10:
+  - API1:2023
+  - API2:2023
+  - API5:2023
+severity_range: [medium, high, critical]
+tools_required:
+  - python3
+  - curl
+  - jq
+input_files:
+  - routes.jsonl
+  - personas.json
+workflows:
+  build-matrix:
+    description: Construct authorization matrix from personas and route catalog.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action matrix --personas $OUTDIR/persona/personas.json --routes $OUTDIR/traffic-corpus/routes.jsonl --objects $OUTDIR/traffic-corpus/objects.jsonl --output $OUTDIR/cross-account/matrix.json
+    outputs:
+      - $OUTDIR/cross-account/matrix.json
+    evidence_dir: null
+    next:
+      if_findings: replay-corpus
+      if_no_findings: replay-corpus
+
+  replay-corpus:
+    description: Replay every corpus route across all persona pairs.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account/evidence && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action replay --matrix $OUTDIR/cross-account/matrix.json --persona-dir $OUTDIR/persona --samples $OUTDIR/traffic-corpus/samples.jsonl --output $OUTDIR/cross-account/replay_results.jsonl --rate-limit ${RATE_LIMIT:-25}
+    outputs:
+      - $OUTDIR/cross-account/replay_results.jsonl
+    evidence_dir: $OUTDIR/cross-account/evidence/
+    detection_signals:
+      - "200 where 403/404 expected for cross-account access"
+      - "private fields in unauthorized persona response"
+    false_positives:
+      - "public resources accessible to all users"
+      - "cached responses that do not reflect real auth state"
+    safety:
+      requires_scope: true
+    next:
+      if_findings: diff-responses
+      if_no_findings: diff-responses
+
+  replay-route:
+    description: Test a single route across all persona pairs.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account/evidence && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action replay-route --persona-dir $OUTDIR/persona --route "${REPLAY_URL:?Set REPLAY_URL}" --method "${REPLAY_METHOD:-GET}" --output $OUTDIR/cross-account/route_replay.jsonl
+    outputs:
+      - $OUTDIR/cross-account/route_replay.jsonl
+    evidence_dir: $OUTDIR/cross-account/evidence/
+    next:
+      if_findings: diff-responses
+      if_no_findings: null
+
+  object-swap:
+    description: Swap object IDs between personas and replay.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account/evidence && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action object-swap --persona-dir $OUTDIR/persona --objects $OUTDIR/traffic-corpus/objects.jsonl --output $OUTDIR/cross-account/object_swap.jsonl --rate-limit ${RATE_LIMIT:-25}
+    outputs:
+      - $OUTDIR/cross-account/object_swap.jsonl
+    evidence_dir: $OUTDIR/cross-account/evidence/
+    next:
+      if_findings: diff-responses
+      if_no_findings: diff-responses
+
+  tenant-swap:
+    description: Test cross-tenant access behavior.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account/evidence && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action tenant-swap --persona-dir $OUTDIR/persona --routes $OUTDIR/traffic-corpus/routes.jsonl --output $OUTDIR/cross-account/tenant_swap.jsonl --rate-limit ${RATE_LIMIT:-25}
+    outputs:
+      - $OUTDIR/cross-account/tenant_swap.jsonl
+    evidence_dir: $OUTDIR/cross-account/evidence/
+    next:
+      if_findings: diff-responses
+      if_no_findings: null
+
+  role-downgrade:
+    description: Test if downgraded users retain access.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account/evidence && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action role-test --persona-dir $OUTDIR/persona --output $OUTDIR/cross-account/role_test.jsonl
+    outputs:
+      - $OUTDIR/cross-account/role_test.jsonl
+    evidence_dir: $OUTDIR/cross-account/evidence/
+    next:
+      if_findings: diff-responses
+      if_no_findings: null
+
+  anonymous-replay:
+    description: Test authenticated routes without credentials.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account/evidence && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action anonymous --routes $OUTDIR/traffic-corpus/routes.jsonl --output $OUTDIR/cross-account/anonymous_replay.jsonl --rate-limit ${RATE_LIMIT:-25}
+    outputs:
+      - $OUTDIR/cross-account/anonymous_replay.jsonl
+    evidence_dir: $OUTDIR/cross-account/evidence/
+    next:
+      if_findings: diff-responses
+      if_no_findings: null
+
+  diff-responses:
+    description: Diff replay results and flag unauthorized access.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action diff --replay-dir $OUTDIR/cross-account --output $OUTDIR/cross-account/findings.jsonl
+    outputs:
+      - $OUTDIR/cross-account/findings.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "positive diff signals: 200 vs expected 403, private fields, ownership mismatch"
+    next:
+      if_findings: evidence-pack
+      if_no_findings: null
+
+  evidence-pack:
+    description: Package confirmed finding with replay evidence.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cross-account/evidence/findings && \
+      python3 .claude/skills/cross-account/scripts/authz_replayer.py --context .bb/context.json --action evidence --findings $OUTDIR/cross-account/findings.jsonl --output-dir $OUTDIR/cross-account/evidence/findings
+    outputs: []
+    evidence_dir: $OUTDIR/cross-account/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  cross_account_replay: "Baseline owner request + attacker replay request + response diff"
+  object_swap_evidence: "Owner object response + unauthorized persona same-object response"

@@ -1,0 +1,213 @@
+# Archetype Signals — pattern library for archetype detection
+# Each line is a signal that archetype_classifier.py matches against recon corpus.
+# Grouped by archetype. Add new signals here and in domain.yaml.
+
+# --- media-platform ---
+video/mp4 content-type
+audio/mpeg content-type
+hls .m3u8
+dash .mpd
+wistia embed
+brightcove embed
+videojs
+jwplayer
+ffmpeg transcoding
+cloudinary
+imgix
+streaming platform
+adaptive bitrate
+upload subdomain
+player subdomain
+embed subdomain
+cdn subdomain
+watch endpoint
+private video
+unlisted video
+media library
+
+# --- developer-platform ---
+oauth2 authorization
+api keys
+swagger.json
+openapi.json
+graphql
+developer dashboard
+sdk download
+npm package
+pypi package
+webhook endpoint
+bearer token
+api versioning
+sandbox environment
+api reference docs
+rate limiting
+client_id
+client_secret
+
+# --- billing-saas ---
+stripe checkout
+paddle.js
+paypal subscription
+braintree
+adyen
+invoice management
+subscription management
+pricing plans
+billing dashboard
+receipt
+pci compliant
+payment method
+trial period
+downgrade
+proration
+
+# --- collaboration-saas ---
+team workspace
+share link
+comment thread
+role assignment
+realtime collaboration
+websocket
+pubnub
+pusher
+notification system
+mention feature
+rich text editor
+prosemirror
+slate
+concurrent editing
+board view
+kanban
+document sharing
+
+# --- storage-platform ---
+file upload
+signed url
+download subdomain
+folder sharing
+share link
+drag and drop upload
+file versioning
+trash
+recycle bin
+file preview
+storage quota
+cloud drive
+sync client
+file proxy
+
+# --- marketplace ---
+seller dashboard
+payout processing
+listing management
+order tracking
+review system
+escrow
+dispute resolution
+stripe connect
+shop
+cart
+commissions
+
+# --- ai-product ---
+openai api
+anthropic api
+langchain
+llama index
+pinecone
+weaviate
+qdrant
+mcp server
+model selection
+prompt engineering
+streaming response
+token counting
+rag
+retrieval augmented generation
+autonomous agent
+llm tool call
+chat endpoint
+completions endpoint
+embeddings endpoint
+
+# --- mobile-api-backend ---
+apk download
+ipa download
+push notification
+fcm
+firebase cloud messaging
+apns
+device token
+deep link
+url scheme
+appsflyer
+mixpanel
+react native
+flutter
+mobile sdk
+
+# --- cdn-heavy ---
+cloudfront
+cloudflare
+fastly
+akamai
+keycdn
+bunnycdn
+stackpath
+maxcdn
+origin subdomain
+cache control
+vary header
+x-cache
+x-served-by
+s3 origin
+cdn hostname
+
+# --- auth-provider ---
+openid connect
+saml metadata
+social login
+single sign on
+sso
+mfa
+multi factor authentication
+passkeys
+webauthn
+jwt token
+scim provisioning
+ldap
+active directory
+identity provider
+auth0
+okta
+
+# --- realtime-app ---
+websocket upgrade
+pubnub sdk
+pusher sdk
+ably
+server sent events
+webrtc
+socket.io
+live streaming event
+realtime dashboard
+graphql subscriptions
+firebase realtime database
+firestore
+
+# --- ecommerce ---
+shopify
+magento
+woocommerce
+bigcommerce
+shopping cart
+product catalog
+checkout flow
+coupon code
+discount code
+order tracking
+inventory management
+wishlist
+shipping calculation
+gift card
+returns form

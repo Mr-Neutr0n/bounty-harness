@@ -1,0 +1,5 @@
+Cloud metadata endpoint returns 200 from SSRF check but is actually a captive portal redirect
+HTTP TRACE method detected as reflecting cookies but server strips Authorization header
+Generic PHP error page matched as SQL injection due to "mysql_fetch" in stack trace
+Nuclei template matched on status code 200 only without verifying response body content
+CORS Access-Control-Allow-Origin: * flagged as critical but endpoint is public CDN asset

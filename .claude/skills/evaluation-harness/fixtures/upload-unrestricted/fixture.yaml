@@ -1,0 +1,10 @@
+name: "upload-unrestricted"
+skill_tested: "file-upload"
+vulnerability_class: "unrestricted-file-upload"
+severity: "high"
+description: "File upload endpoint that accepts any file with no extension filtering or content-type validation"
+requirements:
+  port: 8085
+  timeout: 10
+positive_control: "POST with X-Filename: shell.php containing PHP code should save the file to uploads/"
+negative_control: "POST with X-Filename: document.txt containing plain text should save normally (benign upload)"

@@ -1,0 +1,98 @@
+id: api-graphql-introspection
+name: GraphQL Introspection and Operation Abuse
+category: api
+description: >
+  GraphQL endpoint exposes introspection queries in production, allowing
+  attackers to discover the entire schema (types, queries, mutations, fields
+  with descriptions). Combined with lack of:
+  (1) query depth limiting (deeply nested queries causing DoS via aliases),
+  (2) rate limiting on mutations (mass user creation, data modification),
+  (3) field-level authorization (accessing sensitive fields via relationships).
+  Introspection is the reconnaissance goldmine for GraphQL APIs.
+severity: medium
+standards:
+  wstg:
+    - WSTG-CONF-01
+  asvs:
+    - "V8.2.2"
+  api_top10:
+    - "API5:2023"
+  vrt:
+    - information_disclosure.graphql_introspection
+  cwe:
+    - CWE-200
+applies_to:
+  archetypes:
+    - developer-platform
+    - enterprise-api
+    - collaboration-saas
+  surfaces:
+    - graphql-endpoints
+    - api-endpoints
+requires:
+  auth: none
+  inputs:
+    - GraphQL endpoint URL
+    - Valid session if endpoint requires authentication
+  tools:
+    - curl
+    - graphql_client
+signals:
+  positive:
+    - Introspection query returns full schema
+    - Types, fields, and descriptions visible
+    - Mutations discovered (createUser, deleteAccount, updatePermissions)
+    - Sensitive field names in schema (ssn, apiKey, privateKey, internalNote)
+    - Deprecated fields in schema suggesting legacy auth or features
+    - No query cost analysis or depth limiting
+    - GraphiQL or GraphQL Playground enabled in production
+  negative:
+    - Introspection disabled in production (common best practice)
+    - Persisted queries only (no ad-hoc queries accepted)
+    - Query cost analysis rejects expensive queries
+    - Allowlist of allowed operations enforced
+    - Gateway or middleware blocks introspection queries
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl with introspection query and full schema response
+    - Extracted schema saved as GraphQL SDL or JSON
+    - List of discovered mutations (potential write vectors)
+    - List of sensitive fields discovered via schema analysis
+references:
+  urls:
+    - https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/
+    - https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: api
+  workflow: W3 (GraphQL testing)
+payload_families:
+  - name: introspection_full
+    description: Full schema introspection query
+    examples:
+      - "query { __schema { types { name fields { name } } } }"
+      - "query IntrospectionQuery { ...FullIntrospectionFragment }"
+  - name: batching
+    description: Batch multiple queries to bypass rate limits
+    examples:
+      - "[ {query: ...}, {query: ...}, ... ]"
+  - name: alias_dos
+    description: Use aliases to execute same expensive field many times
+    examples:
+      - "query { a1:field a2:field ... a999:field }"
+  - name: circular_fragments
+    description: Exploit circular fragments for recursion DoS
+    examples:
+      - "query { ...Recursive } fragment Recursive on Query { ...Recursive }"
+tags:
+  - graphql
+  - schema-discovery
+  - introspection
+  - information-disclosure
+  - query-abuse

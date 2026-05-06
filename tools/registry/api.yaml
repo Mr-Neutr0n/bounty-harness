@@ -1,0 +1,86 @@
+registry:
+  category: api
+  source: various
+  tools:
+    - name: kiterunner
+      repo: github.com/assetnote/kiterunner
+      install_method: go
+      binary: kr
+      version_cmd: "kr version"
+      health_cmd: "kr version"
+      capabilities:
+        - api_fuzz
+        - route_brute
+        - api_discovery
+        - swagger_probe
+        - content_discovery
+        - wordlist_brute
+      risk_tier: intrusive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - api
+        - recon
+
+    - name: graphw00f
+      repo: github.com/dolevf/graphw00f
+      install_method: pipx
+      binary: graphw00f
+      version_cmd: "graphw00f --version"
+      health_cmd: "graphw00f --help"
+      capabilities:
+        - graphql_fingerprint
+        - engine_detect
+        - waf_detect
+        - introspection_probe
+      risk_tier: passive
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - api
+
+    - name: graphql-cop
+      repo: github.com/dolevf/graphql-cop
+      install_method: pipx
+      binary: graphql-cop
+      version_cmd: "graphql-cop --version"
+      health_cmd: "graphql-cop --help"
+      capabilities:
+        - graphql_security
+        - introspection_check
+        - field_suggestion_check
+        - directive_check
+        - mutation_check
+        - dos_check
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - api
+
+    - name: clairvoyance
+      repo: github.com/nikitastupin/clairvoyance
+      install_method: pipx
+      binary: clairvoyance
+      version_cmd: "clairvoyance --version"
+      health_cmd: "clairvoyance --help"
+      capabilities:
+        - graphql_introspection
+        - schema_recovery
+        - type_enum
+        - field_enum
+        - bypass_introspection_off
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - api

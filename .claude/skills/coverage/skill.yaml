@@ -1,0 +1,63 @@
+name: coverage
+version: 1.0.0
+description: Coverage ledger — tracks what the toolkit covers and what is missing across WSTG, ASVS, API Top 10, and Bugcrowd VRT standards
+bounded_context: CoverageContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [info]
+tools_required:
+  - python3
+input_files:
+  - coverage_matrix.yaml
+workflows:
+  calculate:
+    description: Compute coverage percentages from the coverage matrix
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/coverage && \
+      python3 .claude/skills/coverage/scripts/coverage_calculator.py --matrix .claude/skills/coverage/coverage_matrix.yaml --output $OUTDIR/coverage/stats.json
+    outputs:
+      - $OUTDIR/coverage/stats.json
+    evidence_dir: $OUTDIR/coverage/evidence/
+    detection_signals:
+      - "JSON stats generated with per-standard coverage percentages"
+    false_positives: []
+    next:
+      if_findings: find-gaps
+      if_no_findings: find-gaps
+
+  find-gaps:
+    description: Identify highest-priority missing coverage items
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/coverage && \
+      python3 .claude/skills/coverage/scripts/gap_finder.py --matrix .claude/skills/coverage/coverage_matrix.yaml --output $OUTDIR/coverage/gaps.json --format json
+    outputs:
+      - $OUTDIR/coverage/gaps.json
+    evidence_dir: $OUTDIR/coverage/evidence/
+    detection_signals:
+      - "Prioritized list of missing coverage items with severity classification"
+    false_positives: []
+    next:
+      if_findings: report
+      if_no_findings: report
+
+  report:
+    description: Generate a comprehensive markdown coverage report
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/coverage && \
+      python3 .claude/skills/coverage/scripts/coverage_report.py --matrix .claude/skills/coverage/coverage_matrix.yaml --output $OUTDIR/coverage/coverage_report.md --format markdown
+    outputs:
+      - $OUTDIR/coverage/coverage_report.md
+    evidence_dir: $OUTDIR/coverage/evidence/
+    detection_signals:
+      - "Markdown report with dashboard, per-standard breakdown, and prioritized gaps"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  coverage_report: "Markdown coverage report with summary dashboard"
+  gap_list: "JSON list of high-priority gaps with suggested new skills"

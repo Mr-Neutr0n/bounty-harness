@@ -1,0 +1,663 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# bb-tools — Bug Bounty Agent Toolkit: tool lifecycle manager
+# Thin harness: no vulnerability logic, only registry and install operations.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+# Source context env for PATH if available
+[ -f .bb/context.env ] && source .bb/context.env 2>/dev/null || true
+export PATH="$HOME/.pdtm/go/bin:$HOME/go/bin:$PATH"
+
+REGISTRY_DIR="tools/registry"
+LOCK_FILE=".bb/tool-lock.json"
+mkdir -p .bb
+
+usage() {
+  cat <<'EOF'
+Usage: bb-tools <command> [options]
+
+Commands:
+  list [--installed | --missing]     List tools from registry
+  doctor [--skill <skill>]           Check tool health and versions
+  install --profile <profile>        Install a tool profile
+  install <tool-name>                Install a single tool
+  update [<tool-name>]               Update installed tools
+  lock                               Write .bb/tool-lock.json
+  verify                             Verify lock against installed versions
+
+Flags:
+  --dry-run                          Print commands without executing (install/update)
+
+Exit codes:
+  0  All good
+  1  Some tools missing
+  2  Install/update failed
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Python YAML helpers
+# ---------------------------------------------------------------------------
+
+# Parse all registry files into a flat JSON dict keyed by tool name.
+python_load_registry() {
+  python3 <<'PYEOF'
+import yaml, json, glob, sys
+
+PROFILE_MAP = {
+    "web-vulnerability": "web",
+    "projectdiscovery": "projectdiscovery",
+    "recon": "recon",
+    "api": "api",
+    "cloud": "cloud",
+    "mobile": "mobile",
+    "llm": "llm",
+    "system": "system",
+}
+
+registry = {}
+
+for f in sorted(glob.glob("tools/registry/*.yaml")):
+    try:
+        data = yaml.safe_load(open(f))
+        if not data or "registry" not in data:
+            continue
+        reg = data["registry"]
+        category = reg.get("category", "")
+        profile_name = PROFILE_MAP.get(category, category)
+        for tool in reg.get("tools", []):
+            name = tool.get("name")
+            if not name:
+                continue
+            entry = dict(tool)
+            entry["profile"] = profile_name
+            entry["source_file"] = f
+            im = entry.get("install_method", "unknown")
+            if im == "pipx":
+                entry["install_method"] = "pip"
+            elif im == "manual":
+                entry["install_method"] = "manual"
+            registry[name] = entry
+    except Exception as e:
+        print(f"WARN: failed to parse {f}: {e}", file=sys.stderr)
+
+print(json.dumps(registry))
+PYEOF
+}
+
+# Return newline-separated tools_required from all skills, or a single skill
+python_skill_tools() {
+  local skill_filter="${1:-}"
+  python3 <<PYEOF
+import yaml, glob, sys
+skills_dir = ".claude/skills"
+tools = set()
+for f in sorted(glob.glob(f"{skills_dir}/*/skill.yaml")):
+    try:
+        data = yaml.safe_load(open(f))
+        skill_name = data.get("name", "")
+        if "${skill_filter}" and skill_name != "${skill_filter}":
+            continue
+        for t in data.get("tools_required", []):
+            tools.add(t)
+    except Exception as e:
+        print(f"WARN: failed to parse {f}: {e}", file=sys.stderr)
+for t in sorted(tools):
+    print(t)
+PYEOF
+}
+
+# ---------------------------------------------------------------------------
+# Bash helpers
+# ---------------------------------------------------------------------------
+
+binary_on_path() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Extract a field from the registry JSON for a named tool
+registry_field() {
+  local name="$1" field="$2"
+  python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('$name',{}).get('$field',''))" 2>/dev/null
+}
+
+# Run a version command from registry or fallback flags.
+# Args: name binary version_cmd
+get_tool_version() {
+  local name="$1" binary="$2" vcmd="$3"
+  if [ -n "$vcmd" ]; then
+    bash -c "$vcmd" 2>&1 | python3 -c 'import sys; lines=[l.strip() for l in sys.stdin if l.strip()]; hits=[l for l in lines if "version" in l.lower() or "current" in l.lower()]; print((hits or lines or ["unknown"])[0])' || true
+    return 0
+  fi
+  local flags=("--version" "-version" "-V" "version")
+  local out=""
+  for f in "${flags[@]}"; do
+    out=$("$binary" "$f" 2>&1 | python3 -c 'import sys; lines=[l.strip() for l in sys.stdin if l.strip()]; hits=[l for l in lines if "version" in l.lower() or "current" in l.lower()]; print((hits or lines or [""])[0])' || true)
+    if [ -n "$out" ]; then
+      echo "$out"
+      return 0
+    fi
+  done
+  echo "unknown"
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+REGISTRY_JSON=""
+load_registry() {
+  if [ -z "$REGISTRY_JSON" ]; then
+    REGISTRY_JSON=$(python_load_registry)
+  fi
+}
+
+cmd_list() {
+  load_registry
+  local mode="${1:-all}"
+  local missing=0
+
+  if [ "$mode" = "installed" ]; then
+    echo "=== Installed tools ==="
+    echo "$REGISTRY_JSON" | python3 -c "
+import json,sys,shutil
+d=json.load(sys.stdin)
+for name in sorted(d):
+    info=d[name]
+    binary=info.get('binary',name)
+    if shutil.which(binary):
+        print(f'{name}  ({binary})')
+" 2>/dev/null
+  elif [ "$mode" = "missing" ]; then
+    echo "=== Tools referenced by skills but not on PATH ==="
+    local required
+    required=$(python_skill_tools "")
+    local req
+    while IFS= read -r req; do
+      [ -z "$req" ] && continue
+      local bin
+      bin=$(echo "$REGISTRY_JSON" | registry_field "$req" "binary")
+      [ -z "$bin" ] && bin="$req"
+      if ! binary_on_path "$bin"; then
+        echo "$req  (binary: $bin)"
+        missing=1
+      fi
+    done <<< "$required"
+    if [ "$missing" = "1" ]; then
+      return 1
+    fi
+    echo "All required tools are available."
+  else
+    echo "=== Registry tools ==="
+    echo "$REGISTRY_JSON" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+for name in sorted(d):
+    info=d[name]
+    print(f'{name}  method={info.get(\"install_method\",\"?\")}  binary={info.get(\"binary\",name)}')
+" 2>/dev/null
+  fi
+}
+
+cmd_doctor() {
+  load_registry
+  local skill_filter="${1:-}"
+  local tools_to_check=""
+  local missing=0
+  local unhealthy=0
+
+  if [ -n "$skill_filter" ]; then
+    echo "=== Doctor: skill=$skill_filter ==="
+    tools_to_check=$(python_skill_tools "$skill_filter")
+    if [ -z "$tools_to_check" ]; then
+      echo "ERROR: skill '$skill_filter' not found or has no tools_required"
+      return 1
+    fi
+  else
+    echo "=== Doctor: all registry tools ==="
+    tools_to_check=$(echo "$REGISTRY_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print('\n'.join(sorted(d)))" 2>/dev/null)
+  fi
+
+  local tool
+  while IFS= read -r tool; do
+    [ -z "$tool" ] && continue
+    local bin method vcmd
+    bin=$(echo "$REGISTRY_JSON" | registry_field "$tool" "binary")
+    [ -z "$bin" ] && bin="$tool"
+    method=$(echo "$REGISTRY_JSON" | registry_field "$tool" "install_method")
+    [ -z "$method" ] && method="unknown"
+    vcmd=$(echo "$REGISTRY_JSON" | registry_field "$tool" "version_cmd")
+
+    if binary_on_path "$bin"; then
+      local ver
+      ver=$(get_tool_version "$tool" "$bin" "$vcmd" 2>/dev/null || echo "unknown")
+      printf "%-22s  %-10s  OK   %s\n" "$tool" "$method" "$ver"
+    else
+      printf "%-22s  %-10s  MISSING\n" "$tool" "$method"
+      missing=1
+      if [ "$method" != "system" ]; then
+        unhealthy=1
+      fi
+    fi
+  done <<< "$tools_to_check"
+
+  if [ "$missing" = "1" ]; then
+    echo ""
+    echo "Some tools are missing."
+    return 1
+  fi
+  echo ""
+  echo "All checked tools are healthy."
+}
+
+cmd_install() {
+  load_registry
+  local target="$1"
+  local dry_run="${2:-false}"
+  local failed=0
+
+  local tools_list=""
+  if [ "$target" = "--profile" ]; then
+    local profile="$2"
+    dry_run="${3:-false}"
+    tools_list=$(echo "$REGISTRY_JSON" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+for name,info in d.items():
+    if info.get('profile','') == '$profile' or info.get('profile','') == '$profile':
+        print(name)
+" 2>/dev/null)
+    if [ -z "$tools_list" ]; then
+      echo "ERROR: no tools found for profile '$profile'"
+      return 2
+    fi
+    echo "=== Install profile: $profile ==="
+  else
+    tools_list="$target"
+    echo "=== Install tool: $target ==="
+  fi
+
+  local tool
+  while IFS= read -r tool; do
+    [ -z "$tool" ] && continue
+
+    local bin method repo vcmd
+    bin=$(echo "$REGISTRY_JSON" | registry_field "$tool" "binary")
+    [ -z "$bin" ] && bin="$tool"
+    method=$(echo "$REGISTRY_JSON" | registry_field "$tool" "install_method")
+    [ -z "$method" ] && method="unknown"
+    repo=$(echo "$REGISTRY_JSON" | registry_field "$tool" "repo")
+
+    if binary_on_path "$bin"; then
+      echo "$tool: already installed ($bin)"
+      continue
+    fi
+
+    if [ "$method" = "system" ]; then
+      echo "$tool: system tool — cannot install automatically"
+      continue
+    fi
+
+    if [ "$method" = "manual" ]; then
+      echo "$tool: manual install required (see $REGISTRY_DIR/*.yaml)"
+      failed=1
+      continue
+    fi
+
+    # Build install command
+    local cmd=""
+    case "$method" in
+      pdtm)
+        cmd="pdtm -install $tool"
+        ;;
+      brew)
+        cmd="brew install $tool"
+        ;;
+      go)
+        if [ -z "$repo" ]; then
+          echo "$tool: missing repo for go install"
+          failed=1
+          continue
+        fi
+        cmd="go install ${repo}@latest"
+        ;;
+      pip)
+        cmd="python3 -m pip install $tool"
+        ;;
+      *)
+        echo "$tool: unknown install_method '$method'"
+        failed=1
+        continue
+        ;;
+    esac
+
+    echo "  → $cmd"
+    if [ "$dry_run" = "true" ]; then
+      continue
+    fi
+
+    if eval "$cmd"; then
+      echo "$tool: installed successfully"
+    else
+      echo "$tool: install failed (command: $cmd)"
+      failed=1
+    fi
+  done <<< "$tools_list"
+
+  if [ "$failed" = "1" ]; then
+    return 2
+  fi
+}
+
+cmd_update() {
+  load_registry
+  local target="${1:-}"
+  local dry_run="${2:-false}"
+  local failed=0
+
+  local tools_list=""
+  if [ -z "$target" ]; then
+    # Update all installed tools known in registry
+    tools_list=$(echo "$REGISTRY_JSON" | python3 -c "
+import json,sys,shutil
+d=json.load(sys.stdin)
+for name in sorted(d):
+    if shutil.which(d[name].get('binary',name)):
+        print(name)
+" 2>/dev/null)
+    echo "=== Update all installed registry tools ==="
+  else
+    tools_list="$target"
+    echo "=== Update tool: $target ==="
+  fi
+
+  local tool
+  while IFS= read -r tool; do
+    [ -z "$tool" ] && continue
+    local bin method repo
+    bin=$(echo "$REGISTRY_JSON" | registry_field "$tool" "binary")
+    [ -z "$bin" ] && bin="$tool"
+    method=$(echo "$REGISTRY_JSON" | registry_field "$tool" "install_method")
+    [ -z "$method" ] && method="unknown"
+    repo=$(echo "$REGISTRY_JSON" | registry_field "$tool" "repo")
+
+    if ! binary_on_path "$bin"; then
+      echo "$tool: not installed, skipping update"
+      continue
+    fi
+
+    if [ "$method" = "system" ] || [ "$method" = "manual" ]; then
+      echo "$tool: $method tool — skipping"
+      continue
+    fi
+
+    local cmd=""
+    case "$method" in
+      pdtm)
+        cmd="pdtm -update $tool"
+        ;;
+      brew)
+        cmd="brew upgrade $tool"
+        ;;
+      go)
+        if [ -z "$repo" ]; then
+          echo "$tool: missing repo for go update"
+          failed=1
+          continue
+        fi
+        cmd="go install ${repo}@latest"
+        ;;
+      pip)
+        cmd="python3 -m pip install --upgrade $tool"
+        ;;
+      *)
+        echo "$tool: unknown install_method '$method'"
+        failed=1
+        continue
+        ;;
+    esac
+
+    echo "  → $cmd"
+    if [ "$dry_run" = "true" ]; then
+      continue
+    fi
+
+    if eval "$cmd"; then
+      echo "$tool: updated successfully"
+    else
+      echo "$tool: update failed (command: $cmd)"
+      failed=1
+    fi
+  done <<< "$tools_list"
+
+  if [ "$failed" = "1" ]; then
+    return 2
+  fi
+}
+
+cmd_lock() {
+  load_registry
+  echo "=== Writing $LOCK_FILE ==="
+  local ts
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  local tmpjson
+  tmpjson=$(mktemp)
+  echo "$REGISTRY_JSON" > "$tmpjson"
+
+  python3 <<PYEOF > "$LOCK_FILE"
+import json, sys, shutil, subprocess
+from datetime import datetime, timezone
+
+ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+with open("$tmpjson") as f:
+    registry = json.load(f)
+
+lock = {"timestamp": ts, "tools": {}}
+
+def select_version_line(text):
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    hits = [line for line in lines if "version" in line.lower() or "current" in line.lower()]
+    return (hits or lines or ["unknown"])[0]
+
+for name in sorted(registry):
+    info = registry[name]
+    binary = info.get("binary", name)
+    path = shutil.which(binary)
+    if not path:
+        continue
+    version = "unknown"
+    vcmd = info.get("version_cmd", "")
+    if vcmd:
+        try:
+            result = subprocess.run(vcmd, shell=True, capture_output=True, text=True, timeout=5)
+            version = select_version_line(result.stdout or result.stderr or "")
+        except Exception:
+            pass
+    else:
+        for flag in ["--version", "-version", "-V"]:
+            try:
+                result = subprocess.run([path, flag], capture_output=True, text=True, timeout=5)
+                version = select_version_line(result.stdout or result.stderr or "")
+                if version != "unknown":
+                    break
+            except Exception:
+                pass
+    lock["tools"][name] = {
+        "binary_path": path,
+        "version": version,
+        "install_method": info.get("install_method", "unknown"),
+        "timestamp": ts
+    }
+
+json.dump(lock, sys.stdout, indent=2)
+PYEOF
+
+  rm -f "$tmpjson"
+
+  local count
+  count=$(echo "$REGISTRY_JSON" | python3 -c "import json,sys,shutil; d=json.load(sys.stdin); print(sum(1 for n in d if shutil.which(d[n].get('binary',n))))" 2>/dev/null)
+  echo "Locked $count tools to $LOCK_FILE"
+}
+
+cmd_verify() {
+  load_registry
+  if [ ! -f "$LOCK_FILE" ]; then
+    echo "ERROR: $LOCK_FILE not found. Run 'bb-tools lock' first."
+    return 1
+  fi
+
+  echo "=== Verifying $LOCK_FILE ==="
+  local tmpjson
+  tmpjson=$(mktemp)
+  echo "$REGISTRY_JSON" > "$tmpjson"
+  set +e
+  python3 <<PYEOF
+import json, sys, shutil, subprocess
+
+with open("$LOCK_FILE") as f:
+    lock = json.load(f)
+with open("$tmpjson") as f:
+    registry = json.load(f)
+
+def current_version(name, binary_path):
+    info = registry.get(name, {})
+    vcmd = info.get("version_cmd", "")
+    if vcmd:
+        try:
+            result = subprocess.run(vcmd, shell=True, capture_output=True, text=True, timeout=5)
+            selected = select_version_line(result.stdout or result.stderr or "")
+            if selected != "unknown":
+                return selected
+        except Exception:
+            pass
+    for flag in ["--version", "-version", "-V", "version"]:
+        try:
+            result = subprocess.run([binary_path, flag], capture_output=True, text=True, timeout=5)
+            selected = select_version_line(result.stdout or result.stderr or "")
+            if selected != "unknown":
+                return selected
+        except Exception:
+            pass
+    return "unknown"
+
+def select_version_line(text):
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    hits = [line for line in lines if "version" in line.lower() or "current" in line.lower()]
+    return (hits or lines or ["unknown"])[0]
+
+mismatch = False
+for name, info in sorted(lock.get("tools", {}).items()):
+    reg = registry.get(name, {})
+    binary = reg.get("binary") or info.get("binary_path", "").split("/")[-1] or name
+    path = shutil.which(binary)
+    if not path:
+        print(f"{name}  MISSING  (expected at {info.get('binary_path')})")
+        mismatch = True
+        continue
+    version = current_version(name, path)
+    locked_ver = info.get("version", "unknown")
+    if version != locked_ver:
+        print(f"{name}  MISMATCH  locked={locked_ver}  current={version}")
+        mismatch = True
+    else:
+        print(f"{name}  OK  {version}")
+
+sys.exit(1 if mismatch else 0)
+PYEOF
+
+  local rc=$?
+  set -e
+  rm -f "$tmpjson"
+  if [ $rc -ne 0 ]; then
+    echo ""
+    echo "Verification failed: some tools are missing or have changed versions."
+    return 1
+  fi
+  echo ""
+  echo "All locked tools verified successfully."
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+main() {
+  if [ $# -eq 0 ]; then
+    usage
+    exit 1
+  fi
+
+  local cmd="$1"
+  shift
+
+  local dry_run="false"
+  local args=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run)
+        dry_run="true"
+        shift ;;
+      *)
+        args+=("$1")
+        shift ;;
+    esac
+  done
+
+  case "$cmd" in
+    list)
+      local mode="all"
+      if [ "${args[0]:-}" = "--installed" ]; then
+        mode="installed"
+      elif [ "${args[0]:-}" = "--missing" ]; then
+        mode="missing"
+      fi
+      cmd_list "$mode"
+      ;;
+    doctor)
+      local skill=""
+      if [ "${args[0]:-}" = "--skill" ] && [ -n "${args[1]:-}" ]; then
+        skill="${args[1]}"
+      fi
+      cmd_doctor "$skill"
+      ;;
+    install)
+      if [ "${args[0]:-}" = "--profile" ] && [ -n "${args[1]:-}" ]; then
+        cmd_install "--profile" "${args[1]}" "$dry_run"
+      elif [ -n "${args[0]:-}" ]; then
+        cmd_install "${args[0]}" "$dry_run"
+      else
+        echo "Usage: bb-tools install --profile <profile> | <tool-name> [--dry-run]"
+        exit 1
+      fi
+      ;;
+    update)
+      if [ -n "${args[0]:-}" ]; then
+        cmd_update "${args[0]}" "$dry_run"
+      else
+        cmd_update "" "$dry_run"
+      fi
+      ;;
+    lock)
+      cmd_lock
+      ;;
+    verify)
+      cmd_verify
+      ;;
+    -h|--help|help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "ERROR: unknown command '$cmd'"
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

@@ -1,0 +1,127 @@
+name: modern-browser
+version: 1.0.0
+description: Modern browser security testing — WebGPU, WASM, XS-Leaks, COOP/COEP/CORP, browser fingerprinting
+bounded_context: BrowserContext
+owasp_wstg:
+  - WSTG-CLNT-01
+  - WSTG-CLNT-02
+  - WSTG-CLNT-03
+  - WSTG-CLNT-12
+  - WSTG-CLNT-13
+owasp_api_top10: []
+severity_range: [info, low, medium]
+tools_required:
+  - curl
+  - python3
+  - playwright
+  - nuclei
+input_files:
+  - live_urls.txt
+  - js_files.txt
+workflows:
+  webgpu-exposure:
+    description: Detect WebGPU availability and fingerprinting surface
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/modern-browser/scripts/webgpu_probe.py --context .bb/context.json --url $TARGET_URL --output $OUTDIR/modern-browser/webgpu.json
+    outputs:
+      - $OUTDIR/modern-browser/webgpu.json
+    evidence_dir: $OUTDIR/modern-browser/evidence/
+    detection_signals:
+      - "WebGPU API available"
+      - "adapter info exposed"
+      - "limits reveal GPU family"
+    false_positives:
+      - "WebGPU not enabled"
+      - "disabled in browser flags"
+    next:
+      if_findings: wasm-audit
+      if_no_findings: cross-origin-isolation
+
+  wasm-audit:
+    description: Audit WebAssembly modules for exposed capabilities
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/modern-browser/scripts/wasm_analyzer.py --context .bb/context.json --js-dir $OUTDIR/js_downloads/ --output $OUTDIR/modern-browser/wasm.jsonl
+    outputs:
+      - $OUTDIR/modern-browser/wasm.jsonl
+    evidence_dir: $OUTDIR/modern-browser/evidence/
+    detection_signals:
+      - "WASM modules found"
+      - "suspicious imports detected"
+      - "excessive memory"
+    false_positives:
+      - "standard WASM runtime imports"
+      - "polyfill modules"
+    next:
+      if_findings: cross-origin-isolation
+      if_no_findings: cross-origin-isolation
+
+  cross-origin-isolation:
+    description: Check COOP/COEP/CORP headers and SharedArrayBuffer status
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/modern-browser/scripts/cross_origin_auditor.py --context .bb/context.json --urls $OUTDIR/live_urls.txt --output $OUTDIR/modern-browser/coi.jsonl
+    outputs:
+      - $OUTDIR/modern-browser/coi.jsonl
+    evidence_dir: $OUTDIR/modern-browser/evidence/
+    detection_signals:
+      - "missing COOP header"
+      - "missing COEP header"
+      - "CORP misconfigured"
+    false_positives:
+      - "no sensitive data requiring isolation"
+    next:
+      if_findings: xsleak-probe
+      if_no_findings: xsleak-probe
+
+  xsleak-probe:
+    description: Test for cross-site leak vulnerabilities
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/modern-browser/scripts/xsleak_probe.py --context .bb/context.json --url $TARGET_URL --output $OUTDIR/modern-browser/xsleak.jsonl
+    outputs:
+      - $OUTDIR/modern-browser/xsleak.jsonl
+    evidence_dir: $OUTDIR/modern-browser/evidence/
+    detection_signals:
+      - "frame count timing leak"
+      - "CSS injection timing"
+      - "fetch timing differential"
+    false_positives:
+      - "natural network latency"
+      - "same-origin only"
+    next:
+      if_findings: browser-fingerprint
+      if_no_findings: browser-fingerprint
+
+  browser-fingerprint:
+    description: Identify browser fingerprinting surface from target headers
+    inputs: [TARGET_URL, OUTDIR]
+    command: |
+      curl -sI $TARGET_URL | grep -iE 'server|x-powered-by|x-generator|x-drupal|x-frame-options|x-content-type-options' > $OUTDIR/modern-browser/headers.txt
+    outputs:
+      - $OUTDIR/modern-browser/headers.txt
+    evidence_dir: $OUTDIR/modern-browser/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: evidence
+      if_no_findings: evidence
+
+  evidence:
+    description: Collect evidence for modern browser findings
+    inputs: [OUTDIR, EVIDENCE_DIR]
+    command: |
+      mkdir -p $EVIDENCE_DIR/modern-browser/ && cp $OUTDIR/modern-browser/*.json $EVIDENCE_DIR/modern-browser/ 2>/dev/null; date -u +%Y-%m-%dT%H:%M:%SZ > $EVIDENCE_DIR/modern-browser/timestamp.txt
+    outputs:
+      - $EVIDENCE_DIR/modern-browser/
+    evidence_dir: $EVIDENCE_DIR/modern-browser/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  webgpu: "Screenshot of navigator.gpu and adapter info"
+  wasm_audit: "List of WASM imports/exports with suspicious flags"

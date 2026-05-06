@@ -1,0 +1,114 @@
+name: xss
+version: 2.0.0
+description: Cross-Site Scripting detection — reflected, stored, DOM, blind, CSP bypass, mXSS, and WAF bypass
+bounded_context: InjectionContext
+owasp_wstg:
+  - WSTG-CLNT-01
+  - WSTG-CLNT-02
+owasp_api_top10: []
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - curl
+  - ffuf
+  - dalfox
+  - arjun
+  - nuclei
+  - python3
+  - playwright
+  - wafw00f
+input_files:
+  - parameterized_urls.txt
+  - all_urls.txt
+  - js_files.txt
+workflows:
+  dalfox-safe:
+    description: Automated XSS scanning with dalfox on parameterized URLs (safe mode)
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/xss/dalfox && \
+      python3 .claude/skills/xss/scripts/dalfox_runner.py --context .bb/context.json --urls $OUTDIR/recon/scoped/parameterized_urls.txt --output $OUTDIR/xss/dalfox/findings.jsonl
+    outputs:
+      - $OUTDIR/xss/dalfox/findings.jsonl
+    evidence_dir: $OUTDIR/xss/dalfox/evidence/
+    next:
+      if_findings: csp-analysis
+      if_no_findings: csp-analysis
+
+  reflected:
+    description: Detect reflected XSS in parameterized URLs.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/xss/reflected && \
+      python3 .claude/skills/xss/scripts/xss_reflected_probe.py --context .bb/context.json --urls $OUTDIR/urls/parameterized_urls.txt --output $OUTDIR/xss/reflected/findings.jsonl
+    outputs:
+      - $OUTDIR/xss/reflected/findings.jsonl
+    evidence_dir: $OUTDIR/xss/reflected/evidence/
+    detection_signals:
+      - "payload is reflected in an executable browser context"
+      - "response preserves dangerous markup or JavaScript syntax"
+    false_positives:
+      - "payload is reflected but safely encoded or sandboxed"
+      - "CSP prevents exploitability despite reflection"
+    next:
+      if_findings: dom
+      if_no_findings: dom
+
+  dom:
+    description: Scan downloaded JavaScript for DOM XSS sources and sinks.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/xss/dom && \
+      python3 .claude/skills/xss/scripts/xss_dom_sink_scanner.py --context .bb/context.json --js-dir $OUTDIR/recon/js/js_downloads/ --output $OUTDIR/xss/dom/findings.jsonl
+    outputs:
+      - $OUTDIR/xss/dom/findings.jsonl
+    evidence_dir: $OUTDIR/xss/dom/evidence/
+    detection_signals:
+      - "URL, hash, storage, or postMessage sources flow into dangerous DOM sinks"
+      - "unsafe APIs such as innerHTML, eval, or document.write consume tainted data"
+    false_positives:
+      - "scanner cannot resolve sanitizer or unreachable code path"
+      - "downloaded JS is third-party code outside assessed ownership"
+    next:
+      if_findings: csp-analysis
+      if_no_findings: csp-analysis
+
+  csp-analysis:
+    description: Fetch and analyze the target page Content-Security-Policy.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/xss/csp && \
+      python3 .claude/skills/xss/scripts/csp_analyzer.py --context .bb/context.json --url $TARGET_URL > $OUTDIR/xss/csp/analysis.txt
+    outputs:
+      - $OUTDIR/xss/csp/analysis.txt
+    evidence_dir: $OUTDIR/xss/csp/evidence/
+    detection_signals:
+      - "CSP contains unsafe-inline, unsafe-eval, broad wildcards, or missing base-uri"
+      - "policy gaps increase impact of otherwise limited XSS"
+    false_positives:
+      - "CSP applies only to a page without script execution surface"
+      - "nonces or hashes are correctly enforced despite other weak directives"
+    next:
+      if_findings: context-encoder
+      if_no_findings: context-encoder
+
+  context-encoder:
+    description: Generate encoded variants for an operator-supplied XSS payload.
+    inputs: [XSS_PAYLOAD, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/xss/encoder && \
+      python3 .claude/skills/xss/scripts/xss_context_encoder.py --context .bb/context.json --payload "${XSS_PAYLOAD:?Set XSS_PAYLOAD}" --encodings "${XSS_ENCODINGS:-}" > $OUTDIR/xss/encoder/payloads.txt
+    outputs:
+      - $OUTDIR/xss/encoder/payloads.txt
+    evidence_dir: $OUTDIR/xss/encoder/evidence/
+    detection_signals:
+      - "encoded payload variants are generated for manual context-specific testing"
+    false_positives:
+      - "payload generation alone does not prove target vulnerability"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  xss_screenshot: "Playwright screenshot showing alert/script execution"
+  poc_html: "HTML PoC page reproducing the XSS"
+  dalfox_output: "Dalfox automated XSS scanner findings"

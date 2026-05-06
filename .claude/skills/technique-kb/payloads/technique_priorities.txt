@@ -1,0 +1,53 @@
+# Technique Priority Ordering for Planner
+# Order techniques should be attempted, based on:
+# - Non-intrusive first (safe reconnaissance)
+# - Low-privilege before high-privilege
+# - High-confidence before low-confidence
+# - Quick wins before deep analysis
+
+# Priority 1: Passive Discovery (no requests to target)
+1. api-graphql-introspection
+
+# Priority 2: Unauthenticated, no data modification
+2. xss-reflected-get
+3. cors-csrf-misconfig
+4. cloud-s3-open-bucket
+5. cloud-dangling-dns
+
+# Priority 3: Unauthenticated with minor intrusiveness
+6. ssrf-basic-probe
+7. ssrf-blind-oob
+8. sqli-error-based
+9. rce-lfi
+
+# Priority 4: Authenticated, single account, no data modification
+10. xss-dom-sink
+11. cors-csrf-csrf-token-missing
+12. sqli-boolean-blind
+13. api-graphql-introspection
+14. xss-blind
+
+# Priority 5: Authenticated, two accounts needed
+15. api-bola-id-swap
+
+# Priority 6: Authenticated, data modifying
+16. xss-stored
+17. file-upload-svg-xss
+
+# Priority 7: Highly intrusive, requires approval
+18. sqli-time-blind
+19. ssrf-cloud-metadata
+20. rce-command-injection
+21. rce-ssti
+22. api-mass-assignment
+23. file-upload-extension-bypass
+24. http-smuggling-cl-te
+25. http-cache-poison
+26. ai-llm-prompt-injection
+27. ai-llm-tool-abuse
+28. race-concurrent-requests
+29. webhooks-ssrf-via-webhook
+30. billing-price-manipulation
+31. auth-jwt-none-alg
+32. auth-oauth-redirect
+33. auth-session-fixation

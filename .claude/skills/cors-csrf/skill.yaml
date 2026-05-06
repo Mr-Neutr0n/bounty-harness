@@ -1,0 +1,98 @@
+name: cors-csrf
+version: 2.0.0
+description: CORS misconfiguration and CSRF testing — origin reflection, cross-origin attacks, SameSite bypass, postMessage validation
+bounded_context: WebSecurityContext
+owasp_wstg:
+  - WSTG-CLNT-07
+  - WSTG-SESS-05
+owasp_api_top10: []
+severity_range: [low, medium, high]
+tools_required:
+  - curl
+  - ffuf
+  - python3
+  - playwright
+input_files:
+  - live_urls.txt
+  - all_urls.txt
+workflows:
+  cors-matrix:
+    description: Test CORS origin reflection, credentialed CORS, and null-origin cases.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/cors && \
+      python3 .claude/skills/cors-csrf/scripts/cors_matrix_tester.py --context .bb/context.json --target-url $TARGET_URL --output $OUTDIR/cors/findings.jsonl
+    outputs:
+      - $OUTDIR/cors/findings.jsonl
+    evidence_dir: $OUTDIR/cors/evidence/
+    detection_signals:
+      - "Access-Control-Allow-Origin reflects an untrusted origin"
+      - "credentialed CORS is enabled for arbitrary origins"
+    false_positives:
+      - "endpoint only exposes public, non-sensitive data"
+      - "browser credential rules prevent exploitability"
+    next:
+      if_findings: csrf-poc
+      if_no_findings: csrf-poc
+
+  csrf-poc:
+    description: Generate a CSRF proof-of-concept for a known state-changing endpoint.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/csrf && \
+      python3 .claude/skills/cors-csrf/scripts/csrf_poc_generator.py --context .bb/context.json --target-url $TARGET_URL --method ${CSRF_METHOD:-POST} --params ${CSRF_PARAMS:?Set CSRF_PARAMS as space-separated key=value pairs} --output $OUTDIR/csrf/poc.html
+    outputs:
+      - $OUTDIR/csrf/poc.html
+    evidence_dir: $OUTDIR/csrf/evidence/
+    detection_signals:
+      - "PoC form can reproduce the target state-changing request"
+      - "request requires no anti-CSRF token or origin-bound secret"
+    false_positives:
+      - "endpoint requires re-authentication or a fresh CSRF token"
+      - "SameSite settings prevent browser-delivered cookies"
+    next:
+      if_findings: samesite-bypass
+      if_no_findings: samesite-bypass
+
+  samesite-bypass:
+    description: Analyze SameSite cookie attributes and bypass scenarios.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/samesite && \
+      python3 .claude/skills/cors-csrf/scripts/samesite_bypass_tester.py --context .bb/context.json --target-url $TARGET_URL --output $OUTDIR/samesite/findings.jsonl
+    outputs:
+      - $OUTDIR/samesite/findings.jsonl
+    evidence_dir: $OUTDIR/samesite/evidence/
+    detection_signals:
+      - "cookies are sent in a cross-site scenario that enables state change"
+      - "SameSite=None lacks Secure or Lax/Strict assumptions are bypassable"
+    false_positives:
+      - "cookie is not used for authentication"
+      - "application has independent CSRF validation"
+    next:
+      if_findings: postmessage
+      if_no_findings: postmessage
+
+  postmessage:
+    description: Audit postMessage handlers for missing origin checks and dangerous sinks.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/postmessage && \
+      python3 .claude/skills/cors-csrf/scripts/postmessage_auditor.py --context .bb/context.json --url $TARGET_URL --output $OUTDIR/postmessage/findings.jsonl
+    outputs:
+      - $OUTDIR/postmessage/findings.jsonl
+    evidence_dir: $OUTDIR/postmessage/evidence/
+    detection_signals:
+      - "message handler accepts data from arbitrary origins"
+      - "message data flows to DOM sinks or privileged actions"
+    false_positives:
+      - "handler validates origin in a helper the scanner cannot resolve"
+      - "sink is unreachable from attacker-controlled frames"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  cors_poc: "CORS exploit HTML demonstrating cross-origin data theft"
+  csrf_poc: "CSRF exploit HTML auto-submitting state-changing request"
+  postmessage_poc: "HTML page exploiting missing origin check in postMessage listener"

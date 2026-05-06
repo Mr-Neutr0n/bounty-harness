@@ -1,0 +1,31 @@
+id: anonymous_replay
+name: Anonymous Replay of Authenticated Routes
+category: authorization
+severity: high
+description: Replay authenticated-only routes without any credentials to detect missing authentication enforcement.
+preconditions:
+  auth_required: none
+  tools: [curl, python3, jq]
+  inputs: [traffic-corpus/routes.jsonl]
+  personas_required: 0
+workflow: cross-account/anonymous-replay
+detection_signals:
+  positive:
+    - "Authenticated route returns 200 without credentials"
+    - "Sensitive data exposed to unauthenticated request"
+  negative:
+    - "All authenticated routes return 401/403/302"
+evidence_required:
+  - "Request without auth headers"
+  - "Response showing unauthorized access to protected resource"
+false_positives:
+  - "Endpoint is intentionally public"
+  - "Redirect to login is correct behavior"
+standards:
+  owasp_wstg: [WSTG-ATHN-01]
+  owasp_api_top10: [API2:2023]
+references:
+  - "https://portswigger.net/web-security/access-control"
+safety:
+  risk_tier: active-safe
+  data_modifying: false

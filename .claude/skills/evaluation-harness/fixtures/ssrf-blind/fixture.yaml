@@ -1,0 +1,10 @@
+name: "ssrf-blind"
+skill_tested: "ssrf"
+vulnerability_class: "server-side-request-forgery"
+severity: "high"
+description: "Endpoint that fetches a user-supplied URL without restricting internal or loopback addresses"
+requirements:
+  port: 8083
+  timeout: 10
+positive_control: "GET /fetch?url=http://127.0.0.1:8083/ should successfully fetch the local server (SSRF)"
+negative_control: "GET /fetch?url=http://example.com should fetch the external URL without exposing internal data"

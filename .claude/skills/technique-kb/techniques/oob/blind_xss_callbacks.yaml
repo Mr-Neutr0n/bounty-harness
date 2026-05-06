@@ -1,0 +1,30 @@
+id: blind_xss_callbacks
+name: Blind XSS via OOB Callback
+category: oob
+severity: high
+description: Inject XSS payloads that trigger OOB callbacks when rendered, detecting blind XSS in admin panels, support tools, and internal dashboards.
+preconditions:
+  auth_required: optional
+  tools: [curl, python3, interactsh-client, jq]
+  inputs: [parameterized_urls.txt]
+  personas_required: 0
+workflow: oob-infra/generate-canary
+detection_signals:
+  positive:
+    - "OOB callback received from target after payload injection"
+    - "DNS or HTTP interaction with canary URL"
+  negative:
+    - "No callbacks received within polling window"
+    - "Payload sanitized before rendering"
+evidence_required:
+  - "Payload injected with unique canary identifier"
+  - "Interaction record with timestamp and protocol"
+false_positives:
+  - "Callback from non-target infrastructure"
+standards:
+  owasp_wstg: [WSTG-INPV-07]
+references:
+  - "https://portswigger.net/web-security/cross-site-scripting/blind"
+safety:
+  risk_tier: active-safe
+  data_modifying: false

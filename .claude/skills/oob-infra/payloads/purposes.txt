@@ -1,0 +1,5 @@
+oob-ssrf-canary
+oob-blind-xxe
+oob-ssti-callback
+oob-mail-injection
+oob-dns-rebinding

@@ -1,0 +1,153 @@
+source: "https://cwe.mitre.org/top25/archive/2024/2024_cwe_top25.html"
+year: 2024
+entries:
+  - id: "CWE-79"
+    name: "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+    rank: 1
+  - id: "CWE-787"
+    name: "Out-of-bounds Write"
+    rank: 2
+  - id: "CWE-89"
+    name: "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+    rank: 3
+  - id: "CWE-352"
+    name: "Cross-Site Request Forgery (CSRF)"
+    rank: 4
+  - id: "CWE-22"
+    name: "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+    rank: 5
+  - id: "CWE-125"
+    name: "Out-of-bounds Read"
+    rank: 6
+  - id: "CWE-78"
+    name: "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+    rank: 7
+  - id: "CWE-416"
+    name: "Use After Free"
+    rank: 8
+  - id: "CWE-862"
+    name: "Missing Authorization"
+    rank: 9
+  - id: "CWE-434"
+    name: "Unrestricted Upload of File with Dangerous Type"
+    rank: 10
+  - id: "CWE-94"
+    name: "Improper Control of Generation of Code ('Code Injection')"
+    rank: 11
+  - id: "CWE-20"
+    name: "Improper Input Validation"
+    rank: 12
+  - id: "CWE-77"
+    name: "Improper Neutralization of Special Elements used in a Command ('Command Injection')"
+    rank: 13
+  - id: "CWE-287"
+    name: "Improper Authentication"
+    rank: 14
+  - id: "CWE-269"
+    name: "Improper Privilege Management"
+    rank: 15
+  - id: "CWE-502"
+    name: "Deserialization of Untrusted Data"
+    rank: 16
+  - id: "CWE-476"
+    name: "NULL Pointer Dereference"
+    rank: 17
+  - id: "CWE-798"
+    name: "Use of Hard-coded Credentials"
+    rank: 18
+  - id: "CWE-119"
+    name: "Improper Restriction of Operations within the Bounds of a Memory Buffer"
+    rank: 19
+  - id: "CWE-918"
+    name: "Server-Side Request Forgery (SSRF)"
+    rank: 20
+  - id: "CWE-200"
+    name: "Exposure of Sensitive Information to an Unauthorized Actor"
+    rank: 21
+  - id: "CWE-611"
+    name: "Improper Restriction of XML External Entity Reference"
+    rank: 22
+  - id: "CWE-276"
+    name: "Incorrect Default Permissions"
+    rank: 23
+  - id: "CWE-190"
+    name: "Integer Overflow or Wraparound"
+    rank: 24
+  - id: "CWE-295"
+    name: "Improper Certificate Validation"
+    rank: 25
+  - id: "CWE-306"
+    name: "Missing Authentication for Critical Function"
+    rank: 26
+  - id: "CWE-601"
+    name: "URL Redirection to Untrusted Site ('Open Redirect')"
+    rank: 27
+  - id: "CWE-863"
+    name: "Incorrect Authorization"
+    rank: 28
+  - id: "CWE-639"
+    name: "Authorization Bypass Through User-Controlled Key"
+    rank: 29
+  - id: "CWE-400"
+    name: "Uncontrolled Resource Consumption"
+    rank: 30
+  - id: "CWE-1321"
+    name: "Improperly Controlled Modification of Object Prototype Attributes ('Prototype Pollution')"
+    rank: 31
+  - id: "CWE-284"
+    name: "Improper Access Control"
+    rank: 32
+  - id: "CWE-668"
+    name: "Exposure of Resource to Wrong Sphere"
+    rank: 33
+  - id: "CWE-770"
+    name: "Allocation of Resources Without Limits or Throttling"
+    rank: 34
+  - id: "CWE-522"
+    name: "Insufficiently Protected Credentials"
+    rank: 35
+  - id: "CWE-384"
+    name: "Session Fixation"
+    rank: 36
+  - id: "CWE-613"
+    name: "Insufficient Session Expiration"
+    rank: 37
+  - id: "CWE-732"
+    name: "Incorrect Permission Assignment for Critical Resource"
+    rank: 38
+  - id: "CWE-444"
+    name: "Inconsistent Interpretation of HTTP Requests ('HTTP Request Smuggling')"
+    rank: 39
+  - id: "CWE-843"
+    name: "Access of Resource Using Incompatible Type ('Type Confusion')"
+    rank: 40
+  - id: "CWE-319"
+    name: "Cleartext Transmission of Sensitive Information"
+    rank: 41
+  - id: "CWE-532"
+    name: "Insertion of Sensitive Information into Log File"
+    rank: 42
+  - id: "CWE-327"
+    name: "Use of a Broken or Risky Cryptographic Algorithm"
+    rank: 43
+  - id: "CWE-285"
+    name: "Improper Authorization"
+    rank: 44
+  - id: "CWE-1333"
+    name: "Inefficient Regular Expression Complexity"
+    rank: 45
+  - id: "CWE-362"
+    name: "Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')"
+    rank: 46
+  - id: "CWE-1052"
+    name: "Excessive Use of Hard-Coded Literals in Initialization"
+    rank: 47
+  - id: "CWE-1068"
+    name: "Inconsistency Between Implementation and Documented Design"
+    rank: 48
+  - id: "CWE-915"
+    name: "Improperly Controlled Modification of Dynamically-Determined Object Attributes"
+    rank: 49
+  - id: "CWE-841"
+    name: "Improper Enforcement of Behavioral Workflow"
+    rank: 50

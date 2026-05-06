@@ -1,0 +1,31 @@
+id: mcp_tool_poisoning
+name: MCP Tool Description Poisoning
+category: ai-llm
+severity: high
+description: Test whether MCP server tool descriptions, parameter schemas, or return values can inject instructions that manipulate the calling LLM agent.
+preconditions:
+  auth_required: optional
+  tools: [curl, python3, jq, httpx]
+  inputs: [ai-llm/mcp_endpoints.txt]
+  personas_required: 1
+workflow: ai-llm/mcp-abuse
+detection_signals:
+  positive:
+    - "Tool description contains instruction override patterns"
+    - "Tool return value influences LLM to ignore safety rules"
+    - "Cross-server tool shadowing detected"
+  negative:
+    - "All tool descriptions are safe and validated"
+evidence_required:
+  - "MCP tools/list response with injected content"
+  - "LLM behavior change after processing tool output"
+false_positives:
+  - "Descriptive tool names that look like instructions but are benign"
+standards:
+  owasp_llm_top10_2025: [LLM01:2025, LLM07:2025]
+  owasp_agentic_ai_q2_2026: [A03, A04]
+references:
+  - "https://cheatsheetseries.owasp.org/cheatsheets/MCP_Security_Cheat_Sheet.html"
+safety:
+  risk_tier: active-safe
+  data_modifying: false

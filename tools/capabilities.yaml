@@ -1,0 +1,85 @@
+capabilities:
+  subdomain_enum:
+    description: "Enumerate subdomains via passive or active sources"
+    tools: [subfinder, amass, assetfinder, chaos-client]
+  live_probe:
+    description: "Probe hosts for live HTTP/HTTPS services"
+    tools: [httpx, httprobe]
+  port_scan:
+    description: "Port scanning and service discovery"
+    tools: [naabu, massdns]
+  dns_resolve:
+    description: "DNS resolution and validation"
+    tools: [dnsx, puredns, shuffledns]
+  crawl:
+    description: "Web crawling and URL discovery"
+    tools: [katana, hakrawler, cariddi, gau, waybackurls]
+  js_extract:
+    description: "Extract and analyze JavaScript files"
+    tools: [katana, uro]
+  url_discovery:
+    description: "Discover URLs from archives and passive sources"
+    tools: [gau, waybackurls, uncover, urlfinder]
+  content_discovery:
+    description: "Discover hidden files and directories"
+    tools: [ffuf, feroxbuster, dirsearch]
+  param_discovery:
+    description: "Discover URL parameters and query strings"
+    tools: [arjun, paramspider, x8]
+  vuln_scan:
+    description: "Template-based or automated vulnerability scanning"
+    tools: [nuclei, dalfox, kxss]
+  oast:
+    description: "Out-of-band application security testing"
+    tools: [interactsh-client]
+  tls_profile:
+    description: "TLS/SSL profiling and analysis"
+    tools: [tlsx]
+  asn_map:
+    description: "ASN and CIDR mapping"
+    tools: [asnmap, mapcidr]
+  subdomain_permute:
+    description: "Subdomain permutation and wordlist generation"
+    tools: [alterx, dnsgen, gotator]
+  secret_scan:
+    description: "Scan for secrets in code or responses"
+    tools: [gitleaks, trufflehog, detect-secrets]
+  http_smuggle:
+    description: "HTTP request smuggling detection"
+    tools: [smuggler, h2csmuggler]
+  cache_poison:
+    description: "Web cache poisoning detection"
+    tools: [crlfuzz]
+  graphql_probe:
+    description: "GraphQL endpoint discovery and testing"
+    tools: [graphw00f, graphql-cop, clairvoyance]
+  api_fuzz:
+    description: "API endpoint fuzzing and discovery"
+    tools: [kiterunner]
+  cloud_asset:
+    description: "Cloud asset enumeration and scanning"
+    tools: [cloudlist, cloud_enum, s3scanner, cloudfox]
+  cloud_posture:
+    description: "Cloud security posture assessment"
+    tools: [prowler, scoutsuite, trivy]
+  apk_decompile:
+    description: "APK decompilation and analysis"
+    tools: [jadx, apktool]
+  mobile_scan:
+    description: "Mobile application security scanning"
+    tools: [mobsfscan, apkleaks, frida-tools, objection]
+  llm_eval:
+    description: "LLM/AI security evaluation"
+    tools: [garak, promptfoo, PyRIT, Inspect, giskard]
+  cve_prioritize:
+    description: "CVE prioritization and mapping"
+    tools: [cvemap]
+  traffic_capture:
+    description: "HTTP traffic capture and proxy"
+    tools: [proxify]
+  notify:
+    description: "Notification and alerting"
+    tools: [notify]
+  dedup:
+    description: "Deduplication and filtering"
+    tools: [anew, gf, qsreplace, unfurl]

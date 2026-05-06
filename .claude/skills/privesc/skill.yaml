@@ -1,0 +1,180 @@
+name: privesc
+version: 2.0.0
+description: Privilege escalation enumeration and exploitation — Linux SUID, sudo, capabilities, cron, Docker/K8s escape
+bounded_context: HostContext
+owasp_wstg:
+  - WSTG-ATHZ-01
+  - WSTG-ATHZ-02
+  - WSTG-ATHZ-03
+  - WSTG-ATHZ-04
+owasp_api_top10: []
+severity_range: [high, critical]
+tools_required:
+  - curl
+  - python3
+  - find
+  - netstat
+  - docker
+  - kubectl
+input_files: []
+workflows:
+  linux-quick-enum:
+    description: Quick Linux privilege escalation enumeration
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/privesc/
+      id > $OUTDIR/privesc/id.txt
+      sudo -l 2>/dev/null > $OUTDIR/privesc/sudo.txt
+      find / -perm -4000 -type f 2>/dev/null > $OUTDIR/privesc/suid.txt
+      getcap -r / 2>/dev/null > $OUTDIR/privesc/caps.txt
+      cat /etc/crontab 2>/dev/null > $OUTDIR/privesc/cron.txt
+      ls -la /etc/cron* 2>/dev/null >> $OUTDIR/privesc/cron.txt
+      ss -tulpn 2>/dev/null > $OUTDIR/privesc/network.txt
+      uname -a > $OUTDIR/privesc/system.txt
+    outputs:
+      - $OUTDIR/privesc/id.txt
+      - $OUTDIR/privesc/sudo.txt
+      - $OUTDIR/privesc/suid.txt
+      - $OUTDIR/privesc/caps.txt
+      - $OUTDIR/privesc/cron.txt
+      - $OUTDIR/privesc/network.txt
+      - $OUTDIR/privesc/system.txt
+    evidence_dir: $OUTDIR/privesc/evidence/
+    detection_signals:
+      - "SUID binaries found"
+      - "sudo -l shows permissive rules"
+      - "dangerous capabilities"
+    false_positives:
+      - "standard SUID binaries (ping, su)"
+      - "locked-down sudo"
+    next:
+      if_findings: suid-exploit
+      if_no_findings: auto-enum
+
+  auto-enum:
+    description: Run automated enumeration tool (linPEAS)
+    inputs: [OUTDIR]
+    command: |
+      curl -sL https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh -o $OUTDIR/privesc/linpeas.sh && bash $OUTDIR/privesc/linpeas.sh -a > $OUTDIR/privesc/linpeas_output.txt 2>&1
+    outputs:
+      - $OUTDIR/privesc/linpeas_output.txt
+    evidence_dir: $OUTDIR/privesc/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: credential-hunt
+      if_no_findings: credential-hunt
+
+  suid-exploit:
+    description: Check SUID binaries against GTFOBins for exploitation
+    inputs: [OUTDIR]
+    command: |
+      echo "Check each SUID binary against https://gtfobins.github.io/" > $OUTDIR/privesc/suid_analysis.txt && while read binary; do echo "SUID: $binary — check GTFOBins"; done < $OUTDIR/privesc/suid.txt >> $OUTDIR/privesc/suid_analysis.txt
+    outputs:
+      - $OUTDIR/privesc/suid_analysis.txt
+    evidence_dir: $OUTDIR/privesc/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: docker-escape
+      if_no_findings: sudo-exploit
+
+  sudo-exploit:
+    description: Check sudo permissions against GTFOBins
+    inputs: [OUTDIR]
+    command: |
+      echo "Sudo permissions: $(cat $OUTDIR/privesc/sudo.txt)" > $OUTDIR/privesc/sudo_analysis.txt && echo "Check each entry at https://gtfobins.github.io/#+sudo" >> $OUTDIR/privesc/sudo_analysis.txt
+    outputs:
+      - $OUTDIR/privesc/sudo_analysis.txt
+    evidence_dir: $OUTDIR/privesc/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: docker-escape
+      if_no_findings: capability-abuse
+
+  capability-abuse:
+    description: Analyze Linux capabilities for exploitation paths
+    inputs: [OUTDIR]
+    command: |
+      cat $OUTDIR/privesc/caps.txt | grep -iE 'cap_sys_admin|cap_sys_ptrace|cap_dac_read_search|cap_net_raw|cap_sys_module|cap_setuid|cap_setgid' > $OUTDIR/privesc/dangerous_caps.txt 2>/dev/null
+    outputs:
+      - $OUTDIR/privesc/dangerous_caps.txt
+    evidence_dir: $OUTDIR/privesc/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: docker-escape
+      if_no_findings: cron-abuse
+
+  cron-abuse:
+    description: Check for writable cron jobs and PATH abuse
+    inputs: [OUTDIR]
+    command: |
+      echo "Writable cron files:" > $OUTDIR/privesc/cron_analysis.txt
+      find /etc/cron* -writable -type f 2>/dev/null >> $OUTDIR/privesc/cron_analysis.txt
+      echo "Writable scripts in cron:" >> $OUTDIR/privesc/cron_analysis.txt
+      grep -r '^[^#]' /etc/cron* 2>/dev/null | while read line; do script=$(echo "$line" | awk '{print $NF}'); [ -w "$script" ] 2>/dev/null && echo "WRITABLE: $script" >> $OUTDIR/privesc/cron_analysis.txt; done
+    outputs:
+      - $OUTDIR/privesc/cron_analysis.txt
+    evidence_dir: $OUTDIR/privesc/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: docker-escape
+      if_no_findings: docker-escape
+
+  docker-escape:
+    description: Check if running in container and enumerate escape vectors
+    inputs: [OUTDIR]
+    command: |
+      if grep -q docker /proc/1/cgroup 2>/dev/null; then
+        echo "Running inside Docker container" > $OUTDIR/privesc/docker_escape.txt
+        ls -la /var/run/docker.sock 2>/dev/null >> $OUTDIR/privesc/docker_escape.txt
+        mount 2>/dev/null | grep docker >> $OUTDIR/privesc/docker_escape.txt
+        capsh --print 2>/dev/null >> $OUTDIR/privesc/docker_escape.txt
+      else
+        echo "Not in Docker container" > $OUTDIR/privesc/docker_escape.txt
+      fi
+    outputs:
+      - $OUTDIR/privesc/docker_escape.txt
+    evidence_dir: $OUTDIR/privesc/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: credential-hunt
+      if_no_findings: credential-hunt
+
+  credential-hunt:
+    description: Search for credentials in config files and history
+    inputs: [OUTDIR]
+    command: |
+      rg -n -i 'password|passwd|secret|token|api[_-]?key|credential|authorization' /etc/ /var/ /home/ 2>/dev/null > $OUTDIR/privesc/credentials.txt || true
+      find / -name '.bash_history' -o -name '.mysql_history' -o -name '.psql_history' 2>/dev/null | while read f; do echo "=== $f ===" >> $OUTDIR/privesc/history.txt; tail -20 "$f" 2>/dev/null >> $OUTDIR/privesc/history.txt; done
+    outputs:
+      - $OUTDIR/privesc/credentials.txt
+      - $OUTDIR/privesc/history.txt
+    evidence_dir: $OUTDIR/privesc/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: evidence
+      if_no_findings: evidence
+
+  evidence:
+    description: Package privesc findings
+    inputs: [OUTDIR, EVIDENCE_DIR]
+    command: |
+      mkdir -p $EVIDENCE_DIR/privesc/ && cp $OUTDIR/privesc/*.txt $EVIDENCE_DIR/privesc/ 2>/dev/null; date -u +%Y-%m-%dT%H:%M:%SZ > $EVIDENCE_DIR/privesc/timestamp.txt
+    outputs:
+      - $EVIDENCE_DIR/privesc/
+    evidence_dir: $EVIDENCE_DIR/privesc/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  suid: "Output of find / -perm -4000 with GTFOBins cross-reference"
+  sudo_escape: "sudo -l output with GTFOBins cross-reference"

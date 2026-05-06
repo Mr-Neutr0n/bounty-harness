@@ -1,0 +1,110 @@
+registry:
+  category: llm
+  source: various
+  tools:
+    - name: garak
+      repo: github.com/leondz/garak
+      install_method: pipx
+      binary: garak
+      version_cmd: "garak --version"
+      health_cmd: "garak --help"
+      capabilities:
+        - llm_vuln_scan
+        - prompt_injection
+        - jailbreak_test
+        - data_exfil_test
+        - hallucination_test
+        - toxicity_test
+      risk_tier: active-safe
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - ai-llm
+
+    - name: promptfoo
+      repo: github.com/promptfoo/promptfoo
+      install_method: pipx
+      binary: promptfoo
+      version_cmd: "promptfoo --version"
+      health_cmd: "promptfoo --version"
+      capabilities:
+        - llm_eval
+        - red_team
+        - prompt_injection
+        - model_compare
+        - jailbreak_test
+        - policy_test
+      risk_tier: active-safe
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - ai-llm
+
+    - name: PyRIT
+      repo: github.com/Azure/PyRIT
+      install_method: pipx
+      binary: pyrit
+      version_cmd: "pyrit --version"
+      health_cmd: "pyrit --help"
+      capabilities:
+        - llm_red_team
+        - multi_turn
+        - orchestrator
+        - jailbreak_test
+        - harm_classification
+        - automated_probe
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - ai-llm
+
+    - name: Inspect
+      repo: github.com/UKGovernmentBEIS/inspect_ai
+      install_method: pipx
+      binary: inspect
+      version_cmd: "inspect --version"
+      health_cmd: "inspect --version"
+      capabilities:
+        - llm_eval
+        - benchmark
+        - safety_eval
+        - capability_eval
+        - model_scoring
+        - multi_task
+      risk_tier: active-safe
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - ai-llm
+
+    - name: giskard
+      repo: github.com/Giskard-AI/giskard
+      install_method: pipx
+      binary: giskard
+      version_cmd: "giskard --version"
+      health_cmd: "giskard --version"
+      capabilities:
+        - ml_model_test
+        - bias_detect
+        - robustness_test
+        - data_quality
+        - drift_detect
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - ai-llm

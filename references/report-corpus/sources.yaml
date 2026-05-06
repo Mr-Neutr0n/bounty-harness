@@ -1,0 +1,51 @@
+sources:
+  - name: hackerone-top-reports
+    type: github
+    repo: reddelexc/hackerone-reports
+    files:
+      - data.csv
+      - tops_by_bug_type/TOPXSS.md
+      - tops_by_bug_type/TOPSQLI.md
+      - tops_by_bug_type/TOPSSRF.md
+      - tops_by_bug_type/TOPRCE.md
+      - tops_by_bug_type/TOPIDOR.md
+      - tops_by_bug_type/TOPCSRF.md
+      - tops_by_bug_type/TOPXXE.md
+      - tops_by_bug_type/TOPRACECONDITION.md
+      - tops_by_bug_type/TOPSSTI.md
+      - tops_by_bug_type/TOPOAUTH.md
+      - tops_by_bug_type/TOPAPI.md
+      - tops_by_bug_type/TOPGRAPHQL.md
+      - tops_by_bug_type/TOPUPLOAD.md
+      - tops_by_bug_type/TOPAUTH.md
+      - tops_by_bug_type/TOPAUTHORIZATION.md
+      - tops_by_bug_type/TOPMOBILE.md
+      - tops_by_bug_type/TOPWEBCACHE.md
+      - tops_by_bug_type/TOPREQUESTSMUGGLING.md
+      - tops_by_bug_type/TOPBUSINESSLOGIC.md
+
+  - name: awesome-bugbounty-writeups
+    type: github
+    repo: devanshbatham/Awesome-Bugbounty-Writeups
+    files:
+      - README.md
+
+  - name: owasp-wstg
+    type: github
+    repo: OWASP/wstg
+    docs_url: https://owasp.org/www-project-web-security-testing-guide/
+
+  - name: payloads-all-the-things
+    type: github
+    repo: swisskyrepo/PayloadsAllTheThings
+    fetch: false  # Already referenced locally
+
+  - name: hacktricks
+    type: web
+    url: https://book.hacktricks.xyz/
+
+  - name: portswigger-research
+    type: web
+    urls:
+      - https://portswigger.net/research
+      - https://portswigger.net/web-security/all-topics

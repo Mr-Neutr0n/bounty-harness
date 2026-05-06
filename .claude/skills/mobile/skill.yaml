@@ -1,0 +1,72 @@
+name: mobile
+version: 2.0.0
+description: Mobile application security — APK/IPA static analysis, Firebase misconfig, WebView vulnerabilities, certificate pinning bypass, deeplinks, Frida hooks
+bounded_context: MobileContext
+owasp_wstg:
+  - WSTG-MOBL-01
+  - WSTG-MOBL-02
+  - WSTG-MOBL-03
+  - WSTG-MOBL-04
+  - WSTG-MOBL-05
+  - WSTG-MOBL-06
+  - WSTG-MOBL-07
+  - WSTG-MOBL-08
+owasp_api_top10: []
+severity_range: [medium, high, critical]
+tools_required:
+  - adb
+  - apktool
+  - jadx
+  - frida
+  - objection
+  - mitmproxy
+  - curl
+  - python3
+  - openssl
+  - jq
+input_files:
+  - none
+workflows:
+  apk-analysis:
+    description: Run static APK analysis against an operator-provided APK path.
+    inputs: [APK_PATH, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/mobile/static && \
+      python3 .claude/skills/mobile/scripts/apk_analyzer.py --apk "${APK_PATH:?Set APK_PATH}" --context $OUTDIR/mobile/static
+    outputs:
+      - $OUTDIR/mobile/static/apk_analysis.json
+      - $OUTDIR/mobile/static/findings.jsonl
+    evidence_dir: $OUTDIR/mobile/static/evidence/
+    detection_signals:
+      - "manifest, decompiled code, or resources expose risky mobile configuration"
+      - "hardcoded secrets or cleartext network configuration are identified"
+    false_positives:
+      - "APK is a debug or non-production build"
+      - "detected API keys are correctly restricted by package/signature"
+    next:
+      if_findings: frida-ssl-bypass
+      if_no_findings: frida-ssl-bypass
+
+  frida-ssl-bypass:
+    description: Launch the existing Frida SSL bypass script for a supplied mobile package.
+    inputs: [MOBILE_PACKAGE, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/mobile/pinning && \
+      frida -U -f "${MOBILE_PACKAGE:?Set MOBILE_PACKAGE}" -l .claude/skills/mobile/scripts/frida_ssl_bypass.js --no-pause
+    outputs:
+      - $OUTDIR/mobile/pinning/
+    evidence_dir: $OUTDIR/mobile/pinning/evidence/
+    detection_signals:
+      - "Frida attaches and bypass script hooks certificate validation routines"
+      - "HTTPS traffic can be inspected after the bypass is active"
+    false_positives:
+      - "app crashes due to anti-tamper or Frida detection"
+      - "network stack pins outside covered Java APIs"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  firebase_misconfig: "curl response showing Firebase DB accessible without auth"
+  traffic_capture: "mitmproxy flow showing cleartext API request with sensitive data"
+  deeplink_poc: "adb am start command demonstrating deeplink injection"

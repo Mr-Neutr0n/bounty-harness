@@ -1,0 +1,53 @@
+plan_schema:
+  metadata:
+    target: string
+    program: string
+    generated_at: string (ISO 8601)
+    standards_coverage_pct: float
+    total_techniques_available: int
+    techniques_matched: int
+    techniques_filtered: int
+  domain_profile:
+    archetypes: [{id: string, confidence: float, key_signals: [string]}]
+    surfaces: [{id: string, status: string, endpoints_available: int, auth_state: string}]
+  plan_items:
+    - priority: string (critical/high/medium/low)
+      score: float
+      score_breakdown:
+        business_impact: float
+        surface_prevalence: float
+        vulnerability_severity: float
+        detection_signal_quality: float
+        coverage_gap_urgency: float
+        tool_availability: float
+      technique_id: string
+      technique_name: string
+      category: string
+      severity: string
+      skill: string
+      workflow: string
+      rationale: string
+      surface_matches: [string]
+      preconditions:
+        auth_required: string
+        inputs_needed: [string]
+        tools: [string]
+      safety:
+        intrusive: bool
+        data_modifying: bool
+        rate_limited: bool
+        requires_confirmation: bool
+      expected_signals:
+        positive: [string]
+        negative: [string]
+      evidence_requirements: [string]
+      standards_checked: [string]
+      coverage_gap: bool
+  summary:
+    total_plan_items: int
+    by_priority: {critical: int, high: int, medium: int, low: int}
+    auth_required_count: int
+    intrusive_count: int
+    safe_to_run_immediately: int
+    coverage_before: float
+    coverage_after: float

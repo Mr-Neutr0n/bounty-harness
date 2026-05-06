@@ -1,0 +1,138 @@
+name: impact-verifier
+version: 1.0.0
+description: Convert candidate findings into confirmed bounty-grade reports only when impact is proven.
+bounded_context: ImpactContext
+owasp_wstg:
+  - WSTG-REPT-01
+  - WSTG-REPT-02
+owasp_api_top10: []
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - python3
+  - jq
+input_files: []
+workflows:
+  collect-candidates:
+    description: Aggregate candidate findings from all skill output directories.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/impact-verifier && \
+      python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action collect --outdir $OUTDIR --output $OUTDIR/impact-verifier/candidates.jsonl
+    outputs:
+      - $OUTDIR/impact-verifier/candidates.jsonl
+    evidence_dir: null
+    next:
+      if_findings: classify-impact
+      if_no_findings: null
+
+  classify-impact:
+    description: Classify each candidate by impact class and severity.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/impact-verifier && \
+      python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action classify --candidates $OUTDIR/impact-verifier/candidates.jsonl --output $OUTDIR/impact-verifier/candidates.jsonl
+    outputs:
+      - $OUTDIR/impact-verifier/candidates.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "impact class assigned: data_exposure, privilege_escalation, tenant_break, account_takeover, financial_loss, rce, xss, ssrf"
+    next:
+      if_findings: verify-data-exposure
+      if_no_findings: null
+
+  verify-data-exposure:
+    description: Prove actual data exposure from unauthorized access.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/impact-verifier/evidence && \
+      python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action verify --impact-class data_exposure --candidates $OUTDIR/impact-verifier/candidates.jsonl --output $OUTDIR/impact-verifier/verified.jsonl --rejected $OUTDIR/impact-verifier/rejected.jsonl
+    outputs:
+      - $OUTDIR/impact-verifier/verified.jsonl
+      - $OUTDIR/impact-verifier/rejected.jsonl
+    evidence_dir: $OUTDIR/impact-verifier/evidence/
+    detection_signals:
+      - "private/PII/sensitive fields confirmed in unauthorized response"
+      - "data belongs to a different user or tenant"
+    false_positives:
+      - "public or intentionally shared data"
+      - "example or test data"
+    next:
+      if_findings: verify-privilege-escalation
+      if_no_findings: verify-privilege-escalation
+
+  verify-privilege-escalation:
+    description: Prove role or permission boundary was broken.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/impact-verifier/evidence && \
+      python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action verify --impact-class privilege_escalation --candidates $OUTDIR/impact-verifier/candidates.jsonl --output $OUTDIR/impact-verifier/verified.jsonl --rejected $OUTDIR/impact-verifier/rejected.jsonl
+    outputs:
+      - $OUTDIR/impact-verifier/verified.jsonl
+      - $OUTDIR/impact-verifier/rejected.jsonl
+    evidence_dir: $OUTDIR/impact-verifier/evidence/
+    next:
+      if_findings: verify-account-takeover
+      if_no_findings: verify-account-takeover
+
+  verify-account-takeover:
+    description: Prove full account takeover path.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/impact-verifier/evidence && \
+      python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action verify --impact-class account_takeover --candidates $OUTDIR/impact-verifier/candidates.jsonl --output $OUTDIR/impact-verifier/verified.jsonl --rejected $OUTDIR/impact-verifier/rejected.jsonl
+    outputs:
+      - $OUTDIR/impact-verifier/verified.jsonl
+      - $OUTDIR/impact-verifier/rejected.jsonl
+    evidence_dir: $OUTDIR/impact-verifier/evidence/
+    next:
+      if_findings: verify-tenant-break
+      if_no_findings: verify-tenant-break
+
+  verify-tenant-break:
+    description: Prove cross-tenant data access.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/impact-verifier/evidence && \
+      python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action verify --impact-class tenant_break --candidates $OUTDIR/impact-verifier/candidates.jsonl --output $OUTDIR/impact-verifier/verified.jsonl --rejected $OUTDIR/impact-verifier/rejected.jsonl
+    outputs:
+      - $OUTDIR/impact-verifier/verified.jsonl
+      - $OUTDIR/impact-verifier/rejected.jsonl
+    evidence_dir: $OUTDIR/impact-verifier/evidence/
+    next:
+      if_findings: false-positive-gate
+      if_no_findings: false-positive-gate
+
+  false-positive-gate:
+    description: Run automated false-positive checks on all candidates.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/impact-verifier && \
+      python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action fp-check --candidates $OUTDIR/impact-verifier/candidates.jsonl --false-positive-db ${FP_DB:-.claude/skills/impact-verifier/false_positives.yaml} --output $OUTDIR/impact-verifier/candidates.jsonl
+    outputs:
+      - $OUTDIR/impact-verifier/candidates.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "false positive patterns matched and flagged on candidates"
+    next:
+      if_findings: report-readiness
+      if_no_findings: report-readiness
+
+  report-readiness:
+    description: Score each confirmed finding for submission readiness.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/impact-verifier && \
+      python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action readiness --verified $OUTDIR/impact-verifier/verified.jsonl --output $OUTDIR/impact-verifier/readiness_report.md
+    outputs:
+      - $OUTDIR/impact-verifier/readiness_report.md
+    evidence_dir: null
+    detection_signals:
+      - "findings scored 80+ are submission-ready"
+      - "findings below 60 need more evidence"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  verified_finding: "Confirmed impact with classification, evidence manifest, false-positive checks"
+  readiness_report: "Scored findings with evidence gaps and fix recommendations"

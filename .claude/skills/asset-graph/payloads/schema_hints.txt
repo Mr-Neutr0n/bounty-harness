@@ -1,0 +1,13 @@
+assets.id: unique identifier for each discovered host or endpoint
+assets.host: FQDN or IP address
+assets.asset_type: one of [domain, subdomain, ip, cname, service]
+assets.first_seen: timestamp of initial discovery
+assets.last_seen: timestamp of most recent confirmation
+assets.status_code: HTTP response code during last check
+routes.url: normalized URL path for an HTTP endpoint
+routes.method: HTTP method (GET, POST, PUT, DELETE, PATCH)
+params.param_name: query string or body parameter name
+params.response_reflected: boolean indicating if param value reflected in response
+edges.source_host: origin node in a relationship
+edges.target_host: destination node in a relationship
+edges.edge_type: relationship type (redirect, link, include, frame, cname)

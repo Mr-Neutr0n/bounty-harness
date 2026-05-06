@@ -1,0 +1,93 @@
+id: sqli-error-based
+name: Error-Based SQL Injection
+category: sqli
+description: >
+  Malicious SQL syntax injected into input parameters causes the database
+  to return verbose error messages disclosing database type, version,
+  table names, column names, or partial data. The easiest SQLi variant
+  to detect because error messages provide immediate feedback and confirmation.
+severity: high
+standards:
+  wstg:
+    - WSTG-INPV-05
+  asvs:
+    - "V5.3.4"
+    - "V5.3.5"
+  vrt:
+    - sql_injection.error_based
+  cwe:
+    - CWE-89
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - all-parameterized-endpoints
+    - login-endpoints
+    - search-endpoints
+    - api-filter-params
+requires:
+  auth: none
+  inputs:
+    - list of URL query parameters
+    - POST body parameter names
+    - cookie values used in queries
+  tools:
+    - sqlmap
+    - curl
+    - httpx
+signals:
+  positive:
+    - Database error message visible in HTTP response body
+    - SQL syntax error disclosed (mysql_fetch, ORA-, PostgreSQL error strings)
+    - Stack trace with database function names in response
+    - sqlmap reports injectable parameter with technique E
+    - Single quote produces different response or error vs no quote
+  negative:
+    - Generic error page with no DB details (500 status only)
+    - Parameterized queries or ORM with no raw SQL
+    - WAF blocks SQL keywords and error never reaches app
+    - Application validates input type strictly (only integers accepted)
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl command with SQLi payload and error response
+    - sqlmap output log showing injectable parameter
+    - Screenshot or copy of database error message
+    - Database type and version extracted from error
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05-Testing_for_SQL_Injection
+    - https://portswigger.net/web-security/sql-injection
+  papers:
+    - OWASP SQL Injection Prevention Cheat Sheet
+  writeups: []
+workflow_mapping:
+  skill: sqli
+  workflow: W1 (error detection)
+payload_families:
+  - name: single_quote_break
+    description: Break out of string context via unclosed quote
+    examples:
+      - "'"
+      - '"'
+      - "' OR '1'='1"
+  - name: type_mismatch
+    description: Force type conversion errors to leak info
+    examples:
+      - "1 AND 1=CAST(@@version AS INT)"
+      - "1 AND extractvalue(1,concat(0x7e,version()))"
+  - name: db_specific
+    description: Database-specific error generation functions
+    examples:
+      - "AND 1=CTXSYS.DRITHSX.SN(1,(select banner from v$version))--"
+      - "AND 1=UTL_INADDR.GET_HOST_NAME((select user from dual))--"
+tags:
+  - error-message
+  - verbose-errors
+  - database-fingerprint
+  - immediate-feedback
+  - union-preparation

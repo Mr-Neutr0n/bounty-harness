@@ -1,0 +1,130 @@
+registry:
+  category: cloud
+  source: various
+  tools:
+    - name: s3scanner
+      repo: github.com/sa7mon/S3Scanner
+      install_method: pipx
+      binary: s3scanner
+      version_cmd: "s3scanner --version"
+      health_cmd: "s3scanner --help"
+      capabilities:
+        - s3_bucket_scan
+        - bucket_enum
+        - permission_check
+        - acl_check
+        - listing_check
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - cloud
+
+    - name: cloud_enum
+      repo: github.com/initstring/cloud_enum
+      install_method: pipx
+      binary: cloud_enum
+      version_cmd: "cloud_enum --help"
+      health_cmd: "cloud_enum --help"
+      capabilities:
+        - cloud_asset_enum
+        - multi_provider
+        - storage_enum
+        - dns_enum
+        - container_enum
+      risk_tier: active-safe
+      output_support:
+        - stdout
+        - files
+      skills:
+        - cloud
+        - recon
+
+    - name: prowler
+      repo: github.com/prowler-cloud/prowler
+      install_method: pipx
+      binary: prowler
+      version_cmd: "prowler --version"
+      health_cmd: "prowler --version"
+      capabilities:
+        - cspm_scan
+        - compliance_check
+        - cis_benchmark
+        - multi_cloud
+        - iam_audit
+      risk_tier: active-safe
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - cloud
+        - reporting
+
+    - name: scoutsuite
+      repo: github.com/nccgroup/ScoutSuite
+      install_method: pipx
+      binary: scout
+      version_cmd: "scout --version"
+      health_cmd: "scout --version"
+      capabilities:
+        - cloud_security_audit
+        - multi_provider
+        - iam_audit
+        - storage_audit
+        - network_audit
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - cloud
+        - reporting
+
+    - name: cloudfox
+      repo: github.com/BishopFox/cloudfox
+      install_method: go
+      binary: cloudfox
+      version_cmd: "cloudfox --version"
+      health_cmd: "cloudfox --version"
+      capabilities:
+        - cloud_exploitation
+        - privilege_escalation
+        - lateral_movement
+        - iam_enum
+        - resource_enum
+      risk_tier: intrusive
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - cloud
+        - privesc
+
+    - name: trivy
+      repo: github.com/aquasecurity/trivy
+      install_method: brew
+      binary: trivy
+      version_cmd: "trivy --version"
+      health_cmd: "trivy --version"
+      capabilities:
+        - vuln_scan
+        - container_scan
+        - misconfig_scan
+        - secret_scan
+        - sbom_gen
+        - iac_scan
+      risk_tier: active-safe
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - cloud
+        - reporting

@@ -1,0 +1,10 @@
+name: "cache-poison"
+skill_tested: "http-protocol"
+vulnerability_class: "web-cache-poisoning"
+severity: "high"
+description: "HTTP endpoint that reflects X-Forwarded-Host header in a cacheable response without validation"
+requirements:
+  port: 8088
+  timeout: 10
+positive_control: "GET with X-Forwarded-Host: evil.com should reflect the host in the cached response"
+negative_control: "GET without X-Forwarded-Host should return a normal response using relative URLs"

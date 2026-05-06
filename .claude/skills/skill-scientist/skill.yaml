@@ -1,0 +1,115 @@
+name: skill-scientist
+version: 1.0.0
+description: AI Scientist pattern adapted for bug bounty skill improvement — automated hypothesize, design, run, review, and promote pipeline
+bounded_context: SkillImprovementContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [info]
+tools_required:
+  - python3
+  - jq
+  - bash
+input_files:
+  - payloads/coverage_matrix.yaml
+workflows:
+  generate-hypothesis:
+    description: Read coverage matrix, find high-priority gaps, and output structured hypotheses.
+    inputs: [OUTDIR, COVERAGE_MATRIX]
+    command: |
+      mkdir -p $OUTDIR/evidence && \
+      python3 .claude/skills/skill-scientist/scripts/generate_hypothesis.py --coverage-matrix ${COVERAGE_MATRIX:-.claude/skills/coverage/coverage_matrix.yaml} --context $OUTDIR > $OUTDIR/hypotheses.json
+    outputs:
+      - $OUTDIR/hypotheses.json
+    evidence_dir: $OUTDIR/evidence/
+    detection_signals:
+      - "coverage_matrix.yaml contains items with status=missing"
+      - "priority_gap values are high or critical"
+    false_positives:
+      - "gaps intentionally left as missing for out-of-scope techniques"
+      - "duplicate entries in the matrix produce redundant hypotheses"
+    next:
+      if_findings: design-experiment
+      if_no_findings: null
+
+  design-experiment:
+    description: Design controlled experiments with positive and negative controls for each hypothesis.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/evidence && \
+      python3 .claude/skills/skill-scientist/scripts/design_experiment.py --hypotheses-file $OUTDIR/hypotheses.json --context $OUTDIR > $OUTDIR/design_manifest.json
+    outputs:
+      - $OUTDIR/design_manifest.json
+    evidence_dir: $OUTDIR/evidence/
+    detection_signals:
+      - "each hypothesis has a positive control describing an expected detection"
+      - "each hypothesis has a negative control describing expected non-detection"
+      - "success criteria are measurable and specific"
+    false_positives:
+      - "controls that are too similar produce no discrimination signal"
+      - "fixture names that collide with unrelated test infrastructure"
+    next:
+      if_findings: run-experiment
+      if_no_findings: null
+
+  run-experiment:
+    description: Execute experiments against evaluation-harness fixtures and capture pass/fail results.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/evidence && \
+      python3 .claude/skills/skill-scientist/scripts/run_experiment.py --design-manifest $OUTDIR/design_manifest.json --context $OUTDIR > $OUTDIR/results_manifest.json
+    outputs:
+      - $OUTDIR/results_manifest.json
+    evidence_dir: $OUTDIR/evidence/
+    detection_signals:
+      - "positive.sh returns exit code 0 for true-positive fixtures"
+      - "negative.sh returns non-zero exit code for false-negative avoidance"
+      - "experiment errors are captured and surfaced"
+    false_positives:
+      - "timing-dependent tests produce flaky results"
+      - "external network calls fail due to transient connectivity issues"
+    next:
+      if_findings: review-experiment
+      if_no_findings: review-experiment
+
+  review-experiment:
+    description: Score experiment results against success criteria and determine pass/fail threshold.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/evidence && \
+      python3 .claude/skills/skill-scientist/scripts/review_experiment.py --results-manifest $OUTDIR/results_manifest.json --context $OUTDIR > $OUTDIR/review_report.json
+    outputs:
+      - $OUTDIR/review_report.json
+    evidence_dir: $OUTDIR/evidence/
+    detection_signals:
+      - "normalized score >= 7.0 indicates passed experiment"
+      - "all scoring dimensions (accuracy, false_positive_control, evidence_completeness, reproducibility) are computed"
+    false_positives:
+      - "experiments that pass but rely on brittle assertions"
+      - "evidence flagged as complete but missing critical artifacts"
+    next:
+      if_findings: promote-skill-update
+      if_no_findings: null
+
+  promote-skill-update:
+    description: Generate promotion proposals for experiments that passed review. Does not modify production skill files.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/evidence && \
+      python3 .claude/skills/skill-scientist/scripts/promote_skill_update.py --review-report $OUTDIR/review_report.json --context $OUTDIR > $OUTDIR/promotion_report.json
+    outputs:
+      - $OUTDIR/promotion_report.json
+    evidence_dir: $OUTDIR/evidence/
+    detection_signals:
+      - "promotion proposals list target skill and suggested file modifications"
+      - "impact estimates describe expected coverage improvement"
+      - "standards_added maps to specific detection gaps"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  hypothesis_generated: "hypotheses.json with gap IDs and priority levels"
+  experiment_result: "results_manifest.json with positive/negative control outcomes"
+  review_passed: "review_report.json with normalized score >= 7.0"
+  promotion_ready: "promotion_report.json with target skill and diff description"

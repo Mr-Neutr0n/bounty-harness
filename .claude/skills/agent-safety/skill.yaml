@@ -1,0 +1,85 @@
+name: agent-safety
+version: 1.0.0
+description: Protect the AI-assisted toolkit from prompt injection in target-controlled content during scanning and triage.
+bounded_context: AgentSafetyContext
+owasp_wstg:
+  - WSTG-INPV-14
+owasp_llm_top10_2025:
+  - LLM01:2025 Prompt Injection
+  - LLM02:2025 Insecure Output Handling
+  - LLM04:2025 Model Denial of Service
+severity_range: [info]
+tools_required:
+  - python3
+  - jq
+input_files: []
+workflows:
+  sanitize-corpus:
+    description: Strip instruction-like patterns from target content before AI analysis.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/agent-safety && \
+      python3 .claude/skills/agent-safety/scripts/safety_checker.py --context .bb/context.json --action sanitize --input "${SANITIZE_INPUT:?Set SANITIZE_INPUT path}" --output $OUTDIR/agent-safety/sanitized.jsonl
+    outputs:
+      - $OUTDIR/agent-safety/sanitized.jsonl
+    evidence_dir: null
+    next:
+      if_findings: scan-untrusted-content
+      if_no_findings: null
+
+  scan-untrusted-content:
+    description: Detect prompt injection, hidden instructions, and exfiltration patterns.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/agent-safety && \
+      python3 .claude/skills/agent-safety/scripts/safety_checker.py --context .bb/context.json --action scan --input "${SCAN_INPUT:?Set SCAN_INPUT path}" --output $OUTDIR/agent-safety/injection_scan.jsonl
+    outputs:
+      - $OUTDIR/agent-safety/injection_scan.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "instruction-like phrases detected in target content"
+      - "hidden text, invisible characters, base64/hex encoded instructions"
+      - "exfiltration patterns like img src with data payload"
+    false_positives:
+      - "documentation about AI or prompt injection, not actual injection"
+      - "code comments that are developer-facing, not attack payloads"
+    next:
+      if_findings: classify-injection-risk
+      if_no_findings: classify-injection-risk
+
+  classify-injection-risk:
+    description: Score content by injection danger level.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/agent-safety && \
+      python3 .claude/skills/agent-safety/scripts/safety_checker.py --context .bb/context.json --action classify --input $OUTDIR/agent-safety/injection_scan.jsonl --output $OUTDIR/agent-safety/risk_report.json
+    outputs:
+      - $OUTDIR/agent-safety/risk_report.json
+    evidence_dir: null
+    detection_signals:
+      - "content scored as safe, suspicious, dangerous, or critical"
+    next:
+      if_findings: guardrail-check
+      if_no_findings: null
+
+  guardrail-check:
+    description: Validate AI tool call against safety policy before execution.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/agent-safety && \
+      python3 .claude/skills/agent-safety/scripts/safety_checker.py --context .bb/context.json --action guardrail --tool "${TOOL_NAME:?Set TOOL_NAME}" --params "${TOOL_PARAMS:-{}}" --output $OUTDIR/agent-safety/guardrail_decision.json
+    outputs:
+      - $OUTDIR/agent-safety/guardrail_decision.json
+    evidence_dir: null
+    detection_signals:
+      - "tool call approved, requires confirmation, or blocked"
+    safety:
+      requires_confirmation: false
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  sanitized_content: "Before/after comparison with stripped patterns"
+  injection_scan: "Detected injection patterns with severity and context"
+  risk_report: "Content risk classification with remediation recommendations"

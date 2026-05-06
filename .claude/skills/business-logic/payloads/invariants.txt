@@ -1,0 +1,10 @@
+User balance must never decrease during a failed withdrawal
+Order total must equal sum of line item prices plus tax
+Admin flag in JWT must not be settable via client input
+Password reset tokens must be single-use and expire within 15 minutes
+Checkout quantity must not exceed available inventory
+Discount percentage must be validated server-side, not from hidden fields
+Gift card redemption amount must match the card balance exactly
+Refund amount must not exceed original transaction amount
+Account deletion must require re-authentication
+Pagination offset must not allow negative values

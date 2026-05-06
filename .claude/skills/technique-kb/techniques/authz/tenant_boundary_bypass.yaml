@@ -1,0 +1,35 @@
+id: tenant_boundary_bypass
+name: Tenant Boundary Bypass
+category: authorization
+severity: critical
+description: Test whether a user in Tenant A can access data or resources belonging to Tenant B by replaying requests with swapped tenant context.
+preconditions:
+  auth_required: mandatory
+  tools: [curl, python3, jq]
+  inputs: [persona/headers/, traffic-corpus/routes.jsonl]
+  personas_required: 2
+  tenant_relationship_required: different_tenant
+workflow: cross-account/tenant-swap
+detection_signals:
+  positive:
+    - "Tenant A user retrieves Tenant B data"
+    - "Cross-tenant admin access succeeds"
+    - "Tenant identifier mismatch in response"
+  negative:
+    - "403/404 on all cross-tenant requests"
+    - "Tenant-scoped filtering working correctly"
+evidence_required:
+  - "Baseline: Tenant A accessing own resource"
+  - "Proof: Tenant A accessing Tenant B resource with success"
+  - "Response showing data from wrong tenant"
+false_positives:
+  - "Data is intentionally shared between tenants"
+  - "Resource is global/shared by design"
+standards:
+  owasp_wstg: [WSTG-ATHZ-02, WSTG-ATHZ-04]
+  owasp_api_top10: [API1:2023, API5:2023]
+references:
+  - "https://cheatsheetseries.owasp.org/cheatsheets/Multi_Tenant_Security_Cheat_Sheet.html"
+safety:
+  risk_tier: intrusive
+  data_modifying: false

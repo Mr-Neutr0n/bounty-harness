@@ -1,0 +1,126 @@
+name: traffic-corpus
+version: 1.0.0
+description: Import real application traffic and normalize into a deduplicated, route-aware, object-aware corpus for replay-based security testing.
+bounded_context: TrafficCorpusContext
+owasp_wstg:
+  - WSTG-INFO-05
+  - WSTG-INFO-06
+owasp_api_top10:
+  - API2:2023
+  - API3:2023
+  - API4:2023
+severity_range: [info]
+tools_required:
+  - python3
+  - jq
+input_files: []
+workflows:
+  import-traffic:
+    description: Import traffic from HAR, Burp, mitmproxy, proxify, or raw curl files.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/traffic-corpus/raw && \
+      python3 .claude/skills/traffic-corpus/scripts/corpus_importer.py --context .bb/context.json --sources ${TRAFFIC_SOURCES:-$OUTDIR/traffic-corpus/raw} --output $OUTDIR/traffic-corpus/samples.jsonl
+    outputs:
+      - $OUTDIR/traffic-corpus/samples.jsonl
+    evidence_dir: null
+    next:
+      if_findings: normalize-corpus
+      if_no_findings: normalize-corpus
+
+  normalize-corpus:
+    description: Deduplicate and normalize all samples into canonical route signatures.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/traffic-corpus && \
+      python3 .claude/skills/traffic-corpus/scripts/corpus_importer.py --context .bb/context.json --action normalize --input $OUTDIR/traffic-corpus/samples.jsonl --output $OUTDIR/traffic-corpus/routes.jsonl
+    outputs:
+      - $OUTDIR/traffic-corpus/routes.jsonl
+    evidence_dir: null
+    next:
+      if_findings: extract-routes
+      if_no_findings: extract-routes
+
+  extract-routes:
+    description: Produce route catalog with method, path shape, auth indicators, and security tags.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/traffic-corpus && \
+      python3 .claude/skills/traffic-corpus/scripts/corpus_importer.py --context .bb/context.json --action routes --input $OUTDIR/traffic-corpus/samples.jsonl --output $OUTDIR/traffic-corpus/routes.jsonl
+    outputs:
+      - $OUTDIR/traffic-corpus/routes.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "route catalog includes auth_required, state_changing, object_bound tags"
+    false_positives: []
+    next:
+      if_findings: extract-objects
+      if_no_findings: extract-objects
+
+  extract-objects:
+    description: Extract object references (user IDs, file IDs, workspace IDs, etc.) from samples.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/traffic-corpus && \
+      python3 .claude/skills/traffic-corpus/scripts/corpus_importer.py --context .bb/context.json --action objects --input $OUTDIR/traffic-corpus/samples.jsonl --output $OUTDIR/traffic-corpus/objects.jsonl
+    outputs:
+      - $OUTDIR/traffic-corpus/objects.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "UUIDs, numeric IDs, slugs, and known ID formats extracted"
+    false_positives:
+      - "false positives from version numbers or hash fragments in URLs"
+    next:
+      if_findings: extract-graphql
+      if_no_findings: extract-graphql
+
+  extract-graphql:
+    description: Extract GraphQL operations from captured traffic.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/traffic-corpus && \
+      python3 .claude/skills/traffic-corpus/scripts/corpus_importer.py --context .bb/context.json --action graphql --input $OUTDIR/traffic-corpus/samples.jsonl --output $OUTDIR/traffic-corpus/graphql_ops.jsonl
+    outputs:
+      - $OUTDIR/traffic-corpus/graphql_ops.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "GraphQL queries, mutations, and subscriptions with operation names"
+    false_positives:
+      - "non-GraphQL JSON endpoints may look like GQL operations"
+    next:
+      if_findings: extract-websockets
+      if_no_findings: extract-websockets
+
+  extract-websockets:
+    description: Extract WebSocket message patterns from captured traffic.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/traffic-corpus && \
+      python3 .claude/skills/traffic-corpus/scripts/corpus_importer.py --context .bb/context.json --action websockets --input $OUTDIR/traffic-corpus/samples.jsonl --output $OUTDIR/traffic-corpus/websocket_messages.jsonl
+    outputs:
+      - $OUTDIR/traffic-corpus/websocket_messages.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "WebSocket upgrade requests and message patterns captured"
+    false_positives:
+      - "regular SSE or long-poll endpoints flagged as WebSocket"
+    next:
+      if_findings: summarize-corpus
+      if_no_findings: summarize-corpus
+
+  summarize-corpus:
+    description: Produce human-readable summary of corpus.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/traffic-corpus && \
+      python3 .claude/skills/traffic-corpus/scripts/corpus_importer.py --context .bb/context.json --action summary --input $OUTDIR/traffic-corpus/samples.jsonl --routes $OUTDIR/traffic-corpus/routes.jsonl --objects $OUTDIR/traffic-corpus/objects.jsonl --output $OUTDIR/traffic-corpus/corpus_summary.md
+    outputs:
+      - $OUTDIR/traffic-corpus/corpus_summary.md
+    evidence_dir: null
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  route_catalog: "Canonical route signatures with auth and security tags"
+  object_references: "Extracted object IDs mapped to routes and types"

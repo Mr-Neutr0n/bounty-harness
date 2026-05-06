@@ -1,0 +1,30 @@
+id: approve_own_request
+name: Self-Approval Bypass
+category: business-logic
+severity: medium
+description: Attempt to approve your own requests, expense reports, or workflow items that require a separate reviewer.
+preconditions:
+  auth_required: mandatory
+  tools: [curl, python3, jq]
+  inputs: [persona/headers/, traffic-corpus/routes.jsonl]
+  personas_required: 1
+workflow: business-logic/test-skip-step
+detection_signals:
+  positive:
+    - "User can approve their own request"
+    - "Reviewer check absent or client-side only"
+  negative:
+    - "Self-approval returns 403"
+    - "Separate reviewer enforced server-side"
+evidence_required:
+  - "Request from same user as both submitter and approver"
+  - "Successful approval despite self-review conflict"
+false_positives:
+  - "Self-approval is allowed for low-risk workflows by policy"
+standards:
+  owasp_wstg: [WSTG-BUSL-01]
+references:
+  - "https://cheatsheetseries.owasp.org/cheatsheets/Business_Logic_Security_Cheat_Sheet.html"
+safety:
+  risk_tier: intrusive
+  data_modifying: true

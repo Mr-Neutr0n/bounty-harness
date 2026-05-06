@@ -1,0 +1,56 @@
+scoring:
+  business_impact_weight: 0.30
+  surface_prevalence_weight: 0.20
+  vulnerability_severity_weight: 0.20
+  detection_signal_quality_weight: 0.15
+  coverage_gap_urgency_weight: 0.10
+  tool_availability_weight: 0.05
+
+severity_to_score:
+  critical: 1.0
+  high: 0.75
+  medium: 0.50
+  low: 0.25
+  info: 0.10
+
+priority_tiers:
+  critical:
+    label: "Run immediately"
+    description: "High business impact + in-scope + matching surface + safe to run"
+    min_score: 0.80
+  high:
+    label: "Run next"
+    description: "Strong signals but may need auth or specific conditions"
+    min_score: 0.60
+  medium:
+    label: "Run if time permits"
+    description: "Lower impact or higher complexity"
+    min_score: 0.35
+  low:
+    label: "Defer"
+    description: "Exploratory or low-confidence matches"
+    min_score: -1.0
+
+filters:
+  require_scope_check: true
+  require_safety_gate: true
+  exclude_destructive_if_no_approval: true
+  prefer_safe_over_intrusive: true
+
+surface_match_bonus: 0.15
+
+surface_category_map:
+  web_form: ["xss", "sqli", "ssrf", "rce", "file-upload"]
+  get_param: ["xss", "sqli", "ssrf", "rce", "race-condition"]
+  post_param: ["xss", "sqli", "ssrf", "rce", "race-condition", "file-upload"]
+  api_endpoint: ["api", "auth", "cors-csrf", "sqli", "xss", "ssrf", "rce"]
+  auth_endpoint: ["auth", "race-condition", "sqli"]
+  file_upload: ["file-upload", "xss", "rce"]
+  websocket: ["xss", "sqli"]
+  graphql: ["api", "sqli", "auth", "ssrf"]
+  webhook: ["webhooks", "ssrf", "rce", "sqli"]
+  cookie_header: ["auth", "cors-csrf", "xss", "sqli"]
+  redirect: ["ssrf", "xss", "rce"]
+  cloud_asset: ["cloud", "ssrf"]
+  mobile_endpoint: ["mobile", "api", "auth"]
+  search_function: ["xss", "sqli"]

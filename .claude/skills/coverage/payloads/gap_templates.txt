@@ -1,0 +1,73 @@
+# Gap Templates — Pre-structured entries for adding to the coverage matrix
+
+# Template: Fully covered item
+- id: "WSTG-XXXX-XX"
+  name: "Name of the test from WSTG"
+  covered_by:
+    - skill: "skill-name"
+      workflow: "workflow-name"
+      scripts: [".claude/skills/skill-name/scripts/script_name.py"]
+      status: "covered"
+      notes: "Brief description of how this script/provider/tool covers the item"
+  priority_gap: "low"
+
+# Template: Partially covered item
+- id: "WSTG-XXXX-XX"
+  name: "Name of the test from WSTG"
+  covered_by:
+    - skill: "skill-name"
+      workflow: null
+      scripts: []
+      status: "partial"
+      notes: "Brief description of partial or indirect coverage and what is missing"
+  priority_gap: "medium"
+
+# Template: Manual / not automatable
+- id: "WSTG-XXXX-XX"
+  name: "Name of the test from WSTG"
+  covered_by:
+    - skill: null
+      workflow: null
+      scripts: []
+      status: "manual"
+      notes: "Why this requires manual testing and cannot be automated"
+  priority_gap: "medium"
+
+# Template: Missing coverage (gap)
+- id: "WSTG-XXXX-XX"
+  name: "Name of the test from WSTG"
+  covered_by:
+    - skill: null
+      workflow: null
+      scripts: []
+      status: "missing"
+      notes: "No automated coverage exists — this is a gap"
+  priority_gap: "high"
+
+# Template: Not applicable to bug bounty
+- id: "WSTG-XXXX-XX"
+  name: "Name of the test from WSTG"
+  covered_by:
+    - skill: null
+      workflow: null
+      scripts: []
+      status: "not_applicable"
+      notes: "Why this is out of scope for black-box bug bounty testing"
+  priority_gap: "low"
+
+# Template: Adding a new standard or section (ASVS example)
+- id: "ASVS-VX.Y"
+  name: "Name of the ASVS requirement"
+  covered_by:
+    - skill: "existing-skill"
+      workflow: "workflow-name"
+      scripts: [".claude/skills/existing-skill/scripts/script.py"]
+      status: "partial"
+      notes: "How this skill partially covers the ASVS requirement"
+  priority_gap: "medium"
+
+# Priority gap values reference:
+# low       — well covered or niche; low urgency
+# medium    — some coverage or moderate impact
+# high      — important gap; should be addressed soon
+# critical  — essential gap; top priority to fill

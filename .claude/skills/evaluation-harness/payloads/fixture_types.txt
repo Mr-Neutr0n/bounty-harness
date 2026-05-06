@@ -1,0 +1,8 @@
+xss-reflected
+sqli-error
+ssrf-blind
+cors-misconfig
+upload-unrestricted
+jwt-none-alg
+graphql-introspection
+cache-poison

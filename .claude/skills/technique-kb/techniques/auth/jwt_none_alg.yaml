@@ -1,0 +1,101 @@
+id: auth-jwt-none-alg
+name: JWT Algorithm Confusion (none / HMAC vs RS256)
+category: auth
+description: >
+  JSON Web Token (JWT) vulnerability where the server accepts tokens signed
+  with algorithm "none" (no signature), or accepts tokens signed with an
+  HMAC symmetric key when the server expects RS256 asymmetric. Attacker can
+  forge tokens with arbitrary claims including admin role. Also checks for
+  algorithm confusion using the server's public RSA key as HMAC secret.
+severity: high
+standards:
+  wstg:
+    - WSTG-SESS-10
+  asvs:
+    - "V6.8.2"
+    - "V6.8.3"
+  vrt:
+    - authentication.jwt.missing_verification
+  cwe:
+    - CWE-347
+applies_to:
+  archetypes:
+    - developer-platform
+    - enterprise-api
+  surfaces:
+    - auth-flow
+    - api-authenticated
+requires:
+  auth: session_cookie
+  inputs:
+    - valid JWT token from authenticated session
+    - public key or JWKS endpoint if available
+    - JWT claims structure (role, admin, user_id)
+  tools:
+    - python3
+    - curl
+signals:
+  positive:
+    - Token with "None" algorithm accepted as valid
+    - RS256 token signed with HMAC + server public key accepted
+    - "Modified claims (role: admin) accepted via forged token"
+    - Missing signature verification entirely (any signature accepted)
+    - JWKS endpoint provides RS256 public key (enables key confusion)
+  negative:
+    - Server rejects "none" algorithm tokens
+    - Server enforces strict algorithm matching (RS256 only)
+    - Signature verification uses JWKS kid with trusted key rotation
+    - Token has short expiry and server checks exp claim
+    - Server validates issuer (iss) claim against allowlist
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - Original JWT token header and payload (decoded)
+    - Forged token with modified claims accepted by server
+    - curl response showing privileged access via forged token
+    - Decoded forged token showing role escalation
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/10-Testing_JSON_Web_Tokens
+    - https://portswigger.net/web-security/jwt
+    - https://github.com/ticarpi/jwt_tool
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: auth
+  workflow: W1 (JWT attacks)
+payload_families:
+  - name: none_algorithm
+    description: Set algorithm to "none" and remove signature
+    examples:
+      - '{"alg": "None", "typ": "JWT"}'
+      - '{"alg": "none", "typ": "JWT"}'
+      - '{"alg": "NONE", "typ": "JWT"}'
+  - name: hmac_key_confusion
+    description: Use server public RSA key as HMAC secret, sign with HS256
+    examples:
+      - '{"alg": "HS256"} + public key as HMAC secret'
+  - name: rsa_key_confusion
+    description: Use symmetric key to sign RS256 token if key exposed
+    examples:
+      - Weak symmetric key used for RS256 signing
+  - name: kid_injection
+    description: Inject path traversal or SQL in kid header
+    examples:
+      - '{"kid": "../../../../dev/null", "alg": "HS256"}'
+      - '{"kid": "1 UNION SELECT ''secretkey''--"}'
+  - name: jku_header
+    description: Provide attacker-controlled JWKS URL
+    examples:
+      - '{"jku": "https://evil.com/jwks.json", "alg": "RS256"}'
+tags:
+  - jwt
+  - token-forgery
+  - algorithm-confusion
+  - none-algorithm
+  - claim-manipulation
+  - role-escalation

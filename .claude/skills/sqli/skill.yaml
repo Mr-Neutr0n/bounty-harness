@@ -1,0 +1,65 @@
+name: sqli
+version: 2.0.0
+description: SQL Injection detection and exploitation — error-based, UNION, Boolean blind, time-based, OOB, stacked queries, NoSQL
+bounded_context: InjectionContext
+owasp_wstg:
+  - WSTG-INPV-05
+owasp_api_top10:
+  - API8:2019
+severity_range: [medium, high, critical]
+tools_required:
+  - curl
+  - ffuf
+  - arjun
+  - dalfox
+  - sqlmap
+  - python3
+  - jq
+  - katana
+  - gau
+input_files:
+  - parameterized_urls.txt
+  - all_urls.txt
+workflows:
+  sql-injection:
+    description: Detect SQL injection in parameterized URLs using error, boolean, and timing checks.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/sqli/sql && \
+      python3 .claude/skills/sqli/scripts/sqli_detector.py --context .bb/context.json --urls $OUTDIR/urls/parameterized_urls.txt --rate-limit ${SQLI_RATE_LIMIT:-5} --output $OUTDIR/sqli/sql/findings.jsonl
+    outputs:
+      - $OUTDIR/sqli/sql/findings.jsonl
+    evidence_dir: $OUTDIR/sqli/sql/evidence/
+    detection_signals:
+      - "database error, boolean differential, or time delay indicates injection"
+      - "payload behavior changes consistently across repeated requests"
+    false_positives:
+      - "response differences come from dynamic content, caching, or rate limits"
+      - "generic application errors are not database-backed injection"
+    next:
+      if_findings: nosql-injection
+      if_no_findings: nosql-injection
+
+  nosql-injection:
+    description: Detect MongoDB-style NoSQL injection operators in parameterized URLs.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/sqli/nosql && \
+      python3 .claude/skills/sqli/scripts/nosql_injector.py --context .bb/context.json --urls $OUTDIR/urls/parameterized_urls.txt --rate-limit ${SQLI_RATE_LIMIT:-5} --output $OUTDIR/sqli/nosql/findings.jsonl
+    outputs:
+      - $OUTDIR/sqli/nosql/findings.jsonl
+    evidence_dir: $OUTDIR/sqli/nosql/evidence/
+    detection_signals:
+      - "$ne, $gt, or $regex operators alter authentication or query results"
+      - "URL-encoded NoSQL operators are interpreted server-side"
+    false_positives:
+      - "operator strings are treated as literals"
+      - "endpoint is not backed by a NoSQL datastore"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  sqli_error: "Error message with database fingerprint"
+  sqlmap_log: "Full sqlmap output showing DB names, tables, columns"
+  nosql_bypass: 'Response showing authentication bypass via $ne operator'

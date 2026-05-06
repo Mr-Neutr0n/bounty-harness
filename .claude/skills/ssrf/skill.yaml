@@ -1,0 +1,99 @@
+name: ssrf
+version: 2.0.0
+description: Server-Side Request Forgery — internal probing, cloud metadata attacks, URL parser bypasses, protocol smuggling
+bounded_context: NetworkContext
+owasp_wstg:
+  - WSTG-INPV-19
+owasp_api_top10: []
+severity_range: [medium, high, critical]
+tools_required:
+  - curl
+  - ffuf
+  - arjun
+  - katana
+  - nuclei
+  - python3
+  - interactsh-client
+  - jq
+input_files:
+  - parameterized_urls.txt
+  - all_urls.txt
+workflows:
+  ssrf-probe:
+    description: Identify and test URL-like parameters for SSRF with internal, metadata, OAST, and bypass checks.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/ssrf/probe && \
+      python3 .claude/skills/ssrf/scripts/ssrf_probe.py --context .bb/context.json --urls $OUTDIR/urls/parameterized_urls.txt --output $OUTDIR/ssrf/probe/findings.jsonl
+    outputs:
+      - $OUTDIR/ssrf/probe/findings.jsonl
+    evidence_dir: $OUTDIR/ssrf/probe/evidence/
+    detection_signals:
+      - "URL-like parameter triggers outbound, internal, or metadata fetch behavior"
+      - "SSRF bypass payload changes backend fetch target"
+    false_positives:
+      - "parameter is reflected or redirected client-side only"
+      - "callback originates from tester infrastructure, not target server"
+    next:
+      if_findings: cloud-metadata
+      if_no_findings: cloud-metadata
+
+  cloud-metadata:
+    description: Probe cloud metadata endpoints through known URL-like parameters.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/ssrf/metadata && \
+      python3 .claude/skills/ssrf/scripts/cloud_metadata_hunter.py --context .bb/context.json --urls $OUTDIR/urls/parameterized_urls.txt --output $OUTDIR/ssrf/metadata/findings.jsonl
+    outputs:
+      - $OUTDIR/ssrf/metadata/findings.jsonl
+    evidence_dir: $OUTDIR/ssrf/metadata/evidence/
+    detection_signals:
+      - "AWS, GCP, Azure, or other metadata endpoint responds via SSRF"
+      - "metadata response includes identity, role, or token material"
+    false_positives:
+      - "metadata-like response is a mock or documentation page"
+      - "endpoint reachable but contains no credentials or sensitive data"
+    next:
+      if_findings: parser-bypass
+      if_no_findings: parser-bypass
+
+  parser-bypass:
+    description: Generate and test URL parser differential payloads against a placeholder URL.
+    inputs: [SSRF_TARGET_URL, BYPASS_HOST, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/ssrf/bypass && \
+      python3 .claude/skills/ssrf/scripts/url_parser_differential.py --context .bb/context.json --target-url "${SSRF_TARGET_URL:?Set SSRF_TARGET_URL with TARGET placeholder}" --bypass-host "${BYPASS_HOST:?Set BYPASS_HOST}" --output $OUTDIR/ssrf/bypass/results.json
+    outputs:
+      - $OUTDIR/ssrf/bypass/results.json
+    evidence_dir: $OUTDIR/ssrf/bypass/evidence/
+    detection_signals:
+      - "backend and frontend parse the same URL differently"
+      - "payload bypasses allowlist and reaches the bypass host"
+    false_positives:
+      - "target URL lacks the expected placeholder"
+      - "blocked response is indistinguishable from successful backend fetch"
+    next:
+      if_findings: single-param-detector
+      if_no_findings: single-param-detector
+
+  single-param-detector:
+    description: Run the legacy single-parameter SSRF detector when a specific parameter is known.
+    inputs: [TARGET_URL, SSRF_PARAM, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/ssrf/single && \
+      python3 .claude/skills/ssrf/scripts/ssrf_detector.py --url $TARGET_URL --param "${SSRF_PARAM:?Set SSRF_PARAM}" --all --output $OUTDIR/ssrf/single/results.json
+    outputs:
+      - $OUTDIR/ssrf/single/results.json
+    evidence_dir: $OUTDIR/ssrf/single/evidence/
+    detection_signals:
+      - "known parameter is vulnerable to internal, metadata, bypass, or protocol SSRF"
+    false_positives:
+      - "parameter is not actually used as a server-side fetch target"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  ssrf_metadata: "AWS/GCP/Azure credential response from metadata endpoint"
+  ssrf_internal: "Redis INFO/Memcached stats/ES cluster health output"
+  ssrf_oob: "Interactsh log entry showing HTTP/DNS callback from target"

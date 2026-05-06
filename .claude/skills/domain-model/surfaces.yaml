@@ -1,0 +1,580 @@
+version: 1.0.0
+description: Attack surface taxonomy mapped to domain archetypes for bug bounty triage
+
+surfaces:
+  upload-pipeline:
+    id: upload-pipeline
+    name: Upload Pipeline
+    description: File, image, or video upload endpoints with potential server-side processing, transcoding, or transformation. Covers single file, multi-part, chunked, and resumable uploads.
+    archetypes:
+      - media-platform
+      - storage-platform
+    detection_signals:
+      - "multipart/form-data forms detected"
+      - "upload.* or api/upload in URLs"
+      - "file input fields in HTML"
+      - "drag and drop upload JS handlers"
+      - "post or put requests with file type body"
+      - "chunked or resumable upload endpoints"
+      - "s3 presigned URL for upload"
+      - "transcode or processing status in API responses"
+      - "ffmpeg or imagemagick references"
+    related_skills:
+      - file-upload
+      - ssrf
+      - rce
+    auth_required: optional
+    intrusive_level: careful
+
+  player-embed:
+    id: player-embed
+    name: Player Embed
+    description: Embedded media players accepting URL parameters for video/audio source, playback settings, or authentication tokens. Often iframe-based cross-origin.
+    archetypes:
+      - media-platform
+    detection_signals:
+      - "player.* or embed.* subdomain"
+      - "iframe with video content"
+      - "url parameters for media source"
+      - "hls or dash manifest in url"
+      - "video.js or jwplayer detected"
+      - "token or signature in player url"
+      - "cross-origin embed with postmessage"
+      - "media source manipulation parameters"
+    related_skills:
+      - xss
+      - ssrf
+      - cors-csrf
+    auth_required: optional
+    intrusive_level: safe
+
+  api-object-crud:
+    id: api-object-crud
+    name: API Object CRUD
+    description: REST API endpoints with object IDs in URL paths enabling Create, Read, Update, Delete operations on application resources.
+    archetypes:
+      - developer-platform
+      - billing-saas
+      - collaboration-saas
+      - storage-platform
+      - marketplace
+      - ai-product
+      - mobile-api-backend
+      - auth-provider
+      - realtime-app
+      - ecommerce
+    detection_signals:
+      - "numerical or uuid in api url path"
+      - "get post put patch delete http methods"
+      - "json api responses with resource objects"
+      - "api versioning in path"
+      - "bearer token or api key authentication"
+      - "pagination query parameters"
+      - "restful resource naming nouns in paths"
+      - "hypermedia or hateoas links"
+    related_skills:
+      - api
+      - auth
+      - sqli
+      - ssrf
+    auth_required: mandatory
+    intrusive_level: careful
+
+  graphql:
+    id: graphql
+    name: GraphQL
+    description: GraphQL endpoint exposing schema, queries, and mutations. Risk of introspection, excessive data exposure, depth attacks, and subscription abuse.
+    archetypes:
+      - developer-platform
+    detection_signals:
+      - "/graphql in url paths"
+      - "graphql endpoint returning introspection"
+      - "content-type application/graphql"
+      - "query mutation subscription in schema"
+      - "apollo client detected in JS"
+      - "relay framework references"
+      - "graphql playground or graphiql in URL"
+      - "post requests with query or operationName"
+      - "graphql persisted queries"
+    related_skills:
+      - api
+      - auth
+      - sqli
+      - ssrf
+    auth_required: optional
+    intrusive_level: safe
+
+  websocket:
+    id: websocket
+    name: WebSocket
+    description: WebSocket or Server-Sent Events connections for realtime data transfer. Risk of authentication bypass, message injection, and channel enumeration.
+    archetypes:
+      - collaboration-saas
+      - ai-product
+      - realtime-app
+      - mobile-api-backend
+    detection_signals:
+      - "websocket upgrade header in response"
+      - "ws:// or wss:// url scheme"
+      - "socket.io detected in JavaScript"
+      - "server-sent events text/event-stream content type"
+      - "pusher or pubnub sdk referenced"
+      - "realtime connection management"
+      - "channel subscription in api"
+      - "graphql subscriptions"
+      - "firebase realtime database or firestore"
+    related_skills:
+      - api
+      - auth
+      - race-condition
+    auth_required: optional
+    intrusive_level: safe
+
+  oauth-flow:
+    id: oauth-flow
+    name: OAuth Flow
+    description: OAuth 2.0 authorization and token endpoints with redirect_uri, scope, state, and grant_type parameters. Risk of redirect chain abuse and token theft.
+    archetypes:
+      - developer-platform
+      - auth-provider
+    detection_signals:
+      - "oauth/authorize or /authorize in URLs"
+      - "oauth/token or /token endpoint"
+      - "redirect_uri parameter in query"
+      - "client_id parameter in query"
+      - "response_type=code or response_type=token"
+      - "scope parameter in authorization requests"
+      - "state parameter for csrf protection"
+      - "pkce code_challenge or code_verifier"
+      - "openid connect .well-known/openid-configuration"
+      - "grant_type=authorization_code or client_credentials"
+    related_skills:
+      - auth
+      - cors-csrf
+    auth_required: optional
+    intrusive_level: careful
+
+  checkout-payment:
+    id: checkout-payment
+    name: Checkout Payment
+    description: Payment and checkout flows integrating with Stripe, PayPal, Braintree, or custom gateways. Risk of price manipulation and payment bypass.
+    archetypes:
+      - billing-saas
+      - marketplace
+      - ecommerce
+    detection_signals:
+      - "checkout.* or payment.* subdomain"
+      - "stripe.js or stripe elements detected"
+      - "paypal express checkout sdk"
+      - "paddle.js or braintree integration"
+      - "amount or price in request body"
+      - "currency parameter in requests"
+      - "coupon or discount code field"
+      - "order confirmation page"
+      - "payment method management UI"
+      - "3d secure or sca compliant flow"
+    related_skills:
+      - auth
+      - race-condition
+      - api
+    auth_required: mandatory
+    intrusive_level: intrusive
+
+  webhook:
+    id: webhook
+    name: Webhook
+    description: Incoming webhook endpoints accepting POST data from third-party services. Risk of signature forgery, replay, and SSRF via webhook URL.
+    archetypes:
+      - developer-platform
+      - billing-saas
+      - ai-product
+      - auth-provider
+    detection_signals:
+      - "webhook or /hooks/ in url paths"
+      - "x-hub-signature or x-webhook-signature header"
+      - "hmac or signature verification in code"
+      - "incoming webhook configuration UI"
+      - "webhook secret management"
+      - "event type discriminator in payload"
+      - "payload signing or verification"
+      - "webhook url validation"
+    related_skills:
+      - ssrf
+      - auth
+      - race-condition
+    auth_required: optional
+    intrusive_level: careful
+
+  file-download:
+    id: file-download
+    name: File Download
+    description: Endpoints serving user-uploaded or generated files with user-supplied path or ID parameters. Risk of path traversal, IDOR, and SSRF.
+    archetypes:
+      - media-platform
+      - storage-platform
+      - cdn-heavy
+    detection_signals:
+      - "download.* or dl.* subdomain"
+      - "file path or id in url query"
+      - "content-disposition attachment header"
+      - "s3 signed url with expiry"
+      - "file proxy or redirect endpoint"
+      - "content-type that corresponds to file type"
+      - "streaming download response"
+      - "range header support"
+    related_skills:
+      - ssrf
+      - auth
+      - rce
+    auth_required: optional
+    intrusive_level: safe
+
+  cdn-cache:
+    id: cdn-cache
+    name: CDN Cache
+    description: Multi-CDN content delivery infrastructure with caching layers. Risk of cache poisoning, cache deception, and origin exposure.
+    archetypes:
+      - media-platform
+      - storage-platform
+      - cdn-heavy
+    detection_signals:
+      - "x-cache or x-served-by http headers"
+      - "cloudfront, cloudflare, fastly, akamai cname"
+      - "cdn*.* or static*.* subdomain"
+      - "origin.* or origin-*. * subdomain"
+      - "cache-control or x-cache-ttl headers"
+      - "vary header configured"
+      - "cdn provider headers present"
+      - "multiple domains resolving to same cdn"
+      - "surrogate-control header"
+    related_skills:
+      - http-protocol
+      - cloud
+      - cors-csrf
+    auth_required: none
+    intrusive_level: safe
+
+  auth-flow:
+    id: auth-flow
+    name: Auth Flow
+    description: Login, registration, password reset, email verification, MFA enrollment and TOTP flows. Risk of account takeover, enumeration, and session vulnerabilities.
+    archetypes:
+      - collaboration-saas
+      - marketplace
+      - mobile-api-backend
+      - auth-provider
+      - realtime-app
+      - ecommerce
+    detection_signals:
+      - "login or signin page detected"
+      - "register or signup page"
+      - "forgot-password or reset-password endpoint"
+      - "email verification token in URL or API"
+      - "mfa or 2fa enrollment page"
+      - "totp or authenticator app setup"
+      - "webauthn or passkey enrollment"
+      - "session cookie or jwt issued after login"
+      - "csrf token on auth forms"
+      - "rate limiting headers on auth endpoints"
+      - "oauth social login buttons"
+    related_skills:
+      - auth
+      - race-condition
+      - cors-csrf
+    auth_required: none
+    intrusive_level: careful
+
+  admin-panel:
+    id: admin-panel
+    name: Admin Panel
+    description: Administrative dashboard or internal tool with elevated privileges. Risk of unauthenticated access, weak credentials, and sensitive data exposure.
+    archetypes:
+      - media-platform
+      - developer-platform
+      - billing-saas
+      - collaboration-saas
+      - marketplace
+      - ecommerce
+    detection_signals:
+      - "admin.* or internal.* subdomain"
+      - "dashboard.* subdomain"
+      - "login page with admin branding"
+      - "internal tool references in JS"
+      - "grafana or kibana instances"
+      - "phpmyadmin or adminer panels"
+      - "status pages for internal use"
+      - "staff or moderator portal"
+    related_skills:
+      - auth
+      - cloud
+      - privesc
+    auth_required: mandatory
+    intrusive_level: intrusive
+
+  llm-endpoint:
+    id: llm-endpoint
+    name: LLM Endpoint
+    description: AI model serving endpoint for chat, completion, embedding, or tool-use. Risk of prompt injection, system prompt extraction, and tool abuse.
+    archetypes:
+      - ai-product
+    detection_signals:
+      - "openai api compatible endpoint"
+      - "anthropic messages api endpoint"
+      - "streaming sse chat completions api"
+      - "mcp server endpoint"
+      - "tool call in api response"
+      - "system prompt or system message"
+      - "function calling or tool use in api"
+      - "token usage in response metadata"
+      - "model parameter in api requests"
+      - "embeddings endpoint"
+    related_skills:
+      - ai-llm
+      - api
+      - auth
+    auth_required: mandatory
+    intrusive_level: safe
+
+  mobile-deep-link:
+    id: mobile-deep-link
+    name: Mobile Deep Link
+    description: Mobile application deep links and custom URL scheme handlers. Risk of client-side injection, session token theft, and intent hijacking.
+    archetypes:
+      - mobile-api-backend
+    detection_signals:
+      - "custom url scheme defined in JS"
+      - "universal links or android app links"
+      - "deeplink configuration in source"
+      - "intent filter references"
+      - "url scheme handling in mobile SDK"
+      - "mobile redirect with app scheme"
+    related_skills:
+      - mobile
+      - xss
+      - auth
+    auth_required: optional
+    intrusive_level: safe
+
+  subdomain-takeover:
+    id: subdomain-takeover
+    name: Subdomain Takeover
+    description: Dangling DNS records pointing to unclaimed cloud resources. Risk of full subdomain control and phishing through trusted domain.
+    archetypes:
+      - cdn-heavy
+      - developer-platform
+      - media-platform
+      - ecommerce
+    detection_signals:
+      - "cname record pointing to unclaimed service"
+      - "nxdomain or service not found on cloud platform"
+      - "dangling cloudfront distribution"
+      - "unused heroku app from cname"
+      - "github pages takeover from cname"
+      - "azure cdn or storage takeover"
+      - "s3 bucket named from cname"
+      - "any service that returns no such or not found"
+    related_skills:
+      - cloud
+      - recon
+    auth_required: none
+    intrusive_level: safe
+
+  email-handling:
+    id: email-handling
+    name: Email Handling
+    description: Inbound email processing, email verification, transactional email sending, bounce handling, and unsubscribe endpoints.
+    archetypes:
+      - collaboration-saas
+      - storage-platform
+      - marketplace
+      - ecommerce
+    detection_signals:
+      - "inbound email processing endpoint"
+      - "email verification link received"
+      - "transactional email in headers or source"
+      - "bounce processing or notification"
+      - "unsubscribe link generation"
+      - "sendgrid or mailgun integration"
+      - "postmark or ses integration"
+      - "email-to-post or email ingestion"
+      - "dmarc or spf or dkim in dns"
+    related_skills:
+      - ssrf
+      - auth
+      - race-condition
+    auth_required: optional
+    intrusive_level: careful
+
+  persona-authenticated-session:
+    id: persona-authenticated-session
+    name: Persona Authenticated Session
+    description: Managed authenticated sessions for attacker, victim, admin, and other role personas enabling cross-account and privilege testing.
+    archetypes:
+      - developer-platform
+      - billing-saas
+      - collaboration-saas
+      - storage-platform
+      - marketplace
+      - ai-product
+      - ecommerce
+    detection_signals:
+      - "cookie or bearer token captured from real browser session"
+      - "session validated against target URL"
+      - "multiple distinct roles provisioned"
+    related_skills:
+      - persona
+      - cross-account
+      - auth
+    auth_required: mandatory
+    intrusive_level: careful
+
+  authorization-boundary:
+    id: authorization-boundary
+    name: Authorization Boundary
+    description: Route-level authorization enforcement points where persona identity, object ownership, and tenant membership are validated.
+    archetypes:
+      - developer-platform
+      - billing-saas
+      - collaboration-saas
+      - marketplace
+      - ai-product
+      - ecommerce
+    detection_signals:
+      - "object ID in URL path or body"
+      - "tenant ID in request context"
+      - "role-based access control enforcement"
+    related_skills:
+      - cross-account
+      - api
+      - auth
+    auth_required: mandatory
+    intrusive_level: careful
+
+  business-workflow:
+    id: business-workflow
+    name: Business Workflow
+    description: Multi-step business processes such as signup, checkout, invite, password reset, OAuth flow, subscription management, and file sharing.
+    archetypes:
+      - billing-saas
+      - collaboration-saas
+      - marketplace
+      - ecommerce
+      - storage-platform
+    detection_signals:
+      - "sequential API calls forming a state machine"
+      - "state transitions visible in response data"
+      - "invariant violations detectable via replayed requests"
+    related_skills:
+      - business-logic
+      - race-condition
+      - cross-account
+    auth_required: mandatory
+    intrusive_level: intrusive
+
+  value-dispensing-feature:
+    id: value-dispensing-feature
+    name: Value Dispensing Feature
+    description: Features that issue credits, coupons, gift cards, referral bonuses, trial access, or other redeemable value.
+    archetypes:
+      - billing-saas
+      - marketplace
+      - ecommerce
+    detection_signals:
+      - "coupon or discount code redemption endpoint"
+      - "referral bonus or credit issuance"
+      - "gift card or voucher activation"
+    related_skills:
+      - business-logic
+      - race-condition
+      - cross-account
+    auth_required: mandatory
+    intrusive_level: intrusive
+
+  rag-pipeline:
+    id: rag-pipeline
+    name: RAG Pipeline
+    description: Retrieval-Augmented Generation pipeline ingesting, chunking, embedding, and retrieving documents for LLM context.
+    archetypes:
+      - ai-product
+    detection_signals:
+      - "document upload or knowledge base endpoint"
+      - "vector search or similarity query API"
+      - "retrieval-augmented response patterns"
+    related_skills:
+      - ai-llm
+      - api
+      - auth
+    auth_required: mandatory
+    intrusive_level: safe
+
+  mcp-server:
+    id: mcp-server
+    name: MCP Server
+    description: Model Context Protocol server exposing tools, resources, and prompts to AI agent clients.
+    archetypes:
+      - ai-product
+      - developer-platform
+    detection_signals:
+      - "JSON-RPC tools/list endpoint"
+      - "MCP server initialization handshake"
+      - "tool description with function schema"
+    related_skills:
+      - ai-llm
+      - api
+      - auth
+    auth_required: optional
+    intrusive_level: safe
+
+  ai-agent-tool:
+    id: ai-agent-tool
+    name: AI Agent Tool
+    description: Tools and function-calling capabilities exposed to LLM agents with potential for excessive agency, confused deputy, and tool abuse.
+    archetypes:
+      - ai-product
+    detection_signals:
+      - "function calling or tool use in API responses"
+      - "agent loop with reasoning and action steps"
+      - "external API or system access from LLM agent"
+    related_skills:
+      - ai-llm
+      - agent-safety
+      - api
+      - auth
+    auth_required: mandatory
+    intrusive_level: safe
+
+  oob-callback-surface:
+    id: oob-callback-surface
+    name: OOB Callback Surface
+    description: Out-of-band interaction endpoints for detecting blind vulnerabilities via DNS, HTTP, SMTP callbacks.
+    archetypes:
+      - developer-platform
+      - media-platform
+      - ai-product
+      - collaboration-saas
+    detection_signals:
+      - "interactsh or burp collaborator URL injection points"
+      - "webhook URL configuration accepting external targets"
+      - "blind SSRF or XSS callback vectors"
+    related_skills:
+      - oob-infra
+      - ssrf
+      - xss
+    auth_required: optional
+    intrusive_level: active-safe
+
+  program-memory-signal:
+    id: program-memory-signal
+    name: Program Memory Signal
+    description: Accumulated knowledge about a target program including accepted/rejected findings, false-positive patterns, auth behavior, and technology profile.
+    archetypes: []
+    detection_signals:
+      - "prior engagement data exists for this program"
+      - "false-positive patterns recorded from previous runs"
+      - "accepted finding types from prior submissions"
+    related_skills:
+      - program-memory
+      - planner
+      - reporting
+    auth_required: none
+    intrusive_level: safe

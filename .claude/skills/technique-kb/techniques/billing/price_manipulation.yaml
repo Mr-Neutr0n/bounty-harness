@@ -1,0 +1,116 @@
+id: billing-price-manipulation
+name: Price Manipulation — Client-Side Parameter Tampering
+category: billing
+description: >
+  E-commerce or SaaS billing flow trusts client-provided pricing data. Attacker
+  modifies price, quantity, currency, discount, tax, or shipping parameters
+  in requests to obtain goods or services at lower cost. Includes negative
+  quantity exploits (increases total), currency swap (USD to weaker currency),
+  rounding errors (fractional cents exploit), and plan downgrade while
+  retaining premium features.
+severity: critical
+standards:
+  wstg:
+    - WSTG-BUSL-01
+  asvs:
+    - "V11.1.1"
+  vrt:
+    - business_logic.price_manipulation
+  cwe:
+    - CWE-472
+applies_to:
+  archetypes:
+    - ecommerce
+    - marketplace
+    - billing-saas
+  surfaces:
+    - checkout-payment
+    - plan-subscription
+    - cart-management
+    - invoice-generation
+requires:
+  auth: single_account
+  inputs:
+    - Cart/checkout API endpoints
+    - Plan selection and subscription endpoints
+    - Payment processing endpoints
+    - Authenticated session
+  tools:
+    - curl
+    - burp_suite
+signals:
+  positive:
+    - Modified price in request accepted server-side (not recalculated)
+    - Negative quantity results in adjusted total (credit instead of charge)
+    - Currency parameter changes final amount in payment gateway
+    - Discount parameter added or increased and applied
+    - Plan ID downgrade retains premium features
+    - Replay attack on single-use payment token succeeds
+  negative:
+    - Server recalculates price from product catalog (not client-input)
+    - Server ignores client price parameters entirely
+    - Idempotency key prevents duplicate charges/orders
+    - Server validates order total against original prices
+    - Payment gateway token is single-use and server verifies
+    - Plan features linked to plan ID, checked server-side on access
+safety:
+  intrusive: true
+  data_modifying: true
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+    - Original request with normal price
+    - Modified request with tampered price
+    - Response showing accepted price
+    - Order confirmation with manipulated total
+    - Screenshot of successful purchase at manipulated price
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/01-Test_Business_Logic_Data_Validation
+    - https://portswigger.net/web-security/logic-flaws/examples
+  papers:
+    - OWASP Business Logic Testing Guide
+  writeups: []
+workflow_mapping:
+  skill: billing
+  workflow: W1 (price manipulation)
+payload_families:
+  - name: direct_price
+    description: Modify price or amount directly
+    examples:
+      - '"price": 9999 -> "price": 1'
+      - '"total": 499 -> "total": 0'
+      - '"amount": 100 -> "amount": -100'
+  - name: negative_quantity
+    description: Add negative quantity items to cart
+    examples:
+      - '"quantity": 1 -> "quantity": -1'
+      - '"quantity": 5 -> "quantity": -5'
+  - name: currency_swap
+    description: Change currency to weaker denomination
+    examples:
+      - '"currency": "USD" -> "currency": "IRR"'
+      - '"currency": "EUR" -> "currency": "VND"'
+  - name: discount_tamper
+    description: Add or modify discount parameters
+    examples:
+      - '"discount": 0 -> "discount": 100'
+      - '"coupon_code": null -> "coupon_code": "ADMIN100"'
+  - name: plan_downgrade
+    description: Downgrade plan while keeping premium features
+    examples:
+      - '"plan_id": "pro" -> "plan_id": "free" (pro features still work)'
+  - name: round_down
+    description: Fractional cent rounding exploits
+    examples:
+      - '"subtotal": 0.004 -> rounds to 0.00'
+tags:
+  - billing
+  - price-tampering
+  - business-logic
+  - ecommerce
+  - critical
+  - requires-approval
+  - data-modifying
+  - payment-fraud

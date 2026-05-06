@@ -1,0 +1,39 @@
+id: cross_account_replay
+name: Cross-Account Request Replay
+category: authorization
+severity: critical
+description: Replay captured requests using different authenticated personas to detect BOLA, BLA, and tenant isolation failures.
+preconditions:
+  auth_required: mandatory
+  tools: [curl, python3, jq]
+  inputs: [traffic-corpus/routes.jsonl, persona/headers/]
+  personas_required: 2
+dangerous: false
+workflow: cross-account/replay-corpus
+detection_signals:
+  positive:
+    - "HTTP 200 where 403/404 is expected for cross-account access"
+    - "Private fields in unauthorized persona response"
+    - "Response body contains data belonging to another user"
+  negative:
+    - "HTTP 401/403 on all cross-account requests"
+    - "Empty or generic error responses"
+    - "Identical public data only"
+evidence_required:
+  - "Owner baseline request and response"
+  - "Attacker replay request and response"
+  - "Response diff showing unauthorized access"
+false_positives:
+  - "Resource is intentionally public or multi-tenant"
+  - "Response is cached/stale and does not reflect live auth state"
+standards:
+  owasp_wstg: [WSTG-ATHZ-02]
+  owasp_api_top10: [API1:2023]
+  owasp_asvs: [V4.1.1, V4.1.3]
+references:
+  - "https://portswigger.net/web-security/access-control/idor"
+  - "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/"
+safety:
+  risk_tier: intrusive
+  data_modifying: false
+  rate_limited: true

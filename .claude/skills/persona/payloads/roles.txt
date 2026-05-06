@@ -1,0 +1,11 @@
+Security Researcher
+Platform Owner
+Program Manager
+Triager
+SOC Analyst
+Red Team Operator
+Compliance Auditor
+Incident Responder
+Application Developer
+DevOps Engineer
+External Assessor

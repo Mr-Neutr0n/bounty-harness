@@ -1,0 +1,39 @@
+safety_tiers:
+  passive:
+    description: "Read-only, no direct interaction with target"
+    examples: [subfinder, amass, crtsh, chaos-client, uncover, asnmap]
+    requires_scope: false
+    requires_approval: false
+    rate_limit_default: 50
+  active-safe:
+    description: "Interacts with target but read-only, no exploitation"
+    examples: [httpx, katana, gau, waybackurls, dnsx, tlsx, nuclei-templates-info]
+    requires_scope: true
+    requires_approval: false
+    rate_limit_default: 100
+  intrusive:
+    description: "May trigger WAF, send payloads, or cause alerts"
+    examples: [nuclei, dalfox, ffuf, smuggler, kiterunner, arjun]
+    requires_scope: true
+    requires_approval: false
+    rate_limit_default: 50
+  destructive-manual:
+    description: "Could modify data, escalate privileges, or cause harm"
+    examples: [frida-injection, cloudfox-iam, objection-runtime, auth-race]
+    requires_scope: true
+    requires_approval: true
+    rate_limit_default: 10
+
+scope_rules:
+  prefer_scoped_hosts: true
+  scoped_hosts_file: "$OUTDIR/recon/scoped/in_scope_hosts.txt"
+  fallback_hosts_file: "$OUTDIR/recon/live/live_hosts.txt"
+  block_out_of_scope: true
+
+preflight_checks:
+  - check: "tools_required in skill.yaml"
+    action: "warn_and_skip"
+  - check: "scope_file exists"
+    action: "warn"
+  - check: "rate_limit <= safety_tier.rate_limit_default"
+    action: "enforce"

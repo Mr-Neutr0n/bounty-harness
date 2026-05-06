@@ -1,0 +1,96 @@
+id: cloud-dangling-dns
+name: Dangling DNS / Subdomain Takeover
+category: cloud
+description: >
+  DNS record points to a cloud service (S3, CloudFront, ELB, Azure, GCP,
+  Heroku, GitHub Pages) that no longer exists or is not claimed. Attacker
+  registers the orphaned resource and serves malicious content under the
+  target domain. Enables XSS, phishing, cookie theft (if cookies scoped to
+  *.target.com), and CORS bypass. Detected via DNS A/CNAME records + HTTP
+  errors specific to each service.
+severity: high
+standards:
+  wstg:
+    - WSTG-CONF-10
+  asvs:
+    - "V10.3.1"
+  vrt:
+    - subdomain_takeover
+  cwe:
+    - CWE-350
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - subdomains
+    - dns-records
+    - cname-endpoints
+requires:
+  auth: none
+  inputs:
+    - Subdomain list with DNS resolution
+    - CNAME records for each subdomain
+    - httpx response analysis for takeover fingerprints
+  tools:
+    - subfinder
+    - dnsx
+    - httpx
+    - subjack
+    - nuclei
+signals:
+  positive:
+    - S3 bucket returns NoSuchBucket (bucket not claimed yet)
+    - CloudFront returns "Bad request" (distribution not found)
+    - GitHub Pages returns 404 "There isn't a GitHub Pages site here"
+    - Heroku returns "No such app"
+    - Azure returns 404 with "Web site not found"
+    - CNAME points to provider that allows resource registration
+  negative:
+    - CNAME resolves to active IP with valid HTTP response
+    - DNS resolves to target-owned IP address (not cloud provider)
+    - Cloud provider does not allow claiming orphaned resources
+    - CNAME points to service already owned by target (custom domain verification)
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - dnsx output showing CNAME record
+    - httpx response showing takeover fingerprint
+    - subjack or nuclei takeover template output
+    - Screenshot of service placeholder/error page
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/10-Test_for_Subdomain_Takeover
+    - https://github.com/EdOverflow/can-i-take-over-xyz
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: cloud
+  workflow: W2 (dangling DNS)
+payload_families:
+  - name: s3_takeover
+    description: Orphaned S3 bucket
+    examples:
+      - "CNAME: BUCKET.s3.amazonaws.com -> NoSuchBucket error"
+  - name: cloudfront_takeover
+    description: Orphaned CloudFront distribution
+    examples:
+      - "CNAME: d123.cloudfront.net -> Distribution not found"
+  - name: github_pages_takeover
+    description: Orphaned GitHub Pages site
+    examples:
+      - "CNAME: USER.github.io -> 404 no site here"
+  - name: heroku_takeover
+    description: Orphaned Heroku app
+    examples:
+      - "CNAME: APP.herokuapp.com -> No such app"
+tags:
+  - takeover
+  - dns
+  - cname
+  - subdomain
+  - orphaned-resource
+  - cloud-provider

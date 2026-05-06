@@ -1,0 +1,134 @@
+name: asset-graph
+version: 1.0.0
+description: Persistent target asset graph connecting recon, traffic, objects, personas, and findings across runs.
+bounded_context: AssetGraphContext
+owasp_wstg:
+  - WSTG-INFO-01
+  - WSTG-INFO-02
+  - WSTG-INFO-06
+owasp_api_top10:
+  - API7:2023
+severity_range: [info]
+tools_required:
+  - python3
+  - jq
+input_files:
+  - live_hosts.txt
+  - routes.jsonl
+  - objects.jsonl
+workflows:
+  init-graph:
+    description: Create SQLite database and schema for the current engagement.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/asset-graph && \
+      python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action init --db $OUTDIR/asset-graph/asset_graph.sqlite --output $OUTDIR/asset-graph/graph_summary.md
+    outputs:
+      - $OUTDIR/asset-graph/asset_graph.sqlite
+      - $OUTDIR/asset-graph/graph_summary.md
+    evidence_dir: null
+    next:
+      if_findings: ingest-recon
+      if_no_findings: ingest-recon
+
+  ingest-recon:
+    description: Load recon output into the asset graph.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/asset-graph && \
+      python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action ingest-recon --db $OUTDIR/asset-graph/asset_graph.sqlite --recon-dir $OUTDIR/recon
+    outputs:
+      - $OUTDIR/asset-graph/asset_graph.sqlite
+    evidence_dir: null
+    next:
+      if_findings: ingest-corpus
+      if_no_findings: ingest-corpus
+
+  ingest-corpus:
+    description: Load normalized traffic corpus into the asset graph.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/asset-graph && \
+      python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action ingest-corpus --db $OUTDIR/asset-graph/asset_graph.sqlite --routes ${ROUTES_FILE:-$OUTDIR/traffic-corpus/routes.jsonl} --objects ${OBJECTS_FILE:-$OUTDIR/traffic-corpus/objects.jsonl}
+    outputs:
+      - $OUTDIR/asset-graph/asset_graph.sqlite
+    evidence_dir: null
+    next:
+      if_findings: ingest-personas
+      if_no_findings: ingest-personas
+
+  ingest-personas:
+    description: Load persona definitions into the asset graph.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/asset-graph && \
+      python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action ingest-personas --db $OUTDIR/asset-graph/asset_graph.sqlite --personas $OUTDIR/persona/personas.json --validation $OUTDIR/persona/validation.json
+    outputs:
+      - $OUTDIR/asset-graph/asset_graph.sqlite
+    evidence_dir: null
+    next:
+      if_findings: ingest-findings
+      if_no_findings: build-hotlist
+
+  ingest-findings:
+    description: Load confirmed findings and false positives into the graph.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/asset-graph && \
+      python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action ingest-findings --db $OUTDIR/asset-graph/asset_graph.sqlite --findings-dir $OUTDIR/impact-verifier
+    outputs:
+      - $OUTDIR/asset-graph/asset_graph.sqlite
+    evidence_dir: null
+    next:
+      if_findings: build-hotlist
+      if_no_findings: build-hotlist
+
+  build-hotlist:
+    description: Score and rank assets by security testing value.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/asset-graph && \
+      python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action hotlist --db $OUTDIR/asset-graph/asset_graph.sqlite --output $OUTDIR/asset-graph/hotlist.json
+    outputs:
+      - $OUTDIR/asset-graph/hotlist.json
+    evidence_dir: null
+    detection_signals:
+      - "assets ranked by auth surface, object density, payment/admin/AI surface exposure"
+    false_positives: []
+    next:
+      if_findings: diff-runs
+      if_no_findings: diff-runs
+
+  diff-runs:
+    description: Compare current run against previous runs.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/asset-graph && \
+      python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action diff --db $OUTDIR/asset-graph/asset_graph.sqlite --output $OUTDIR/asset-graph/delta.json
+    outputs:
+      - $OUTDIR/asset-graph/delta.json
+    evidence_dir: null
+    detection_signals:
+      - "new hosts, new routes, new objects, new surfaces detected"
+    false_positives:
+      - "non-deterministic URLs or rotating IDs flagged as new"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  query:
+    description: Run arbitrary queries against the asset graph.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/asset-graph && \
+      python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action query --db $OUTDIR/asset-graph/asset_graph.sqlite --sql "${GRAPH_QUERY:?Set GRAPH_QUERY}" --output $OUTDIR/asset-graph/query_result.json
+    outputs:
+      - $OUTDIR/asset-graph/query_result.json
+    evidence_dir: null
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  hotlist: "Ranked assets with scores, auth status, and security relevance"
+  delta: "New, changed, and removed assets since previous run"

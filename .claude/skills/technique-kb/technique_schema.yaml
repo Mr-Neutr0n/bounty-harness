@@ -1,0 +1,206 @@
+# Canonical Technique Schema
+# Every technique YAML in techniques/ must conform to this schema.
+# Used by technique_validator.py for validation.
+
+schema:
+  type: object
+  required:
+    - id
+    - name
+    - category
+    - description
+    - severity
+    - applies_to
+    - requires
+    - signals
+    - safety
+    - evidence
+  properties:
+    id:
+      type: string
+      description: Unique identifier, e.g. "xss-reflected-get"
+      pattern: "^[a-z][a-z0-9_-]+$"
+
+    name:
+      type: string
+      description: Human-readable technique name, e.g. "Reflected XSS via GET Parameter"
+
+    category:
+      type: string
+      description: Top-level vulnerability class
+      enum:
+        - xss
+        - sqli
+        - ssrf
+        - rce
+        - auth
+        - api
+        - file-upload
+        - cors-csrf
+        - http-protocol
+        - cloud
+        - ai-llm
+        - race
+        - webhooks
+        - billing
+
+    description:
+      type: string
+      description: Full explanation of the technique, how it works, attacker goals
+
+    severity:
+      type: string
+      description: Default severity if confirmed
+      enum: [critical, high, medium, low, info]
+
+    standards:
+      type: object
+      properties:
+        wstg:
+          type: array
+          items:
+            type: string
+          description: OWASP WSTG identifiers
+        asvs:
+          type: array
+          items:
+            type: string
+          description: OWASP ASVS requirement identifiers
+        api_top10:
+          type: array
+          items:
+            type: string
+          description: OWASP API Security Top 10 identifiers
+        vrt:
+          type: array
+          items:
+            type: string
+          description: HackerOne VRT category paths
+        cwe:
+          type: array
+          items:
+            type: string
+          description: CWE identifiers, e.g. "CWE-79"
+
+    applies_to:
+      type: object
+      required: [archetypes, surfaces]
+      properties:
+        archetypes:
+          type: array
+          items:
+            type: string
+          description: Domain-model archetype IDs this technique applies to
+        surfaces:
+          type: array
+          items:
+            type: string
+          description: Domain-model surface IDs this technique applies to
+
+    requires:
+      type: object
+      required: [auth, inputs, tools]
+      properties:
+        auth:
+          type: string
+          description: Authentication level required to execute the test
+          enum: [none, single_account, two_accounts, admin, session_cookie, api_key]
+        inputs:
+          type: array
+          items:
+            type: string
+          description: Recon data needed before running (param names, URLs, endpoints, cookies, etc.)
+        tools:
+          type: array
+          items:
+            type: string
+          description: CLI tools required for testing
+
+    signals:
+      type: object
+      required: [positive, negative]
+      properties:
+        positive:
+          type: array
+          items:
+            type: string
+          description: What indicates the vulnerability EXISTS
+        negative:
+          type: array
+          items:
+            type: string
+          description: What indicates it's NOT vulnerable (false-positive patterns to rule out)
+
+    safety:
+      type: object
+      required: [intrusive, data_modifying, rate_limited, requires_approval]
+      properties:
+        intrusive:
+          type: boolean
+          description: Could this test disrupt the target's service?
+        data_modifying:
+          type: boolean
+          description: Could this test create/modify/delete target data?
+        rate_limited:
+          type: boolean
+          description: Is this technique likely to hit rate limits?
+        requires_approval:
+          type: boolean
+          description: Must user explicitly approve before running?
+
+    evidence:
+      type: object
+      required: [required]
+      properties:
+        required:
+          type: array
+          items:
+            type: string
+          description: Evidence artifacts that must be collected to prove the finding
+
+    references:
+      type: object
+      properties:
+        urls:
+          type: array
+          items:
+            type: string
+        papers:
+          type: array
+          items:
+            type: string
+        writeups:
+          type: array
+          items:
+            type: string
+
+    workflow_mapping:
+      type: object
+      properties:
+        skill:
+          type: string
+          description: Which skill directory contains the runnable workflow
+        workflow:
+          type: string
+          description: Which workflow name within that skill
+
+    payload_families:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          description:
+            type: string
+          examples:
+            type: array
+            items:
+              type: string
+      description: Payload families applicable to this technique
+
+    tags:
+      type: array
+      items:
+        type: string
+      description: Searchable tags for technique_search.py

@@ -1,0 +1,5 @@
+SELECT url, COUNT(*) AS hits FROM routes GROUP BY url ORDER BY hits DESC LIMIT 20;
+SELECT asset_type, COUNT(*) FROM assets WHERE first_seen > datetime('now', '-7 days') GROUP BY asset_type;
+SELECT p.url, p.param_name FROM params p JOIN routes r ON r.id = p.route_id WHERE p.response_reflected = 1;
+SELECT source_url, target_url, edge_type FROM edges WHERE edge_type = 'redirect' AND status_code BETWEEN 300 AND 399;
+SELECT a.host, COUNT(DISTINCT e.target_host) AS outbound_connections FROM assets a JOIN edges e ON e.source_host = a.host GROUP BY a.host ORDER BY outbound_connections DESC;

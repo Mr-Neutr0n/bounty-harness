@@ -1,0 +1,525 @@
+version: 1.0.0
+description: Application-agnostic domain archetype definitions for bug bounty target classification
+
+archetypes:
+  media-platform:
+    id: media-platform
+    name: Media Platform
+    description: Video, image, or audio hosting platform with upload, transcoding, streaming, and playback capabilities. Content is user-generated and shareable.
+    primary_surfaces:
+      - upload-pipeline
+      - player-embed
+      - file-download
+      - cdn-cache
+    tech_signals:
+      - "video/mp4 content-type response"
+      - "audio/mpeg content-type response"
+      - "HLS .m3u8 or DASH .mpd manifest URLs"
+      - "embed.* subdomain"
+      - "player.* subdomain"
+      - "wistia embed"
+      - "brightcove embed"
+      - "videojs detected"
+      - "jwplayer detected"
+      - "ffmpeg referenced in API responses"
+      - "aws s3 signed URLs with CloudFront"
+      - "cloudinary integration"
+      - "imgix parameters in image URLs"
+    url_patterns:
+      - "player.*"
+      - "upload.*"
+      - "embed.*"
+      - "api/upload"
+      - "api/transcode"
+      - "cdn*.*"
+      - "static.*"
+      - "media.*"
+      - "videos/*"
+      - "watch/*"
+      - "/watch/.*"
+    high_value_actions:
+      - upload media
+      - transcode video
+      - share private media
+      - embed player on external sites
+      - delete or modify other users media
+      - access unlisted content
+      - bypass DRM or geo-restrictions
+    severity_weight: 1.8
+
+  developer-platform:
+    id: developer-platform
+    name: Developer Platform
+    description: API-first platform offering developer tools, SDKs, OAuth applications, webhooks, documentation, and API key management.
+    primary_surfaces:
+      - oauth-flow
+      - api-object-crud
+      - webhook
+      - graphql
+    tech_signals:
+      - "oauth authorize endpoint"
+      - "api keys in response"
+      - "swagger.json or openapi.json"
+      - "graphql endpoint detected"
+      - "developer.* subdomain"
+      - "docs.* subdomain"
+      - "reference.* subdomain"
+      - "webhook endpoint in URLs"
+      - "npm package references"
+      - "pypi package references"
+      - "sdk download links"
+      - "Bearer token authentication"
+      - "API versioning in URL path like /v1/ or /v2/"
+      - "api.* subdomain"
+      - "sandbox.* subdomain"
+    url_patterns:
+      - "api.*"
+      - "developers.*"
+      - "docs.*"
+      - "reference.*"
+      - "oauth/authorize"
+      - "oauth/token"
+      - "webhook"
+      - "/v[0-9]+/"
+      - "graphql"
+      - "sandbox.*"
+      - "api-keys"
+      - "app-settings"
+    high_value_actions:
+      - approve or install OAuth app
+      - rotate API keys
+      - forge incoming webhook
+      - access other developers apps or data
+      - bypass rate limits
+      - modify webhook destination
+      - escalate OAuth scopes
+    severity_weight: 2.0
+
+  billing-saas:
+    id: billing-saas
+    name: Billing SaaS
+    description: Subscription management, invoicing, and payment processing platform handling recurring billing, payment methods, and financial data.
+    primary_surfaces:
+      - checkout-payment
+      - api-object-crud
+      - webhook
+    tech_signals:
+      - "stripe checkout integration"
+      - "stripe elements or stripe.js"
+      - "paddle.js or Paddle checkout"
+      - "paypal express checkout"
+      - "braintree payment"
+      - "adyen integration"
+      - "invoice in page title or content"
+      - "subscription management UI"
+      - "pricing page with tiered plans"
+      - "billing.* subdomain"
+      - "checkout.* subdomain"
+      - "receipt generation"
+      - "pci compliance references"
+    url_patterns:
+      - "billing.*"
+      - "checkout.*"
+      - "subscription"
+      - "invoice"
+      - "payment-method"
+      - "pricing"
+      - "plans"
+      - "upgrade"
+      - "receipt.*"
+      - "api/invoice"
+      - "api/subscription"
+      - "api/payment"
+    high_value_actions:
+      - modify subscription tier without payment
+      - access other customers invoices
+      - manipulate payment amounts
+      - trigger chargebacks or refunds
+      - bypass paywall for premium features
+      - steal payment method details
+      - generate fraudulent receipts
+    severity_weight: 2.0
+
+  collaboration-saas:
+    id: collaboration-saas
+    name: Collaboration SaaS
+    description: Team-based productivity or collaboration tool with workspaces, sharing, roles, comments, realtime editing, and notification systems.
+    primary_surfaces:
+      - api-object-crud
+      - websocket
+      - auth-flow
+      - email-handling
+    tech_signals:
+      - "team or workspace in UI"
+      - "share link generation"
+      - "comment threads or annotation"
+      - "role assignment in API responses"
+      - "realtime collaboration features"
+      - "websocket upgrade headers"
+      - "PubNub integration"
+      - "Pusher integration"
+      - "Notification system"
+      - "mention feature in comments"
+      - "rich text editor ProseMirror or Slate"
+      - "concurrent editing indicators"
+    url_patterns:
+      - "teams"
+      - "workspace"
+      - "share"
+      - "comment"
+      - "collab"
+      - "board"
+      - "docs"
+      - "notes"
+      - "realtime"
+      - "mention"
+      - "notification"
+    high_value_actions:
+      - join workspace without invitation
+      - read private documents of other teams
+      - escalate to admin role
+      - modify other users comments or content
+      - exfiltrate entire workspace data
+      - spoof notification target
+      - bypass sharing permissions
+    severity_weight: 1.6
+
+  storage-platform:
+    id: storage-platform
+    name: Storage Platform
+    description: Cloud file storage and sharing platform with upload, download, signed URLs, folder management, and collaboration features.
+    primary_surfaces:
+      - upload-pipeline
+      - file-download
+      - api-object-crud
+      - cdn-cache
+      - email-handling
+    tech_signals:
+      - "cloud storage service"
+      - "file upload endpoint detected"
+      - "signed URL generation in API"
+      - "download.* subdomain"
+      - "folder sharing in UI"
+      - "share link with token"
+      - "drag and drop file upload in JS"
+      - "file versioning in API"
+      - "trash or recycle bin endpoint"
+      - "file preview generation"
+    url_patterns:
+      - "upload.*"
+      - "download.*"
+      - "file"
+      - "folder"
+      - "share"
+      - "dl.*"
+      - "cdn.*"
+      - "api/files"
+      - "api/folders"
+      - "s/[a-zA-Z0-9]+"
+    high_value_actions:
+      - access private files via IDOR
+      - extract signed URL keys
+      - bypass share link authentication
+      - enumerate stored files
+      - upload malware or phishing content
+      - trigger server-side processing of uploaded files
+      - access deleted files
+    severity_weight: 1.7
+
+  marketplace:
+    id: marketplace
+    name: Marketplace
+    description: Two-sided marketplace or e-commerce platform connecting buyers and sellers, processing orders, payouts, listings, and reviews.
+    primary_surfaces:
+      - checkout-payment
+      - api-object-crud
+      - auth-flow
+      - email-handling
+    tech_signals:
+      - "seller dashboard in UI"
+      - "payout processing"
+      - "listing management"
+      - "order processing or tracking"
+      - "review or rating system"
+      - "escrow references"
+      - "dispute resolution"
+      - "stripe connect integration"
+      - "marketplace commission fees"
+    url_patterns:
+      - "listings"
+      - "orders"
+      - "payouts"
+      - "seller"
+      - "buyer"
+      - "shop"
+      - "product"
+      - "review"
+      - "cart"
+      - "dispute"
+      - "dashboard/seller"
+    high_value_actions:
+      - manipulate order pricing
+      - access other sellers payouts
+      - bypass seller verification
+      - post fraudulent listings
+      - modify review scores
+      - trigger refunds on completed orders
+      - escalate buyer/seller permissions
+    severity_weight: 1.9
+
+  ai-product:
+    id: ai-product
+    name: AI Product
+    description: AI/LLM-powered product with model endpoints, tool-use functionality, RAG pipelines, agent frameworks, and prompt engineering interfaces.
+    primary_surfaces:
+      - llm-endpoint
+      - api-object-crud
+      - websocket
+      - webhook
+    tech_signals:
+      - "openai api references"
+      - "anthropic api references"
+      - "langchain references in JS"
+      - "llama index references"
+      - "vector database references pinecone, weaviate, qdrant"
+      - "mcp server endpoints"
+      - "model selection in UI"
+      - "prompt engineering playground"
+      - "streaming responses server sent events"
+      - "token counting or pricing"
+      - "rag or retrieval augmented generation"
+      - "agent or autonomous agent references"
+      - "llm tool call patterns"
+    url_patterns:
+      - "api/chat"
+      - "api/completions"
+      - "api/embeddings"
+      - "api/models"
+      - "api/prompts"
+      - "playground"
+      - "threads"
+      - "assistants"
+      - "agents"
+      - "rag"
+      - "knowledge-base"
+    high_value_actions:
+      - inject system prompt override
+      - exfiltrate RAG knowledge base
+      - access other users conversations
+      - bypass model restrictions or guardrails
+      - trigger tool-use on unauthorized resources
+      - manipulate assistant behavior
+      - steal model weights or fine-tuned data
+    severity_weight: 2.0
+
+  mobile-api-backend:
+    id: mobile-api-backend
+    name: Mobile API Backend
+    description: Backend API serving mobile applications with app-specific endpoints, device authentication, push notifications, and deep link handling.
+    primary_surfaces:
+      - api-object-crud
+      - mobile-deep-link
+      - auth-flow
+      - websocket
+    tech_signals:
+      - "mobile app references in source"
+      - "apk download or reference"
+      - "ipa download or reference"
+      - "push notification endpoints"
+      - "fcm or firebase cloud messaging"
+      - "apns references"
+      - "device token authentication"
+      - "deep link url scheme"
+      - "appsflyer or mixpanel mobile SDK"
+      - "react native references"
+      - "flutter references"
+      - "api version like /mobile/"
+    url_patterns:
+      - "mapi.*"
+      - "mobile.*"
+      - "api/mobile/"
+      - "api/push/"
+      - "api/device/"
+      - "api/v[0-9]+/mobile/"
+      - "notifications/"
+      - "deeplink/"
+    high_value_actions:
+      - bypass device authentication
+      - read other users push notifications
+      - trigger deeplink to steal session tokens
+      - enumerate mobile-specific API endpoints
+      - access debug or staging mobile endpoints
+      - manipulate device registration for account takeover
+    severity_weight: 1.7
+
+  cdn-heavy:
+    id: cdn-heavy
+    name: CDN Heavy
+    description: Application heavily distributed across multiple CDNs, cache layers, and origin servers. Content delivery is the primary architectural concern.
+    primary_surfaces:
+      - cdn-cache
+      - file-download
+      - subdomain-takeover
+    tech_signals:
+      - "cloudfront cname or headers"
+      - "cloudflare cdn"
+      - "fastly cdn"
+      - "akamai headers"
+      - "keycdn references"
+      - "bunnycdn references"
+      - "stackpath or maxcdn"
+      - "multiple cdn layers detected"
+      - "origin.* subdomain"
+      - "cache control headers extensively configured"
+      - "vary header configured"
+      - "x-cache or x-served-by headers"
+      - "s3 origin with cdn front"
+    url_patterns:
+      - "cdn*.*"
+      - "static.*"
+      - "assets.*"
+      - "origin.*"
+      - "img*.*"
+      - "assets[0-9]+.*"
+      - "images.*"
+      - "downloads.*"
+      - "media.*"
+    high_value_actions:
+      - poison cdn cache
+      - bypass cache rules for private content
+      - discover origin IP via cache miss
+      - exploit dangling cname record
+      - cache deception for authenticated pages
+      - manipulate vary header to serve wrong content
+    severity_weight: 1.4
+
+  auth-provider:
+    id: auth-provider
+    name: Auth Provider
+    description: Identity and authentication provider offering OAuth, SAML, OIDC, social login, and Single Sign-On services to third-party applications.
+    primary_surfaces:
+      - oauth-flow
+      - auth-flow
+      - api-object-crud
+      - webhook
+    tech_signals:
+      - "openid connect configuration"
+      - "saml metadata or endpoint"
+      - "social login buttons facebook, google, github, apple, twitter"
+      - "sso single sign on"
+      - "authentication provider service"
+      - "mfa multi factor authentication"
+      - "passkeys or webauthn"
+      - "jwt token issuance"
+      - "scim provisioning"
+      - "ldap or active directory references"
+      - "identity provider"
+    url_patterns:
+      - "auth.*"
+      - "login.*"
+      - "id.*"
+      - "sso.*"
+      - "signin"
+      - "signup"
+      - "register"
+      - "api/auth/"
+      - "oauth/"
+      - "saml/"
+      - "oidc/"
+      - "mfa/"
+      - "reset-password"
+    high_value_actions:
+      - forge JWT or SAML assertion
+      - bypass MFA
+      - escalate OAuth scopes
+      - impersonate another user via SSO
+      - enumerate registered users
+      - reset password without verification
+      - steal refresh tokens
+    severity_weight: 2.0
+
+  realtime-app:
+    id: realtime-app
+    name: Realtime App
+    description: Application built around realtime communication — WebSockets, WebRTC, SSE, or pub/sub for live data streaming, chat, or collaborative features.
+    primary_surfaces:
+      - websocket
+      - api-object-crud
+      - auth-flow
+    tech_signals:
+      - "websocket upgrade header in response"
+      - "pubnub integration"
+      - "pusher integration"
+      - "ably integration"
+      - "server sent events endpoint"
+      - "webrtc peerconnection"
+      - "socket.io detected"
+      - "live streaming event"
+      - "realtime dashboard"
+      - "graphql subscriptions"
+      - "firebase realtime database or firestore"
+      - "centrifugo or centrifuge references"
+    url_patterns:
+      - "ws.*"
+      - "realtime.*"
+      - "live"
+      - "stream"
+      - "chat"
+      - "socket"
+      - "events"
+      - "pubsub"
+      - "notifications"
+      - "api/stream"
+    high_value_actions:
+      - eavesdrop on other users streams
+      - inject messages into streams
+      - bypass WebSocket authentication
+      - enumerate connected users
+      - trigger denial of service via connection flood
+      - manipulate pub sub channel subscriptions
+    severity_weight: 1.5
+
+  ecommerce:
+    id: ecommerce
+    name: Ecommerce
+    description: Online retail storefront with product catalog, shopping cart, checkout, order management, inventory, and customer accounts.
+    primary_surfaces:
+      - checkout-payment
+      - api-object-crud
+      - auth-flow
+      - email-handling
+    tech_signals:
+      - "shopify or magento or woocommerce or bigcommerce detected"
+      - "product catalog with pricing"
+      - "shopping cart widget"
+      - "checkout flow"
+      - "coupon or discount code application"
+      - "order tracking or status"
+      - "inventory references in API"
+      - "wishlist feature"
+      - "shipping calculation"
+      - "payment gateway integration"
+      - "gift card redemption"
+      - "returns or rma form"
+    url_patterns:
+      - "products"
+      - "cart"
+      - "checkout"
+      - "orders"
+      - "account"
+      - "wishlist"
+      - "shop"
+      - "store"
+      - "catalog"
+      - "api/order"
+      - "api/product"
+      - "api/cart"
+    high_value_actions:
+      - modify product price during checkout
+      - access other customers orders
+      - apply unlimited discounts
+      - bypass payment during checkout
+      - enumerate inventory or unpublished products
+      - hijack active shopping cart
+      - redeem gift cards without purchase
+    severity_weight: 1.8

@@ -1,0 +1,57 @@
+name: race-condition
+version: 2.0.0
+description: Race condition detection — coupon/voucher bypass, TOCTOU, multi-step race, rate limit race, database race conditions
+bounded_context: ConcurrencyContext
+owasp_wstg:
+  - WSTG-BUSL-05
+owasp_api_top10: []
+severity_range: [medium, high, critical]
+tools_required:
+  - curl
+  - python3
+  - ffuf
+input_files:
+  - all_urls.txt
+workflows:
+  concurrent-requests:
+    description: Send concurrent requests to a selected endpoint to detect race windows.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/race/concurrent && \
+      python3 .claude/skills/race-condition/scripts/race_engine.py --context .bb/context.json --url $TARGET_URL --method ${RACE_METHOD:-GET} --body "${RACE_BODY:-}" --concurrent-count ${RACE_CONCURRENT_COUNT:-20} --output $OUTDIR/race/concurrent/results.json
+    outputs:
+      - $OUTDIR/race/concurrent/results.json
+    evidence_dir: $OUTDIR/race/concurrent/evidence/
+    detection_signals:
+      - "parallel requests produce duplicate state changes or inconsistent counters"
+      - "multiple responses succeed where only one should"
+    false_positives:
+      - "operation is intentionally idempotent"
+      - "backend serializes requests under real load"
+    next:
+      if_findings: timing-token
+      if_no_findings: timing-token
+
+  timing-token:
+    description: Detect timestamp-based token collisions via concurrent generation requests.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/race/timing && \
+      python3 .claude/skills/race-condition/scripts/timing_token_exploit.py --context .bb/context.json --url $TARGET_URL --concurrent-count ${RACE_CONCURRENT_COUNT:-20} --output $OUTDIR/race/timing/findings.jsonl
+    outputs:
+      - $OUTDIR/race/timing/findings.jsonl
+    evidence_dir: $OUTDIR/race/timing/evidence/
+    detection_signals:
+      - "concurrent token generation returns duplicate or predictable tokens"
+      - "timestamp-derived values collide under burst load"
+    false_positives:
+      - "duplicate-looking values are correlation IDs, not secrets"
+      - "token endpoint is public and not security sensitive"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  coupon_race: "Response showing duplicate coupon applications"
+  double_spend: "Balance change showing double spend per single cart"
+  inventory_race: "Negative inventory count after concurrent purchases"

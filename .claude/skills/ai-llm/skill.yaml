@@ -1,0 +1,195 @@
+name: ai-llm
+version: 1.0.0
+description: AI/LLM Security Testing — prompt injection, tool abuse, output handling, RAG poisoning, MCP server attacks, training data extraction
+bounded_context: LLMContext
+owasp_wstg:
+  - WSTG-INPV-14
+  - WSTG-CLNT-01
+owasp_llm_top10_2025:
+  - LLM01:2025 Prompt Injection
+  - LLM02:2025 Insecure Output Handling
+  - LLM03:2025 Training Data Poisoning
+  - LLM04:2025 Model Denial of Service
+  - LLM05:2025 Supply Chain Vulnerabilities
+  - LLM06:2025 Sensitive Information Disclosure
+  - LLM07:2025 Insecure Plugin Design
+  - LLM08:2025 Excessive Agency
+  - LLM09:2025 Overreliance
+  - LLM10:2025 Model Theft
+owasp_agentic_ai_q2_2026:
+  - A01 Agentic Tool Abuse
+  - A02 Autonomous Action Chain Injection
+  - A03 MCP Server Misconfiguration
+  - A04 RAG Pipeline Poisoning
+  - A05 Agent Identity Spoofing
+  - A06 Multi-Agent Collusion
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - curl
+  - jq
+  - python3
+  - httpx
+input_files:
+  - live_hosts.txt
+  - llm_api_paths.txt
+  - mcp_endpoints.txt
+workflows:
+  surface-discovery:
+    description: Discover LLM endpoints, MCP servers, and chatbot surfaces
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/ai-llm/scripts/llm_surface_mapper.py --context .bb/context.json --urls $OUTDIR/live_hosts.txt --output $OUTDIR/ai-llm/surface_findings.jsonl
+    outputs:
+      - $OUTDIR/ai-llm/surface_findings.jsonl
+      - $OUTDIR/ai-llm/surface.json
+      - $OUTDIR/ai-llm/mcp_endpoints.txt
+    evidence_dir: $OUTDIR/ai-llm/surface/evidence/
+    detection_signals:
+      - "Response contains 'as an AI' or 'as a language model'"
+      - "URL path matches known LLM API patterns"
+      - "Response headers contain x-llm, x-model, openai-*"
+      - "SSE content-type with data: [DONE] streaming pattern"
+      - "MCP JSON-RPC tools/list returns valid response"
+    false_positives:
+      - "Static page about AI (not an actual LLM endpoint)"
+      - "Documentation page mentioning AI terms"
+      - "Proxied 200 for everything (always returns 200)"
+    next:
+      if_findings: prompt-injection
+      if_no_findings: prompt-injection
+
+  prompt-injection:
+    description: Test direct and indirect prompt injection, jailbreak attempts
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/ai-llm/scripts/prompt_injection_runner.py --context .bb/context.json --urls $OUTDIR/ai-llm/surface_findings.jsonl --output $OUTDIR/ai-llm/prompt_injection_findings.jsonl
+    outputs:
+      - $OUTDIR/ai-llm/prompt_injection_findings.jsonl
+    evidence_dir: $OUTDIR/ai-llm/prompt_injection/evidence/
+    detection_signals:
+      - "Exact keyword INJECTED123 or PWNED in response"
+      - "System prompt verbatim in response"
+      - "Response differs significantly from baseline"
+      - "LLM acknowledges instruction override"
+      - "Jailbreak prompt bypasses content filter"
+    false_positives:
+      - "LLM refuses but describes what injection means"
+      - "Response includes meta-commentary about injection"
+      - "Baseline variance from non-deterministic model (check multiple baselines)"
+    next:
+      if_findings: tool-abuse
+      if_no_findings: output-handling
+
+  tool-abuse:
+    description: Test excessive agency, tool/function calling abuse, plugin exploitation
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/ai-llm/scripts/tool_abuse_tester.py --context .bb/context.json --urls $OUTDIR/ai-llm/surface_findings.jsonl --output $OUTDIR/ai-llm/tool_abuse_findings.jsonl
+    outputs:
+      - $OUTDIR/ai-llm/tool_abuse_findings.jsonl
+    evidence_dir: $OUTDIR/ai-llm/tool_abuse/evidence/
+    detection_signals:
+      - "LLM returns structured function call JSON"
+      - "LLM lists tool names and parameters"
+      - "LLM acknowledges it would execute destructive action"
+      - "Parameter injection in function arguments succeeds"
+      - "Email or API call executed without confirmation"
+    false_positives:
+      - "LLM describes what a tool does but refuses to call it"
+      - "Function calling with explicit user confirmation gate"
+      - "Sandboxed tool execution (no real side effects)"
+    next:
+      if_findings: output-handling
+      if_no_findings: output-handling
+
+  output-handling:
+    description: Test if LLM output is rendered unsanitized (XSS, SSRF via injection)
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/ai-llm/scripts/output_handling_tester.py --context .bb/context.json --urls $OUTDIR/ai-llm/surface_findings.jsonl --output $OUTDIR/ai-llm/output_handling_findings.jsonl
+    outputs:
+      - $OUTDIR/ai-llm/output_handling_findings.jsonl
+    evidence_dir: $OUTDIR/ai-llm/output_handling/evidence/
+    detection_signals:
+      - "<script>, <iframe>, <svg> tags in rendered output"
+      - "javascript: URIs rendered as clickable links"
+      - "Markdown images rendered without sanitization"
+      - "HTML entities not escaped in chat widget"
+    false_positives:
+      - "Output escaped with HTML entities (e.g. &lt;script&gt;)"
+      - "Output filtered by CSP even if injected"
+      - "Output rendered in sandboxed iframe"
+    next:
+      if_findings: rag-poison
+      if_no_findings: rag-poison
+
+  rag-poison:
+    description: Test RAG pipeline poisoning via document upload or URL injection
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/ai-llm/scripts/rag_poison_tester.py --context .bb/context.json --urls $OUTDIR/ai-llm/surface_findings.jsonl --output $OUTDIR/ai-llm/rag_poison_findings.jsonl
+    outputs:
+      - $OUTDIR/ai-llm/rag_poison_findings.jsonl
+    evidence_dir: $OUTDIR/ai-llm/rag_poison/evidence/
+    detection_signals:
+      - "Poisoned content appears in RAG response"
+      - "RAG answers change based on uploaded documents"
+      - "URL-based knowledge source injects content"
+      - "System override via document metadata succeeds"
+    false_positives:
+      - "Content appears but is clearly labeled as user-provided"
+      - "RAG has authoritative source weighting that overrides poison"
+      - "Document rejected by content validation"
+    next:
+      if_findings: mcp-abuse
+      if_no_findings: mcp-abuse
+
+  mcp-abuse:
+    description: Test MCP server for tool discovery, auth bypass, argument injection
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/ai-llm/scripts/mcp_fuzzer.py --context .bb/context.json --mcp-urls $OUTDIR/ai-llm/mcp_endpoints.txt --output $OUTDIR/ai-llm/mcp_findings.jsonl
+    outputs:
+      - $OUTDIR/ai-llm/mcp_findings.jsonl
+    evidence_dir: $OUTDIR/ai-llm/mcp/evidence/
+    detection_signals:
+      - "MCP tools callable without authentication"
+      - "SQL injection in tool arguments succeeds"
+      - "Path traversal in file_read tool succeeds"
+      - "Tool chaining enables privilege escalation"
+      - "Missing parameter validation allows arbitrary execution"
+    false_positives:
+      - "Tool lists available but all calls require auth"
+      - "Parameter validation catches injection attempts"
+      - "Tool execution is sandboxed with no real side effects"
+    next:
+      if_findings: data-extraction
+      if_no_findings: data-extraction
+
+  data-extraction:
+    description: Extract system prompts, training data, PII from LLM
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      python3 .claude/skills/ai-llm/scripts/data_extraction.py --context .bb/context.json --urls $OUTDIR/ai-llm/surface_findings.jsonl --output $OUTDIR/ai-llm/data_extraction_findings.jsonl
+    outputs:
+      - $OUTDIR/ai-llm/data_extraction_findings.jsonl
+    evidence_dir: $OUTDIR/ai-llm/data_extraction/evidence/
+    detection_signals:
+      - "System prompt extracted verbatim"
+      - "Real PII or API keys returned in response"
+      - "Repeat-word attack returns training data fragments"
+      - "LLM completes sensitive partial strings (sk-, api_key=)"
+      - "Email addresses or URLs from training data returned"
+    false_positives:
+      - "LLM generates synthetic/example data, not real training data"
+      - "System prompt is intentionally public"
+      - "Completion strings are hallucinated, not real tokens"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  llm_response_dump: "Full LLM response body saved as JSON"
+  baseline_comparison: "Diff between baseline and injected response"
+  curl_poc: "Reproducible curl command with payload"
+  screenshot: "Screenshot of chat widget showing injected output"

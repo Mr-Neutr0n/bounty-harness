@@ -1,0 +1,98 @@
+name: planner
+version: 1.0.0
+description: "Domain-driven ranked test plan generator — consumes domain model, technique catalog, coverage ledger, and outputs a prioritized list of workflows with rationales, safety flags, and evidence requirements"
+bounded_context: PlanningContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [info]
+tools_required:
+  - python3
+  - jq
+  - yq
+input_files: []
+workflows:
+  generate-plan:
+    description: "Load domain profile + technique catalog + coverage data and produce a ranked test plan"
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/planner && \
+      python3 .claude/skills/planner/scripts/generate_plan.py \
+        --domain-profile ${DOMAIN_PROFILE:-$OUTDIR/domain-model/domain-profile.json} \
+        --techniques-dir ${TECHNIQUES_DIR:-.claude/skills/technique-kb/techniques} \
+        --coverage-matrix ${COVERAGE_MATRIX:-.claude/skills/coverage/coverage_matrix.yaml} \
+        --output ${PLAN_OUTPUT:-$OUTDIR/planner/plan.json}
+    outputs:
+      - $OUTDIR/planner/plan.json
+    evidence_dir: null
+    detection_signals:
+      - "plan JSON contains ranked plan_items with scores and rationales"
+      - "summary shows coverage delta and priority distribution"
+    false_positives:
+      - "technique catalog is empty, plan_items will be empty"
+      - "coverage matrix is missing, all techniques treated as gaps"
+    next:
+      if_findings: visualize-plan
+      if_no_findings: visualize-plan
+
+  generate-plan-safe:
+    description: "Generate plan excluding intrusive and destructive techniques"
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/planner && \
+      python3 .claude/skills/planner/scripts/generate_plan.py \
+        --domain-profile ${DOMAIN_PROFILE:-$OUTDIR/domain-model/domain-profile.json} \
+        --techniques-dir ${TECHNIQUES_DIR:-.claude/skills/technique-kb/techniques} \
+        --coverage-matrix ${COVERAGE_MATRIX:-.claude/skills/coverage/coverage_matrix.yaml} \
+        --exclude-intrusive \
+        --exclude-destructive \
+        --output ${PLAN_OUTPUT:-$OUTDIR/planner/plan.json}
+    outputs:
+      - $OUTDIR/planner/plan.json
+    evidence_dir: null
+    detection_signals:
+      - "plan JSON contains only safe, non-destructive plan_items"
+    false_positives:
+      - "may exclude important techniques that require auth but are otherwise safe"
+    next:
+      if_findings: visualize-plan
+      if_no_findings: null
+
+  visualize-plan:
+    description: "Convert plan JSON to readable markdown or HTML"
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/planner && \
+      python3 .claude/skills/planner/scripts/plan_visualizer.py \
+        --plan ${PLAN:-$OUTDIR/planner/plan.json} \
+        --output ${PLAN_MARKDOWN:-$OUTDIR/planner/plan.md} \
+        --format ${FORMAT:-markdown}
+    outputs:
+      - $OUTDIR/planner/plan.md
+    evidence_dir: null
+    detection_signals:
+      - "output file populated with formatted plan content"
+    false_positives:
+      - "markdown library missing for HTML output, falls back to pre-wrapped HTML"
+    next:
+      if_findings: validate-plan
+      if_no_findings: validate-plan
+
+  validate-plan:
+    description: "Validate plan JSON against plan_schema.yaml"
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/planner/scripts/plan_validator.py \
+        --plan ${PLAN:-$OUTDIR/planner/plan.json} \
+        --schema ${SCHEMA:-.claude/skills/planner/plan_schema.yaml}
+    outputs: []
+    evidence_dir: null
+    detection_signals:
+      - "validator exits 0 with PASSED message"
+      - "no structural or consistency errors detected"
+    false_positives:
+      - "schema file missing throws error but does not indicate plan problem"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates: {}

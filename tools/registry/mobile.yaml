@@ -1,0 +1,120 @@
+registry:
+  category: mobile
+  source: various
+  tools:
+    - name: jadx
+      repo: github.com/skylot/jadx
+      install_method: brew
+      binary: jadx
+      version_cmd: "jadx --version"
+      health_cmd: "jadx --version"
+      capabilities:
+        - apk_decompile
+        - dex_to_java
+        - resource_extract
+        - code_analysis
+        - smali_to_java
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - mobile
+
+    - name: apktool
+      repo: github.com/iBotPeaches/Apktool
+      install_method: brew
+      binary: apktool
+      version_cmd: "apktool --version"
+      health_cmd: "apktool --version"
+      capabilities:
+        - apk_decompile
+        - resource_extract
+        - smali_disassemble
+        - rebuild_apk
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - mobile
+
+    - name: mobsfscan
+      repo: github.com/MobSF/mobsfscan
+      install_method: pipx
+      binary: mobsfscan
+      version_cmd: "mobsfscan --version"
+      health_cmd: "mobsfscan --version"
+      capabilities:
+        - mobile_security_scan
+        - static_analysis
+        - semgrep_rules
+        - manifest_check
+        - code_check
+      risk_tier: passive
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - mobile
+        - reporting
+
+    - name: apkleaks
+      repo: github.com/dwisiswant0/apkleaks
+      install_method: pipx
+      binary: apkleaks
+      version_cmd: "apkleaks --version"
+      health_cmd: "apkleaks --version"
+      capabilities:
+        - apk_leak_finder
+        - secret_scan
+        - endpoint_enum
+        - key_extract
+      risk_tier: passive
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - mobile
+        - osint
+
+    - name: frida-tools
+      repo: github.com/frida/frida
+      install_method: pipx
+      binary: frida
+      version_cmd: "frida --version"
+      health_cmd: "frida --version"
+      capabilities:
+        - dynamic_instrumentation
+        - runtime_hook
+        - api_trace
+        - ssl_pinning_bypass
+        - root_detect_bypass
+      risk_tier: intrusive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - mobile
+
+    - name: objection
+      repo: github.com/sensepost/objection
+      install_method: pipx
+      binary: objection
+      version_cmd: "objection --version"
+      health_cmd: "objection --version"
+      capabilities:
+        - runtime_exploration
+        - ios_runtime
+        - android_runtime
+        - ssl_pinning_bypass
+        - root_detect_bypass
+        - dump_keychain
+      risk_tier: intrusive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - mobile

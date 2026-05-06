@@ -1,0 +1,10 @@
+https://example.com/
+https://example.com/about
+https://example.com/user/profile?id=123
+https://example.com/products/category/electronics/
+https://api.example.com/v1/users/abc-def-123
+https://cdn.example.com/static/js/main.abc123.js
+https://blog.example.com/post/2024/01/hello-world
+https://admin.example.com/dashboard/
+https://staging.example.com/login?next=/app
+https://example.com/search?q=test%20query&page=2

@@ -1,0 +1,149 @@
+name: auth
+version: 2.0.0
+description: Authentication and authorization testing — JWT attacks, OAuth 2.0, SAML, session management, 2FA bypass, password reset, IDOR, privilege escalation
+bounded_context: AuthContext
+owasp_wstg:
+  - WSTG-ATHN-01
+  - WSTG-ATHN-02
+  - WSTG-ATHN-03
+  - WSTG-ATHN-04
+  - WSTG-ATHN-05
+  - WSTG-ATHN-06
+  - WSTG-ATHN-07
+  - WSTG-ATHN-08
+  - WSTG-ATHN-09
+  - WSTG-ATHN-10
+  - WSTG-ATHZ-01
+  - WSTG-ATHZ-02
+  - WSTG-ATHZ-03
+  - WSTG-ATHZ-04
+owasp_api_top10:
+  - API1:2023
+  - API2:2023
+  - API3:2023
+  - API5:2023
+severity_range: [medium, high, critical]
+tools_required:
+  - curl
+  - ffuf
+  - python3
+  - jwt_tool
+  - openssl
+  - jq
+  - hashcat
+input_files:
+  - auth_pages.txt
+  - all_urls.txt
+  - js_files.txt
+workflows:
+  token-extract:
+    description: Extract and analyze JWT tokens from parameterized URLs
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/auth/tokens && \
+      python3 .claude/skills/auth/scripts/jwt_token_extractor.py --context .bb/context.json --input $OUTDIR/recon/scoped/parameterized_urls.txt --output $OUTDIR/auth/tokens/findings.jsonl
+    outputs:
+      - $OUTDIR/auth/tokens/findings.jsonl
+    evidence_dir: $OUTDIR/auth/tokens/evidence/
+    next:
+      if_findings: jwt-attack-matrix
+      if_no_findings: oauth-redirects
+
+  jwt-analysis:
+    description: Decode a supplied JWT and optionally generate safe attack variants.
+    inputs: [JWT_TOKEN, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/auth/jwt && \
+      python3 .claude/skills/auth/scripts/jwt_analyzer.py "${JWT_TOKEN:?Set JWT_TOKEN}" --context .bb/context.json --output $OUTDIR/auth/jwt/findings.jsonl
+    outputs:
+      - $OUTDIR/auth/jwt/findings.jsonl
+    evidence_dir: $OUTDIR/auth/jwt/evidence/
+    detection_signals:
+      - "JWT header, payload, and signing algorithm are decoded"
+      - "weak defaults or unsafe algorithm options are identified"
+    false_positives:
+      - "token is a non-production sample or intentionally unsigned test token"
+    next:
+      if_findings: jwt-attack-matrix
+      if_no_findings: oauth-redirects
+
+  jwt-attack-matrix:
+    description: Test JWT none, HS/RS confusion, and replay against an optional target URL.
+    inputs: [JWT_TOKEN, TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/auth/jwt && \
+      python3 .claude/skills/auth/scripts/jwt_attack_matrix.py --context .bb/context.json --token "${JWT_TOKEN:?Set JWT_TOKEN}" --target-url "${TARGET_URL:-}" --cookie "${SESSION_COOKIE:-}" --output $OUTDIR/auth/jwt/attack_findings.jsonl
+    outputs:
+      - $OUTDIR/auth/jwt/attack_findings.jsonl
+    evidence_dir: $OUTDIR/auth/jwt/evidence/
+    detection_signals:
+      - "forged token is accepted by the protected endpoint"
+      - "algorithm confusion or none-alg bypass is viable"
+    false_positives:
+      - "generated token is not accepted by the application"
+      - "test endpoint is not actually protected"
+    next:
+      if_findings: oauth-redirects
+      if_no_findings: oauth-redirects
+
+  oauth-redirects:
+    description: Test OAuth authorization redirect URI bypass variants.
+    inputs: [OAUTH_AUTH_URL, OAUTH_CLIENT_ID, OAUTH_REDIRECT_URI, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/auth/oauth && \
+      python3 .claude/skills/auth/scripts/oauth_redirect_matrix.py --context .bb/context.json --base-url "${OAUTH_AUTH_URL:?Set OAUTH_AUTH_URL}" --client-id "${OAUTH_CLIENT_ID:?Set OAUTH_CLIENT_ID}" --redirect-uri "${OAUTH_REDIRECT_URI:?Set OAUTH_REDIRECT_URI}" --cookie "${SESSION_COOKIE:-}" --output $OUTDIR/auth/oauth/findings.jsonl
+    outputs:
+      - $OUTDIR/auth/oauth/findings.jsonl
+    evidence_dir: $OUTDIR/auth/oauth/evidence/
+    detection_signals:
+      - "modified redirect_uri is accepted by the authorization endpoint"
+      - "path traversal, subdomain, or open redirect variants survive validation"
+    false_positives:
+      - "authorization server returns an error before issuing code or token"
+      - "accepted redirect URI remains within the intended allowlist"
+    next:
+      if_findings: mfa-flow
+      if_no_findings: mfa-flow
+
+  mfa-flow:
+    description: Probe MFA-protected access, OTP reuse, and resend rate limiting.
+    inputs: [MFA_PROTECTED_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/auth/mfa && \
+      python3 .claude/skills/auth/scripts/mfa_flow_tester.py --context .bb/context.json --protected-url "${MFA_PROTECTED_URL:?Set MFA_PROTECTED_URL}" --otp-verify-url "${OTP_VERIFY_URL:-}" --otp-send-url "${OTP_SEND_URL:-}" --cookie "${SESSION_COOKIE:-}" --output $OUTDIR/auth/mfa/findings.jsonl
+    outputs:
+      - $OUTDIR/auth/mfa/findings.jsonl
+    evidence_dir: $OUTDIR/auth/mfa/evidence/
+    detection_signals:
+      - "MFA-protected URL is reachable before successful OTP verification"
+      - "OTP send or verify endpoints lack practical throttling"
+    false_positives:
+      - "protected URL returns only public or cached content"
+      - "OTP endpoint throttles at a higher configured threshold"
+    next:
+      if_findings: auth-race
+      if_no_findings: auth-race
+
+  auth-race:
+    description: Send concurrent requests to a selected auth-sensitive endpoint.
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/auth/race && \
+      python3 .claude/skills/auth/scripts/auth_race_tester.py --context .bb/context.json --url $TARGET_URL --method ${AUTH_RACE_METHOD:-POST} --data "${AUTH_RACE_BODY:-{}}" --cookie "${SESSION_COOKIE:-}" --n ${AUTH_RACE_COUNT:-10} --output $OUTDIR/auth/race/results.json
+    outputs:
+      - $OUTDIR/auth/race/results.json
+    evidence_dir: $OUTDIR/auth/race/evidence/
+    detection_signals:
+      - "concurrent auth operation produces inconsistent or duplicated state"
+      - "multiple requests succeed when only one should be accepted"
+    false_positives:
+      - "backend serializes requests and no race window exists"
+      - "duplicate responses are idempotent and not security relevant"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  jwt_forge: "Forged JWT token + successful access response"
+  oauth_bypass: "Redirect URI bypass request/response with stolen code"
+  idor_data: "Response body showing another user's private data"

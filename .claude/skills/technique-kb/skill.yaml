@@ -1,0 +1,72 @@
+name: technique-kb
+version: 1.0.0
+description: Structured knowledge base of attack techniques with preconditions, signals, evidence requirements, and standards mappings
+bounded_context: TechniqueKnowledgeContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - python3
+  - jq
+input_files: []
+workflows:
+  validate:
+    description: Validate all technique YAML files against the canonical schema.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/technique-kb && \
+      python3 .claude/skills/technique-kb/scripts/technique_validator.py \
+        --techniques-dir .claude/skills/technique-kb/techniques \
+        --schema .claude/skills/technique-kb/technique_schema.yaml \
+        > $OUTDIR/technique-kb/validation.txt
+    outputs:
+      - $OUTDIR/technique-kb/validation.txt
+    evidence_dir: $OUTDIR/technique-kb/evidence/
+    detection_signals:
+      - "all technique YAML files validate against technique_schema.yaml"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  match:
+    description: Match techniques to target surface and archetype combinations.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/technique-kb && \
+      python3 .claude/skills/technique-kb/scripts/technique_matcher.py \
+        --techniques-dir .claude/skills/technique-kb/techniques \
+        --archetypes-file ${ARCHETYPES_FILE:-$OUTDIR/domain-model/archetypes.json} \
+        --surfaces-file ${SURFACES_FILE:-$OUTDIR/domain-model/surfaces.json} \
+        > ${TECHNIQUE_MATCHES:-$OUTDIR/technique-kb/matches.json}
+    outputs:
+      - $OUTDIR/technique-kb/matches.json
+    evidence_dir: $OUTDIR/technique-kb/evidence/
+    detection_signals:
+      - "matches JSON contains ranked techniques applicable to detected surfaces"
+    false_positives:
+      - "low-confidence domain-model surfaces may overmatch broad techniques"
+    next:
+      if_findings: search
+      if_no_findings: null
+
+  search:
+    description: Search techniques by keyword, category, severity, or standard ID.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/technique-kb && \
+      python3 .claude/skills/technique-kb/scripts/technique_search.py \
+        --techniques-dir .claude/skills/technique-kb/techniques \
+        --query "${QUERY:-xss}" \
+        > ${TECHNIQUE_SEARCH:-$OUTDIR/technique-kb/search_results.json}
+    outputs:
+      - $OUTDIR/technique-kb/search_results.json
+    evidence_dir: $OUTDIR/technique-kb/evidence/
+    detection_signals:
+      - "search results include matching technique IDs and workflow mappings"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates: {}

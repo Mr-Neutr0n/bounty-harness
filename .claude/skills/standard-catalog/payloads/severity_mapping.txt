@@ -1,0 +1,28 @@
+# Severity Mapping: Bugcrowd VRT Priority -> CVSS -> NIST Severity
+# Format: VRT_PRIORITY  CVSS_SCORE_RANGE  SEVERITY_LABEL  DESCRIPTION
+
+P1  9.0-10.0  Critical  Remote code execution, unauthenticated data breach, full system compromise
+P2  7.0-8.9   High      Auth bypass, sensitive data exposure, SQL injection, stored XSS on privileged users
+P3  4.0-6.9   Medium    Reflected XSS, CSRF, IDOR on non-sensitive data, directory listing
+P4  0.1-3.9   Low       Information disclosure (non-sensitive), clickjacking, missing security headers
+P5  -         None      Informational findings, best practice recommendations, defense-in-depth suggestions
+
+# API Top 10 Severity Mapping
+API1:2023  Critical  Broken Object Level Authorization
+API2:2023  Critical  Broken Authentication
+API3:2023  Critical  Broken Object Property Level Authorization
+API4:2023  High      Unrestricted Resource Consumption
+API5:2023  Critical  Broken Function Level Authorization
+API6:2023  High      Unrestricted Access to Sensitive Business Flows
+API7:2023  High      Server Side Request Forgery
+API8:2023  High      Security Misconfiguration
+API9:2023  Medium    Improper Inventory Management
+API10:2023 Medium    Unsafe Consumption of APIs
+API11:2023 Medium    Business Logic Flaws
+
+# OWASP Risk Rating Mapping
+Critical  9.0-10.0  Immediate action required, active exploitation likely
+High      7.0-8.9   Action required within sprint
+Medium    4.0-6.9   Schedule for next release cycle
+Low       0.1-3.9   Address when possible
+Info      -         Document for awareness

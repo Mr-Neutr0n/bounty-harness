@@ -1,0 +1,98 @@
+id: http-cache-poison
+name: Web Cache Poisoning — Unkeyed Headers
+category: http-protocol
+description: 'Attacker causes the caching layer (CDN, reverse proxy, application cache) to store a malicious version of a
+  resource served to other users. Exploits unkeyed inputs (headers not part of cache key) that affect the response but are
+  not used for cache decisions. Host header poisoning, X-Forwarded-Host, X-Forwarded-Scheme, and custom headers that influence
+  response content without being cache keys are the primary vectors.
+
+  '
+severity: high
+standards:
+  wstg:
+  - WSTG-INPV-11
+  asvs:
+  - V14.5.3
+  vrt:
+  - cache_poisoning
+  cwe:
+  - CWE-644
+applies_to:
+  archetypes:
+  - all
+  surfaces:
+  - cdn-backed-pages
+  - cached-pages
+  - static-resources
+requires:
+  auth: none
+  inputs:
+  - httpx output showing cache headers (Age, X-Cache, Cache-Control)
+  - Discovery of unkeyed headers affecting response
+  tools:
+  - curl
+  - param_miner
+signals:
+  positive:
+  - 'X-Cache: hit on second request with poisoned header'
+  - Malicious response served to users without original poison header
+  - Unkeyed header (X-Forwarded-Host) changes response location or content
+  - 'Cache-Control: public with long max-age on dynamic content'
+  - Vary header missing (cache doesn't distinguish by critical headers)
+  - Multiple cache layers with different keying policies
+  negative:
+  - 'Cache key includes all relevant headers (Vary: Host, Origin, etc.)'
+  - No cache headers present (no caching layer)
+  - 'Cache-Control: private or no-store on all responses'
+  - Cache hit requires matching hash of entire request
+  - Single-origin setup (Host header irrelevant for response generation)
+safety:
+  intrusive: true
+  data_modifying: false
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+  - curl showing poison request and poisoned cached response
+  - Second curl without poison header showing cached malicious response
+  - X-Cache header confirmation (MISS on poison, HIT on retrieval)
+  - Screenshot of cached malicious content served to victim
+references:
+  urls:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/11-Testing_for_HTTP_Smuggling
+  - https://portswigger.net/web-security/web-cache-poisoning
+  papers:
+  - Practical Web Cache Poisoning (James Kettle, PortSwigger 2018)
+  writeups: []
+workflow_mapping:
+  skill: http-protocol
+  workflow: W2 (cache poison)
+payload_families:
+- name: host_header
+  description: Poison via Host header injection
+  examples:
+  - 'Host: evil.com'
+  - 'X-Forwarded-Host: evil.com'
+- name: forwarded_header
+  description: X-Forwarded/Scheme/Proto manipulation
+  examples:
+  - 'X-Forwarded-Scheme: http'
+  - 'X-Forwarded-Proto: https'
+  - 'X-Forwarded-For: 127.0.0.1'
+- name: custom_unkeyed
+  description: Application-specific headers not in cache key
+  examples:
+  - 'X-Original-URL: /admin'
+  - 'X-Rewrite-URL: /../../etc/passwd'
+- name: fat_get
+  description: GET request with body poisoning the cache
+  examples:
+  - GET / with body containing XSS payload
+tags:
+- cache
+- cdn
+- poisoning
+- host-header
+- forwarded-headers
+- requires-approval
+- persistence

@@ -1,0 +1,92 @@
+id: sqli-time-blind
+name: Time-Based Blind SQL Injection
+category: sqli
+description: >
+  SQL injection where the application reveals no visible difference in response
+  content or status for true/false conditions. The only detectable signal is
+  deliberate time delays introduced via database-specific sleep functions.
+  Used when error-based and boolean-blind both fail. Slowest to exploit but
+  sometimes the only option.
+severity: high
+standards:
+  wstg:
+    - WSTG-INPV-05
+  asvs:
+    - "V5.3.4"
+    - "V5.3.5"
+  vrt:
+    - sql_injection.blind_based
+  cwe:
+    - CWE-89
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - all-parameterized-endpoints
+    - background-job-params
+    - batch-process-inputs
+requires:
+  auth: none
+  inputs:
+    - list of URL parameters that reach SQL backend
+    - parameters NOT exhibiting boolean or error differences
+  tools:
+    - sqlmap
+    - curl
+signals:
+  positive:
+    - Response time increases proportionally with sleep duration
+    - AND SLEEP(5) causes ~5 second delay across multiple tests
+    - sqlmap --technique=T identifies parameter as time-based injectable
+    - Multiple tests with different sleep values show linear correlation
+  negative:
+    - Variable network latency masking sleep delay (< 2 second delays unreliable)
+    - Rate limiting artificially slowing responses
+    - Server-side caching returning fast cached response
+    - Async workers masking delay (background processing)
+    - Database user lacks permissions for sleep functions
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl with timing output showing injected delay
+    - Baseline response time vs injected-delay comparison
+    - sqlmap time-based output log
+    - Extracted database name via time-based exfiltration
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05-Testing_for_SQL_Injection
+    - https://portswigger.net/web-security/sql-injection/blind
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: sqli
+  workflow: W3 (time-based)
+payload_families:
+  - name: mysql_sleep
+    description: MySQL / MariaDB time delay functions
+    examples:
+      - "AND SLEEP(5)"
+      - "AND BENCHMARK(5000000,MD5('a'))"
+  - name: postgresql_sleep
+    description: PostgreSQL time delay functions
+    examples:
+      - "AND 1=(SELECT 1 FROM PG_SLEEP(5))"
+  - name: mssql_sleep
+    description: Microsoft SQL Server time delay functions
+    examples:
+      - "IF(1=1) WAITFOR DELAY '0:0:5'"
+  - name: oracle_sleep
+    description: Oracle database time delay functions
+    examples:
+      - "AND 1=dbms_pipe.receive_message('x',5)"
+tags:
+  - time-based
+  - blind
+  - sleep-function
+  - no-visible-change
+  - slow-exploitation
+  - last-resort

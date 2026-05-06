@@ -1,0 +1,98 @@
+id: xss-dom-sink
+name: DOM-based XSS (Source to Sink)
+category: xss
+description: |
+  JavaScript running in the browser reads attacker-controlled data from a DOM
+  source (URL fragment, document.referrer, window.name, postMessage, localStorage)
+  and passes it unsafely to a DOM sink (innerHTML, document.write, eval, setTimeout,
+  location.href, jQuery.html()). The payload never reaches the server — the vulnerability
+  exists entirely in client-side code. Requires deep JavaScript analysis.
+severity: medium
+standards:
+  wstg:
+    - WSTG-CLNT-01
+  asvs:
+    - "V3.2.1"
+    - "V3.2.2"
+  vrt:
+    - cross_site_scripting_xss.dom_based
+  cwe:
+    - CWE-79
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - spa-pages
+    - hash-routing
+    - postmessage-handlers
+    - javascript-heavy-pages
+requires:
+  auth: none
+  inputs:
+    - downloaded JavaScript files from katana crawl
+    - URL fragment parameters used in routing
+    - postMessage event listeners extracted from JS
+  tools:
+    - katana
+    - rg
+    - curl
+    - playwright
+signals:
+  positive:
+    - location.hash or location.search read and passed to innerHTML
+    - document.write called with string containing user input
+    - eval() or Function() constructor with concatenated user input
+    - jQuery .html() or .append() called with untrusted data
+    - postMessage handler does not verify origin before processing data
+    - DOM Invader or DOM XSS scanner flagged a sink
+  negative:
+    - Framework auto-escaping (React JSX, Angular interpolation, Vue mustache)
+    - textContent or innerText used instead of innerHTML
+    - DOMPurify.sanitize() called before inserting
+    - Trusted Types enforced (require-trusted-types-for 'script')
+    - CSP with strict-dynamic and no unsafe-eval
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - Source code snippet showing source → sink data flow
+    - Browser screenshot showing payload executed
+    - PoC URL demonstrating DOM sink trigger
+    - JS call stack trace confirming data path
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/01-Testing_for_DOM-based_Cross_Site_Scripting
+    - https://portswigger.net/web-security/dom-based
+    - https://github.com/wisec/domxsswiki/wiki
+  papers:
+    - "DOM Based Cross Site Scripting or XSS of the Third Kind (Amit Klein, 2005)"
+  writeups: []
+workflow_mapping:
+  skill: xss
+  workflow: W3 (DOM XSS)
+payload_families:
+  - name: hash_sink
+    description: Payloads for location.hash → innerHTML paths
+    examples:
+      - '#<img src=x onerror=alert(1)>'
+      - '#<svg/onload=alert(1)>'
+  - name: postmessage_sink
+    description: Payloads sent via postMessage to vulnerable listeners
+    examples:
+      - '{"message": "<img src=x onerror=alert(document.domain)>"}'
+  - name: eval_function_sink
+    description: Input reaching eval/Function/execScript sinks
+    examples:
+      - '"};alert(1)//'
+      - 'x"+alert(1)+"x'
+tags:
+  - dom
+  - client-side
+  - javascript-analysis
+  - source-sink
+  - postmessage
+  - location-hash
+  - no-server-interaction

@@ -1,0 +1,65 @@
+name: reporting
+version: 2.0.0
+description: Bug bounty report generation, CVSS scoring, evidence packaging, platform-specific exports
+bounded_context: FindingContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - python3
+  - curl
+  - jq
+  - date
+input_files:
+  - findings.jsonl
+workflows:
+  generate-single:
+    description: Generate a single finding report from evidence
+    inputs: [FINDING_DIR, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/reports && \
+      python3 .claude/skills/reporting/scripts/report_generator.py --context $OUTDIR/reports --finding-dir "${FINDING_DIR:?Set FINDING_DIR}" --vuln-type ${VULN_TYPE:-default}
+    outputs:
+      - $OUTDIR/reports/report.md
+    evidence_dir: $OUTDIR/reports/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: cvss-score
+      if_no_findings: cvss-score
+
+  cvss-score:
+    description: Calculate CVSS v3.1 score for a finding
+    inputs: [FINDING_DIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/reports && \
+      python3 .claude/skills/reporting/scripts/cvss_calc.py --context $OUTDIR/reports --AV ${CVSS_AV:-N} --AC ${CVSS_AC:-L} --PR ${CVSS_PR:-N} --UI ${CVSS_UI:-N} --S ${CVSS_S:-U} --C ${CVSS_C:-H} --I ${CVSS_I:-H} --A ${CVSS_A:-H}
+    outputs:
+      - $OUTDIR/reports/cvss.json
+    evidence_dir: $OUTDIR/reports/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: batch-generate
+      if_no_findings: batch-generate
+
+  batch-generate:
+    description: Generate reports from nuclei/skill JSONL output
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/reports && \
+      python3 .claude/skills/reporting/scripts/batch_reporter.py --context $OUTDIR/reports --findings-dir $OUTDIR/
+    outputs:
+      - $OUTDIR/reports/summary.md
+      - $OUTDIR/reports/findings/
+    evidence_dir: $OUTDIR/reports/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  cvss: "CVSS vector string and breakdown"
+  report: "Markdown report with all required sections"
+  evidence_package: "Tar.gz with evidence + reports"

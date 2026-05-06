@@ -1,0 +1,160 @@
+name: recon
+version: 2.0.0
+description: Full-stack reconnaissance for bug bounty targets — subdomains, DNS, ports, tech, crawling, URLs, JS, and asset inventory
+bounded_context: ReconnaissanceContext
+owasp_wstg:
+  - WSTG-INFO-01
+  - WSTG-INFO-02
+  - WSTG-INFO-03
+  - WSTG-INFO-04
+  - WSTG-INFO-05
+  - WSTG-INFO-06
+  - WSTG-INFO-07
+  - WSTG-INFO-08
+  - WSTG-INFO-09
+  - WSTG-INFO-10
+owasp_api_top10: []
+severity_range: [info, low, medium]
+tools_required:
+  - subfinder
+  - amass
+  - httpx
+  - katana
+  - gau
+  - waybackurls
+  - dnsx
+  - naabu
+  - tlsx
+  - nmap
+  - wafw00f
+  - openssl
+  - jq
+  - curl
+  - python3
+input_files:
+  - all_unique.txt
+workflows:
+  passive-subdomains:
+    description: Enumerate passive subdomains for a target domain.
+    inputs: [TARGET, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/subdomains && \
+      python3 .claude/skills/recon/scripts/subdomain_enum.py --target $TARGET --context $OUTDIR/recon/subdomains
+    outputs:
+      - $OUTDIR/recon/subdomains/subs.txt
+      - $OUTDIR/recon/subdomains/findings.jsonl
+    evidence_dir: $OUTDIR/recon/subdomains/evidence/
+    detection_signals:
+      - "passive sources return target-owned subdomains"
+      - "subdomain list is normalized and deduplicated"
+    false_positives:
+      - "wildcard or stale passive records include inactive names"
+      - "third-party domains are included from loose matching"
+    next:
+      if_findings: live-discovery
+      if_no_findings: live-discovery
+
+  live-discovery:
+    description: Probe enumerated subdomains for live HTTP services.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/live && \
+      python3 .claude/skills/recon/scripts/live_discovery.py --subs-file $OUTDIR/recon/subdomains/subs.txt --context $OUTDIR/recon/live --screenshot
+    outputs:
+      - $OUTDIR/recon/live/live_hosts.txt
+      - $OUTDIR/recon/live/live_full.csv
+      - $OUTDIR/recon/live/findings.jsonl
+    evidence_dir: $OUTDIR/recon/live/evidence/
+    detection_signals:
+      - "subdomains respond over HTTP or HTTPS"
+      - "status, title, and metadata identify interesting live hosts"
+    false_positives:
+      - "CDN or WAF returns generic responses for inactive hosts"
+      - "temporary network errors hide live services"
+    next:
+      if_findings: js-recon
+      if_no_findings: js-recon
+
+  js-recon:
+    description: Extract JavaScript URLs, download bundles, and scan for endpoints or secrets.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/js && \
+      python3 .claude/skills/recon/scripts/js_recon.py --urls-file $OUTDIR/recon/live/live_hosts.txt --context $OUTDIR/recon/js
+    outputs:
+      - $OUTDIR/recon/js/js_files.txt
+      - $OUTDIR/recon/js/js_secrets.txt
+      - $OUTDIR/recon/js/js_endpoints.txt
+      - $OUTDIR/recon/js/findings.jsonl
+    evidence_dir: $OUTDIR/recon/js/evidence/
+    detection_signals:
+      - "JavaScript bundles expose API routes, source maps, or secret-like values"
+      - "downloaded JS files expand the attack surface"
+    false_positives:
+      - "secret-like strings are placeholders or public client keys"
+      - "third-party JavaScript is outside target ownership"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  dns-resolution:
+    description: Resolve and validate DNS for enumerated subdomains using dnsx
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/dns && \
+      python3 .claude/skills/recon/scripts/recon_tool_runner.py --context .bb/context.json --mode dns-resolution --input $OUTDIR/recon/subdomains/subs.txt --output-dir $OUTDIR/recon/dns
+    outputs:
+      - $OUTDIR/recon/dns/resolved.txt
+      - $OUTDIR/recon/dns/findings.jsonl
+    evidence_dir: $OUTDIR/recon/dns/evidence/
+    next:
+      if_findings: port-scan
+      if_no_findings: url-discovery
+
+  port-scan:
+    description: Fast port scanning for live hosts using naabu
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/ports && \
+      python3 .claude/skills/recon/scripts/recon_tool_runner.py --context .bb/context.json --mode port-scan --input $OUTDIR/recon/live/live_hosts.txt --output-dir $OUTDIR/recon/ports
+    outputs:
+      - $OUTDIR/recon/ports/open_ports.txt
+      - $OUTDIR/recon/ports/findings.jsonl
+    evidence_dir: $OUTDIR/recon/ports/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  url-discovery:
+    description: Discover URLs from archives and passive sources using gau + waybackurls
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/urls && \
+      python3 .claude/skills/recon/scripts/recon_tool_runner.py --context .bb/context.json --mode url-discovery --input $OUTDIR/recon/live/live_hosts.txt --output-dir $OUTDIR/recon/urls
+    outputs:
+      - $OUTDIR/recon/urls/all_urls.txt
+      - $OUTDIR/recon/urls/gau_urls.txt
+      - $OUTDIR/recon/urls/wayback_urls.txt
+      - $OUTDIR/recon/urls/findings.jsonl
+    evidence_dir: $OUTDIR/recon/urls/evidence/
+    next:
+      if_findings: js-recon
+      if_no_findings: js-recon
+
+  tls-profile:
+    description: TLS/SSL profiling for live hosts using tlsx
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/tls && \
+      python3 .claude/skills/recon/scripts/recon_tool_runner.py --context .bb/context.json --mode tls-profile --input $OUTDIR/recon/live/live_hosts.txt --output-dir $OUTDIR/recon/tls
+    outputs:
+      - $OUTDIR/recon/tls/findings.jsonl
+    evidence_dir: $OUTDIR/recon/tls/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  takeover_candidate: "DNS CNAME chain + HTTP probe + screenshot"
+  open_admin_panel: "Full curl with headers + screenshot + timestamp"
+  zone_transfer: "Full AXFR dump with NS server info and timestamp"

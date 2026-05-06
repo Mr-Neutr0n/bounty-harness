@@ -1,0 +1,65 @@
+name: evaluation-harness
+version: 1.0.0
+description: Lab fixture framework for validating bug bounty skills with measurable metrics
+bounded_context: EvaluationContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [info]
+tools_required:
+  - python3
+  - jq
+  - docker
+  - curl
+input_files: []
+workflows:
+  run-skill-test:
+    description: Test a specific skill against its designated lab fixtures.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/eval && python3 .claude/skills/evaluation-harness/scripts/run_skill_test.py --skills-dir .claude/skills --fixtures-dir .claude/skills/evaluation-harness/fixtures --context $OUTDIR/recon/eval
+    outputs:
+      - $OUTDIR/recon/eval/results_manifest.json
+    evidence_dir: $OUTDIR/recon/eval/evidence/
+    detection_signals:
+      - "each fixture tested with positive and negative controls"
+      - "results include precision and recall"
+    false_positives:
+      - "fixture start failures due to port conflicts"
+    next:
+      if_findings: generate-matrix
+      if_no_findings: generate-matrix
+
+  generate-matrix:
+    description: Generate full evaluation matrix across all skills and fixtures.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/eval && python3 .claude/skills/evaluation-harness/scripts/generate_matrix.py --results-manifest $OUTDIR/recon/eval/results_manifest.json --context $OUTDIR/recon/eval
+    outputs:
+      - $OUTDIR/recon/eval/eval_matrix.json
+      - $OUTDIR/recon/eval/eval_dashboard.md
+    evidence_dir: $OUTDIR/recon/eval/evidence/
+    detection_signals:
+      - "matrix shows per-skill precision, recall, F1"
+      - "dashboard provides health scores"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  benchmark-runner:
+    description: Compare current skill performance to previous baseline.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/recon/eval && python3 .claude/skills/evaluation-harness/scripts/benchmark_runner.py --eval-matrix $OUTDIR/recon/eval/eval_matrix.json --context $OUTDIR/recon/eval
+    outputs:
+      - $OUTDIR/recon/eval/benchmark.json
+      - $OUTDIR/recon/eval/benchmark_report.md
+    evidence_dir: $OUTDIR/recon/eval/evidence/
+    detection_signals:
+      - "benchmark compares against previous baseline"
+      - "regressions are flagged"
+      - "improvements are highlighted"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null

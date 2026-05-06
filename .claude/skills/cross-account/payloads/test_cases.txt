@@ -1,0 +1,5 @@
+S3 bucket accessible from different AWS account with no bucket policy restrictions
+IAM role assumable by external account via misconfigured trust policy
+Cross-account SNS topic subscribable by external principal without confirmation
+ACM certificate requested for domain in different organization
+Route53 hosted zone with cross-account NS delegation without validation

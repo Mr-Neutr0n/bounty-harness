@@ -1,0 +1,77 @@
+name: file-upload
+version: 2.0.0
+description: File upload vulnerabilities — extension bypass, content-type spoofing, magic byte bypass, path traversal, polyglot files, SVG injection
+bounded_context: UploadContext
+owasp_wstg:
+  - WSTG-BUSL-08
+owasp_api_top10: []
+severity_range: [medium, high, critical]
+tools_required:
+  - curl
+  - ffuf
+  - python3
+  - nuclei
+  - playwright
+  - openssl
+input_files:
+  - all_urls.txt
+workflows:
+  upload-fuzz:
+    description: Fuzz a known upload endpoint with extension, magic-byte, and MIME variants.
+    inputs: [UPLOAD_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/file-upload/fuzz $OUTDIR/file-upload/workdir && \
+      python3 .claude/skills/file-upload/scripts/upload_fuzzer.py --context .bb/context.json --upload-url "${UPLOAD_URL:?Set UPLOAD_URL}" --form-field "${UPLOAD_FIELD:-file}" --cookie "${SESSION_COOKIE:-}" --workdir $OUTDIR/file-upload/workdir --output $OUTDIR/file-upload/fuzz/findings.jsonl
+    outputs:
+      - $OUTDIR/file-upload/fuzz/findings.jsonl
+    evidence_dir: $OUTDIR/file-upload/fuzz/evidence/
+    detection_signals:
+      - "server accepts dangerous extension or polyglot upload"
+      - "uploaded file remains reachable with executable or active content"
+    false_positives:
+      - "file is accepted but stored inertly or re-encoded"
+      - "upload endpoint requires operator-specific CSRF values not supplied"
+    next:
+      if_findings: svg-payloads
+      if_no_findings: svg-payloads
+
+  svg-payloads:
+    description: Generate SVG XSS, XXE, and SSRF payload files for manual upload testing.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/file-upload/svg && \
+      python3 .claude/skills/file-upload/scripts/svg_xxe_generator.py --context .bb/context.json --attack-type all --collaborator "${COLLABORATOR_URL:-https://example.invalid}" --output-dir $OUTDIR/file-upload/svg --output $OUTDIR/file-upload/svg/findings.jsonl
+    outputs:
+      - $OUTDIR/file-upload/svg/findings.jsonl
+      - $OUTDIR/file-upload/svg/
+    evidence_dir: $OUTDIR/file-upload/svg/evidence/
+    detection_signals:
+      - "SVG payload files are generated for XSS, XXE, and SSRF scenarios"
+      - "collaborator URL is embedded when provided"
+    false_positives:
+      - "payload generation alone does not prove target vulnerability"
+    next:
+      if_findings: polyglot-payload
+      if_no_findings: polyglot-payload
+
+  polyglot-payload:
+    description: Generate one polyglot file with an operator-supplied payload string.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/file-upload/polyglot && \
+      python3 .claude/skills/file-upload/scripts/polyglot_factory.py --context .bb/context.json --output-format ${POLYGLOT_FORMAT:-gif} --payload-string "${POLYGLOT_PAYLOAD:?Set POLYGLOT_PAYLOAD}" --output $OUTDIR/file-upload/polyglot/payload.${POLYGLOT_FORMAT:-gif}
+    outputs:
+      - $OUTDIR/file-upload/polyglot/payload.*
+    evidence_dir: $OUTDIR/file-upload/polyglot/evidence/
+    detection_signals:
+      - "polyglot payload is generated in the requested container format"
+    false_positives:
+      - "payload generation alone does not prove target vulnerability"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  webshell_access: "Curl response showing PHP shell command execution"
+  svg_xss: "Playwright screenshot showing SVG script alert popup"
+  traversal_write: "ls output showing file written outside uploads dir"

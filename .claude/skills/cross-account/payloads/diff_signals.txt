@@ -1,0 +1,8 @@
+POSITIVE: external AccountId in IAM trust policy Principal
+POSITIVE: bucket ACL grants access to AuthenticatedUsers group
+POSITIVE: SQS queue policy allows sqs:SendMessage to "*"
+POSITIVE: KMS key policy includes arn:aws:iam::* in Principal
+NEGATIVE: condition block restricts to specific OrganizationId
+NEGATIVE: explicit Deny for non-matching PrincipalOrgID
+NEGATIVE: resource policy scoped to same-account roles only
+NEGATIVE: SCP blocks cross-account access org-wide

@@ -1,0 +1,115 @@
+extraction:
+  categories:
+    - name: "new_technique"
+      priority: "high"
+      signals:
+        - "exploit"
+        - "bypass"
+        - "vulnerability"
+        - "attack pattern"
+        - "payload"
+        - "injection"
+        - "misconfiguration"
+        - "escalation"
+        - "race condition"
+        - "deserialization"
+        - "request smuggling"
+    - name: "new_payload"
+      priority: "medium"
+      signals:
+        - "payload"
+        - "wordlist"
+        - "fuzz"
+        - "bruteforce"
+        - "polyglot"
+        - "encoding"
+        - "obfuscation"
+    - name: "new_reference"
+      priority: "low"
+      signals:
+        - "writeup"
+        - "report"
+        - "disclosure"
+        - "advisory"
+        - "CVE"
+        - "paper"
+        - "whitepaper"
+        - "research"
+    - name: "false_positive_rule"
+      priority: "medium"
+      signals:
+        - "false positive"
+        - "false-positive"
+        - "noise"
+        - "ignored"
+        - "exclude"
+        - "deprecated"
+
+  source_extractors:
+    owasp_wstg:
+      pattern: "## WSTG-\\w+-\\d+"
+      output_type: "technique"
+      mapping:
+        name: "heading"
+        description: "section_content"
+        category: "wstg_derived"
+    nuclei_template:
+      pattern: "id: .+"
+      output_type: "technique"
+      mapping:
+        name: "info.name"
+        description: "info.description"
+        severity: "info.severity"
+        tags: "info.tags"
+    kev_cve:
+      pattern: '"cveID"'
+      output_type: "reference"
+      mapping:
+        name: "cveID"
+        description: "vulnerabilityName"
+        date_added: "dateAdded"
+        required_action: "requiredAction"
+    payload_catalog:
+      pattern: "^## .+"
+      output_type: "payload"
+      mapping:
+        category: "heading"
+        payloads: "code_blocks"
+    technique_doc:
+      pattern: "^#+ .+"
+      output_type: "technique"
+      mapping:
+        name: "heading"
+        description: "section_content"
+
+deduplication:
+  method: "hash_title_and_preconditions"
+  similarity_threshold: 0.85
+  fields_to_compare:
+    - "name"
+    - "description"
+    - "signals.positive"
+
+scoring:
+  weights:
+    novelty: 0.35
+    exploitability: 0.30
+    data_available: 0.20
+    source_credibility: 0.15
+
+  source_credibility_scores:
+    owasp_wstg: 0.95
+    owasp_asvs: 0.95
+    nuclei_template: 0.85
+    payload_catalog: 0.80
+    technique_doc: 0.75
+    kev_cve: 0.90
+    portswigger_research: 0.90
+    cisa_kev: 0.90
+
+  min_score_threshold: 0.40
+
+output:
+  candidates_file: "candidates_{source_id}_{timestamp}.json"
+  review_file: "reviewed_{source_id}_{timestamp}.json"
+  import_log: "import_log.jsonl"

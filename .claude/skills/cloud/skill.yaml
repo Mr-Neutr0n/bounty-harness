@@ -1,0 +1,80 @@
+name: cloud
+version: 2.0.0
+description: Multi-cloud security testing — S3/GCP/Azure storage buckets, IAM enumeration, Lambda/Cloud Functions, metadata attacks, container registry, K8s clusters
+bounded_context: CloudContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [medium, high, critical]
+tools_required:
+  - aws
+  - gcloud
+  - az
+  - curl
+  - ffuf
+  - python3
+  - dnsx
+  - subfinder
+  - jq
+  - openssl
+  - trufflehog
+  - cloudlist
+input_files:
+  - takeover_candidates.txt
+  - all_urls.txt
+  - live_urls.txt
+workflows:
+  cloud-assets:
+    description: Enumerate cloud assets for the target using cloudlist
+    inputs: [TARGET, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/cloud/assets && \
+      python3 .claude/skills/cloud/scripts/cloud_asset_inventory.py --context .bb/context.json --target $TARGET --output $OUTDIR/cloud/assets/findings.jsonl
+    outputs:
+      - $OUTDIR/cloud/assets/findings.jsonl
+    evidence_dir: $OUTDIR/cloud/assets/evidence/
+    next:
+      if_findings: s3-buckets
+      if_no_findings: s3-buckets
+
+  s3-buckets:
+    description: Enumerate likely S3 bucket names and test for public exposure.
+    inputs: [TARGET, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/cloud/aws/s3 && \
+      python3 .claude/skills/cloud/scripts/s3_bucket_enumerator.py --context .bb/context.json --target $TARGET --output $OUTDIR/cloud/aws/s3/findings.jsonl
+    outputs:
+      - $OUTDIR/cloud/aws/s3/findings.jsonl
+    evidence_dir: $OUTDIR/cloud/aws/s3/evidence/
+    detection_signals:
+      - "bucket list or object access succeeds anonymously"
+      - "sensitive object names are discoverable in public buckets"
+    false_positives:
+      - "bucket name exists but access is denied"
+      - "bucket is intentionally public static hosting"
+    next:
+      if_findings: aws-iam-privesc
+      if_no_findings: aws-iam-privesc
+
+  aws-iam-privesc:
+    description: Scan the configured AWS profile for IAM privilege escalation paths.
+    inputs: [AWS_PROFILE, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/cloud/aws/iam && \
+      python3 .claude/skills/cloud/scripts/iam_privesc_scanner.py --context .bb/context.json --profile "${AWS_PROFILE:?Set AWS_PROFILE}" --output $OUTDIR/cloud/aws/iam/findings.jsonl
+    outputs:
+      - $OUTDIR/cloud/aws/iam/findings.jsonl
+    evidence_dir: $OUTDIR/cloud/aws/iam/evidence/
+    detection_signals:
+      - "IAM policy allows known privilege escalation actions"
+      - "role or user can attach policies, pass roles, or create access keys"
+    false_positives:
+      - "profile lacks permission to enumerate all policies"
+      - "identified action is constrained by conditions not modeled by the scanner"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  s3_public_object: "curl response showing S3 object accessible without auth"
+  iam_priv_esc: "Policy document showing privilege escalation path"
+  metadata_creds: "Extracted AWS/GCP/Azure credentials from metadata service"

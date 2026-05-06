@@ -1,0 +1,82 @@
+name: rce
+version: 2.0.0
+description: Remote Code Execution — command injection, SSTI, insecure deserialization, LFI to RCE, eval injection, expression language injection
+bounded_context: ExecutionContext
+owasp_wstg:
+  - WSTG-INPV-12
+  - WSTG-INPV-14
+owasp_api_top10: []
+severity_range: [high, critical]
+tools_required:
+  - curl
+  - ffuf
+  - python3
+  - nuclei
+  - sqlmap
+  - openssl
+  - jq
+input_files:
+  - parameterized_urls.txt
+  - all_urls.txt
+workflows:
+  command-injection:
+    description: Detect command injection across URL parameters with optional OAST callbacks.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/rce/cmdi && \
+      python3 .claude/skills/rce/scripts/cmd_injection_fuzzer.py --context .bb/context.json --urls $OUTDIR/urls/parameterized_urls.txt --oast-domain "${OAST_DOMAIN:-}" --rate-limit ${RCE_RATE_LIMIT:-5} --output $OUTDIR/rce/cmdi/findings.jsonl
+    outputs:
+      - $OUTDIR/rce/cmdi/findings.jsonl
+    evidence_dir: $OUTDIR/rce/cmdi/evidence/
+    detection_signals:
+      - "command output, timing delay, or OAST callback indicates execution"
+      - "payload variants survive filtering and reach server-side shell context"
+    false_positives:
+      - "latency or reflected text mimics command output"
+      - "OAST callback is from the tester, crawler, or unrelated infrastructure"
+    next:
+      if_findings: ssti-detection
+      if_no_findings: ssti-detection
+
+  ssti-detection:
+    description: Detect server-side template injection in parameterized URLs.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/rce/ssti && \
+      python3 .claude/skills/rce/scripts/ssti_detector.py --context .bb/context.json --urls $OUTDIR/urls/parameterized_urls.txt --rate-limit ${RCE_RATE_LIMIT:-5} --output $OUTDIR/rce/ssti/findings.jsonl
+    outputs:
+      - $OUTDIR/rce/ssti/findings.jsonl
+    evidence_dir: $OUTDIR/rce/ssti/evidence/
+    detection_signals:
+      - "template arithmetic payloads evaluate server-side"
+      - "engine-specific fingerprints identify Jinja2, Twig, FreeMarker, or similar"
+    false_positives:
+      - "payload is reflected literally or coincidentally matches expected output"
+      - "response transformation occurs client-side only"
+    next:
+      if_findings: lfi-probe
+      if_no_findings: lfi-probe
+
+  lfi-probe:
+    description: Probe parameterized URLs for local file inclusion and wrapper exposure.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/rce/lfi && \
+      python3 .claude/skills/rce/scripts/lfi_probe.py --context .bb/context.json --urls $OUTDIR/urls/parameterized_urls.txt --rate-limit ${RCE_RATE_LIMIT:-5} --output $OUTDIR/rce/lfi/findings.jsonl
+    outputs:
+      - $OUTDIR/rce/lfi/findings.jsonl
+    evidence_dir: $OUTDIR/rce/lfi/evidence/
+    detection_signals:
+      - "local file markers such as /etc/passwd or PHP source are returned"
+      - "wrapper payloads expose source code or server-side files"
+    false_positives:
+      - "application returns canned error pages containing file-like strings"
+      - "static documentation echoes traversal payloads without file access"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  cmdi_poc: "Single curl one-liner executing id/whoami"
+  ssti_proof: "Payload and response showing template code execution"
+  lfi_rce: "Log poisoning trace with PHP code execution"

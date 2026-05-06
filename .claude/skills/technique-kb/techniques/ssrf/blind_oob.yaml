@@ -1,0 +1,94 @@
+id: ssrf-blind-oob
+name: Blind SSRF via OOB Callback
+category: ssrf
+description: 'The server makes an HTTP request to attacker-supplied URLs but the response
+  is not returned directly. Detection relies on out-of-band (OOB) techniques where
+  the attacker provides a URL pointing to a callback listener. If a DNS or HTTP hit
+  arrives from the target server, SSRF is confirmed.
+
+  '
+severity: medium
+standards:
+  wstg:
+  - WSTG-INPV-08
+  asvs:
+  - V13.1.1
+  api_top10:
+  - API7:2023
+  vrt:
+  - server_side_request_forgery_ssrf.basic
+  cwe:
+  - CWE-918
+applies_to:
+  archetypes:
+  - all
+  surfaces:
+  - webhook-callbacks
+  - url-import-fields
+  - link-preview-renderers
+  - async-job-params
+requires:
+  auth: none
+  inputs:
+  - endpoints accepting URL or domain parameters
+  - OOB callback URL (Burp Collaborator, interact.sh)
+  tools:
+  - curl
+  - interact_sh_client
+  - burp_collaborator
+signals:
+  positive:
+  - DNS lookup received on OOB listener from target server IP
+  - HTTP request received on OOB listener from target IP range
+  - 'Timing correlation: callback received within seconds of injection'
+  - User-Agent or custom headers in callback matching server stack
+  negative:
+  - No callback after 5 minutes (could be async, extend to 24 hours)
+  - OOB listener IP or domain blocked by target firewall
+  - Application validates URL format and rejects non-standard domains
+  - Egress filtering blocks all outbound connections at network level
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+  - OOB listener log showing DNS or HTTP callback from target IP
+  - curl command used to inject the callback URL
+  - Timestamp of injection and callback receipt
+  - WHOIS or reverse DNS confirming callback from target infra
+references:
+  urls:
+  - https://portswigger.net/burp/documentation/collaborator
+  - https://github.com/projectdiscovery/interactsh
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: ssrf
+  workflow: W3 (blind OOB)
+payload_families:
+- name: dns_callback
+  description: URLs that trigger DNS lookups to callback server
+  examples:
+  - http://UNIQUE.callback.example.com/
+  - http://callback.example.com/ssrf-test
+- name: http_callback
+  description: Full HTTP requests to callback (confirms HTTP capability)
+  examples:
+  - http://callback.example.com/ssrf?target=internal
+  - https://callback.example.com/ssrf
+- name: protocol_variants
+  description: Non-HTTP callback protocols for broader attack surface
+  examples:
+  - gopher://callback.example.com:80/_SSRF
+  - dict://callback.example.com:6379/info
+  - file://callback.example.com/etc/passwd
+tags:
+- blind
+- oob
+- out-of-band
+- callback
+- dns-callback
+- collaborator
+- interactsh

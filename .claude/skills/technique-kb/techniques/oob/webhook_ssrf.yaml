@@ -1,0 +1,30 @@
+id: webhook_ssrf
+name: Webhook SSRF via OOB Callback
+category: oob
+severity: high
+description: Configure webhook URLs to point to OOB canary endpoints to detect SSRF in webhook processing pipelines.
+preconditions:
+  auth_required: mandatory
+  tools: [curl, python3, interactsh-client, jq]
+  inputs: [webhook_endpoints.txt]
+  personas_required: 1
+workflow: oob-infra/generate-canary
+detection_signals:
+  positive:
+    - "OOB callback received when webhook is triggered"
+    - "Internal IP or metadata access detected in callback"
+  negative:
+    - "Webhook URL validation rejects external targets"
+evidence_required:
+  - "Webhook configuration with canary URL"
+  - "Received callback from webhook processor"
+false_positives:
+  - "Webhook callback is expected from legitimate trigger"
+standards:
+  owasp_wstg: [WSTG-INPV-11]
+  owasp_api_top10: [API7:2023]
+references:
+  - "https://portswigger.net/web-security/ssrf"
+safety:
+  risk_tier: active-safe
+  data_modifying: true

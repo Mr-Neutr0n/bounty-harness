@@ -1,0 +1,100 @@
+id: webhooks-ssrf-via-webhook
+name: SSRF via Webhook URL Registration
+category: webhooks
+description: >
+  Application allows users to register webhook URLs (callbacks, delivery URLs,
+  notification endpoints) that the server will make HTTP requests to when
+  events occur. By registering internal addresses (localhost, 169.254.169.254,
+  10.x.x.x), the attacker forces the server to make requests to internal
+  services and returns responses or metadata. Common in CI/CD, payment
+  gateways, notification systems, and chat integrations.
+severity: high
+standards:
+  wstg:
+    - WSTG-INPV-08
+  asvs:
+    - "V13.1.1"
+  api_top10:
+    - "API7:2023"
+  vrt:
+    - server_side_request_forgery_ssrf.webhook
+  cwe:
+    - CWE-918
+applies_to:
+  archetypes:
+    - developer-platform
+    - collaboration-saas
+    - ecommerce
+    - enterprise-api
+  surfaces:
+    - webhook-registration
+    - integration-settings
+    - notification-endpoints
+    - callback-urls
+requires:
+  auth: single_account
+  inputs:
+    - Webhook registration endpoint
+    - Event types that trigger webhook delivery
+    - Authenticated session
+  tools:
+    - curl
+    - interact_sh_client
+signals:
+  positive:
+    - Webhook registered with internal IP and server sends request
+    - Response from internal service included in webhook logs or UI
+    - OOB callback confirms server-side request to internal address
+    - Webhook delivery status shows "success" for metadata endpoint
+    - Server attempts multiple protocols (http, https, gopher) to internal
+  negative:
+    - URL validation blocks internal/private IP ranges
+    - URL must resolve to public, accessible host (verified by server)
+    - Webhook verified via challenge-response (unique token returned)
+    - URL locked after registration (cannot be changed to internal)
+    - DNS rebinding protections check resolved IP
+    - Webhook delivery to internal IPs silently dropped
+safety:
+  intrusive: true
+  data_modifying: false
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+    - curl registering webhook with internal URL
+    - Webhook delivery log or OOB callback confirming internal request
+    - Response content from internal service if visible
+    - Screenshot of webhook configuration and delivery result
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/08-Testing_for_SSRF
+    - https://blog.includesecurity.com/2021/09/hacking-webhooks-ssrf/
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: webhooks
+  workflow: W1 (SSRF via webhook)
+payload_families:
+  - name: internal_host
+    description: Register webhook to internal addresses
+    examples:
+      - "http://127.0.0.1:8080/"
+      - "http://169.254.169.254/latest/meta-data/"
+      - "http://metadata.google.internal/"
+  - name: port_scanning
+    description: Register webhook to different ports for service discovery
+    examples:
+      - "http://10.0.0.1:22/"
+      - "http://10.0.0.1:6379/"
+      - "http://10.0.0.1:5432/"
+  - name: protocol_switch
+    description: Use non-HTTP protocols via webhook URL
+    examples:
+      - "gopher://internal:6379/_*1%0d%0a$8%0d%0aflushall"
+      - "file:///etc/passwd"
+tags:
+  - webhook
+  - ssrf
+  - callback
+  - internal-access
+  - requires-approval

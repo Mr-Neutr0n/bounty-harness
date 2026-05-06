@@ -1,0 +1,185 @@
+name: business-logic
+version: 1.0.0
+description: Model application workflows as state machines and test for invalid transitions, race windows, and invariant breaks.
+bounded_context: BusinessLogicContext
+owasp_wstg:
+  - WSTG-BUSL-01
+  - WSTG-BUSL-02
+  - WSTG-BUSL-03
+  - WSTG-BUSL-04
+  - WSTG-BUSL-05
+  - WSTG-BUSL-06
+  - WSTG-BUSL-07
+  - WSTG-BUSL-08
+  - WSTG-BUSL-09
+owasp_api_top10:
+  - API1:2023
+  - API3:2023
+  - API4:2023
+  - API6:2023
+  - API8:2023
+severity_range: [medium, high, critical]
+tools_required:
+  - python3
+  - curl
+  - jq
+input_files:
+  - routes.jsonl
+  - domain-profile.json
+workflows:
+  infer-workflows:
+    description: Generate workflow models from traffic corpus and domain archetype data.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action infer --routes $OUTDIR/traffic-corpus/routes.jsonl --domain-profile $OUTDIR/domain-model/domain-profile.json --output $OUTDIR/business-logic/workflows.json
+    outputs:
+      - $OUTDIR/business-logic/workflows.json
+    evidence_dir: null
+    next:
+      if_findings: test-skip-step
+      if_no_findings: null
+
+  define-workflow:
+    description: Manually define a multi-step workflow for testing.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action define --workflow-def "${WORKFLOW_DEF:?Set WORKFLOW_DEF as JSON}" --output $OUTDIR/business-logic/workflows.json
+    outputs:
+      - $OUTDIR/business-logic/workflows.json
+    evidence_dir: null
+    next:
+      if_findings: test-skip-step
+      if_no_findings: test-skip-step
+
+  test-skip-step:
+    description: Test bypassing required workflow steps.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic/evidence && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-skip --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/transition_tests.jsonl
+    outputs:
+      - $OUTDIR/business-logic/transition_tests.jsonl
+    evidence_dir: $OUTDIR/business-logic/evidence/
+    safety:
+      requires_scope: true
+      data_modifying: true
+    next:
+      if_findings: test-repeat-step
+      if_no_findings: test-repeat-step
+
+  test-repeat-step:
+    description: Test re-executing already completed steps.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic/evidence && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-repeat --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/transition_tests.jsonl
+    outputs:
+      - $OUTDIR/business-logic/transition_tests.jsonl
+    evidence_dir: $OUTDIR/business-logic/evidence/
+    safety:
+      requires_scope: true
+      data_modifying: true
+    next:
+      if_findings: test-reorder-steps
+      if_no_findings: test-reorder-steps
+
+  test-reorder-steps:
+    description: Test executing steps out of intended order.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic/evidence && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-reorder --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/transition_tests.jsonl
+    outputs:
+      - $OUTDIR/business-logic/transition_tests.jsonl
+    evidence_dir: $OUTDIR/business-logic/evidence/
+    safety:
+      requires_scope: true
+      data_modifying: true
+    next:
+      if_findings: test-race-window
+      if_no_findings: test-race-window
+
+  test-race-window:
+    description: Test concurrent requests at sensitive transition points.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic/evidence && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-race --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/race_tests.jsonl
+    outputs:
+      - $OUTDIR/business-logic/race_tests.jsonl
+    evidence_dir: $OUTDIR/business-logic/evidence/
+    safety:
+      requires_scope: true
+      data_modifying: true
+    next:
+      if_findings: test-idempotency
+      if_no_findings: test-idempotency
+
+  test-idempotency:
+    description: Verify operations handle duplicate requests correctly.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic/evidence && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-idempotent --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/idempotent_tests.jsonl
+    outputs:
+      - $OUTDIR/business-logic/idempotent_tests.jsonl
+    evidence_dir: $OUTDIR/business-logic/evidence/
+    safety:
+      requires_scope: true
+      data_modifying: true
+    next:
+      if_findings: test-coupon-race
+      if_no_findings: test-coupon-race
+
+  test-coupon-race:
+    description: Test concurrent coupon/gift-card/bonus redemption.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic/evidence && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-coupon --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/coupon_tests.jsonl
+    outputs:
+      - $OUTDIR/business-logic/coupon_tests.jsonl
+    evidence_dir: $OUTDIR/business-logic/evidence/
+    safety:
+      requires_scope: true
+      data_modifying: true
+    next:
+      if_findings: test-refund-after-cancel
+      if_no_findings: test-refund-after-cancel
+
+  test-refund-after-cancel:
+    description: Test refund trigger after subscription cancellation.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic/evidence && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-refund --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/refund_tests.jsonl
+    outputs:
+      - $OUTDIR/business-logic/refund_tests.jsonl
+    evidence_dir: $OUTDIR/business-logic/evidence/
+    safety:
+      requires_scope: true
+      data_modifying: true
+    next:
+      if_findings: summarize-violations
+      if_no_findings: summarize-violations
+
+  summarize-violations:
+    description: Produce report of violated invariants and findings.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/business-logic && \
+      python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action summarize --test-dir $OUTDIR/business-logic --output $OUTDIR/business-logic/findings.jsonl
+    outputs:
+      - $OUTDIR/business-logic/findings.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "invariant violations: skip, repeat, reorder, race, double-spend, refund-after-cancel"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  workflow_violation: "Workflow model, violated invariant, request/response trace"
+  race_evidence: "Concurrent request timestamps, duplicated state, TOCTOU proof"

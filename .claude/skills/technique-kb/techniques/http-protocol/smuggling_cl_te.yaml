@@ -1,0 +1,105 @@
+id: http-smuggling-cl-te
+name: HTTP Request Smuggling — CL.TE
+category: http-protocol
+description: >
+  Frontend proxy uses Content-Length to determine request boundaries, while
+  backend server uses Transfer-Encoding. Inconsistency leads to request
+  smuggling, where one user's request is prepended to another user's request
+  or the smuggled prefix is cached. Enables session hijacking, cache poisoning,
+  WAF bypass, and XSS via frontend/backend desynchronization.
+severity: high
+standards:
+  wstg:
+    - WSTG-INPV-11
+  asvs:
+    - "V14.5.3"
+  vrt:
+    - http_request_smuggling
+  cwe:
+    - CWE-444
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - reverse-proxy-endpoints
+    - cdn-backed-pages
+    - load-balanced-endpoints
+requires:
+  auth: none
+  inputs:
+    - Target domain with proxy/CDN in front
+    - httpx detection of HTTP/1.1 support
+    - Burp Suite for smuggling testing
+  tools:
+    - curl
+    - burp_suite
+    - smuggler_tool
+signals:
+  positive:
+    - Timeout on smuggled request (backend waiting for bytes frontend already sent)
+    - Unexpected response to valid request (queue poisoning)
+    - smuggler.py or HTTP Request Smuggler extension reports vulnerability
+    - Different response timing for CL.TE vs TE.CL payloads
+    - TE header with chunked obfuscation accepted differently by frontend/backend
+  negative:
+    - HTTP/2 only (end-to-end, no HTTP/1.1 hop)
+    - Single server with no frontend proxy/CDN
+    - Frontend normalizes all requests before forwarding
+    - WAF blocks Transfer-Encoding with obfuscation
+    - Backend rejects chunked transfer-encoding
+safety:
+  intrusive: true
+  data_modifying: false
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+    - curl or Burp showing smuggled request causing queue desync
+    - Timing evidence of different behavior for CL.TE vs TE.CL
+    - smuggler tool output confirming desync
+    - Proof of impact (session hijack, cache poison)
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/11-Testing_for_HTTP_Smuggling
+    - https://portswigger.net/web-security/request-smuggling
+  papers:
+    - HTTP Desync Attacks (James Kettle, PortSwigger 2019)
+  writeups: []
+workflow_mapping:
+  skill: http-protocol
+  workflow: W1 (smuggling)
+payload_families:
+  - name: cl_te
+    description: Frontend uses CL, backend uses TE
+    examples:
+      - |-
+        POST / HTTP/1.1
+        Content-Length: 6
+        Transfer-Encoding: chunked
+        0
+        G
+  - name: te_cl
+    description: Frontend uses TE, backend uses CL
+    examples:
+      - |-
+        POST / HTTP/1.1
+        Transfer-Encoding: chunked
+        Content-Length: 4
+        1
+        A
+        0
+  - name: te_te
+    description: Both use TE with obfuscation tricks
+    examples:
+      - |-
+        Transfer-Encoding: chunked
+        Transfer-encoding: x
+        (obfuscation to make one skip it)
+tags:
+  - smuggling
+  - content-length
+  - transfer-encoding
+  - desync
+  - frontend-backend
+  - queue-poisoning
+  - requires-approval

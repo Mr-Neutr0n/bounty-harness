@@ -1,0 +1,102 @@
+id: race-concurrent-requests
+name: Race Condition via Concurrent Requests
+category: race
+description: 'Application performs multi-step operations (check-then-act, debit balance,
+  apply coupon, reserve resource) without atomicity. Attacker sends multiple concurrent
+  requests to exploit the time window between check and action. Can lead to double-spending
+  of coupons, overdrawing balances, multiple use of single-use tokens, bypassing rate
+  limits, or winning item auctions below cost. Requires timing precision — typically
+  < 100ms windows.
+
+  '
+severity: medium
+standards:
+  wstg:
+  - WSTG-BUSL-11
+  asvs:
+  - V11.1.1
+  vrt:
+  - race_condition.concurrent_requests
+  cwe:
+  - CWE-362
+applies_to:
+  archetypes:
+  - ecommerce
+  - marketplace
+  - billing-saas
+  - developer-platform
+  surfaces:
+  - checkout-payment
+  - coupon-redemption
+  - token-redemption
+  - resource-reservation
+  - balance-operations
+  - voting-systems
+requires:
+  auth: single_account
+  inputs:
+  - Endpoints performing write operations on user resources
+  - POST parameters for balance, coupon, purchase operations
+  - Authenticated session
+  tools:
+  - curl
+  - python3
+  - race_condition_tool
+signals:
+  positive:
+  - Coupon code applied more times than intended
+  - Balance decreased less than total debits (overdraft)
+  - Single-use token redeemed multiple times
+  - Multiple orders confirmed when inventory was 1
+  - Discount applied after order placed (timing window)
+  - Concurrent requests all receive same sequential ID/counter
+  negative:
+  - Database-level atomic operations (SELECT FOR UPDATE, transactions)
+  - Pessimistic locking on inventory, balance, or coupon rows
+  - Idempotency keys enforced per request
+  - Distributed locking (Redis Redlock, etcd)
+  - Request deduplication via hash or nonce
+  - Atomic counters or CAS (compare-and-swap) operations
+safety:
+  intrusive: true
+  data_modifying: true
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+  - Script showing concurrent requests and responses
+  - Proof of duplicated operation (double coupon use, etc.)
+  - Timestamps showing requests within race window
+  - 'Comparison: single request vs concurrent requests result'
+references:
+  urls:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/11-Test_Concurrent_Requests
+  - https://portswigger.net/web-security/race-conditions
+  papers:
+  - Race Conditions in Web Applications (PortSwigger)
+  writeups: []
+workflow_mapping:
+  skill: race-condition
+  workflow: W1 (send-concurrent)
+payload_families:
+- name: concurrent_read_write
+  description: Multiple simultaneous read->write operations
+  examples:
+  - 5x concurrent POST /api/redeem-coupon?code=ONCE
+  - 5x concurrent POST /api/purchase with same inventory
+- name: single_packet
+  description: Send all requests in single TCP packet (last-byte sync)
+  examples:
+  - Turbo Intruder single-packet attack
+- name: connection_warming
+  description: Pre-establish connections for precise timing
+  examples:
+  - Keep-alive connections, warm then fire simultaneously
+tags:
+- race-condition
+- concurrency
+- atomicity
+- double-spend
+- coupon-abuse
+- requires-approval
+- data-modifying

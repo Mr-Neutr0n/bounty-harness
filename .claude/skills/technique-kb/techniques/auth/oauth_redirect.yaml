@@ -1,0 +1,95 @@
+id: auth-oauth-redirect
+name: OAuth 2.0 Redirect URI Manipulation
+category: auth
+description: >
+  OAuth 2.0 authorization server does not properly validate the redirect_uri
+  parameter, allowing the attacker to redirect the authorization code or
+  access token to a domain under attacker control. Variants include path
+  traversal in registered URI, open redirect chaining, subdomain takeover,
+  and state parameter manipulation leading to CSRF-based account takeover.
+severity: high
+standards:
+  wstg:
+    - WSTG-ATHN-06
+  asvs:
+    - "V2.1.1"
+    - "V2.2.2"
+  vrt:
+    - authentication.oauth.misconfiguration
+  cwe:
+    - CWE-601
+applies_to:
+  archetypes:
+    - collaboration-saas
+    - developer-platform
+    - all
+  surfaces:
+    - oauth-authorize
+    - oauth-token
+    - third-party-login
+requires:
+  auth: none
+  inputs:
+    - OAuth authorize and token endpoints
+    - Valid client_id and registered redirect_uris
+    - List of open redirect endpoints on target
+  tools:
+    - curl
+    - python3
+signals:
+  positive:
+    - Authorization code returned to attacker-controlled redirect_uri
+    - redirect_uri pattern matching accepts attacker subdomain
+    - Open redirect on target domain used as valid redirect_uri
+    - Missing state parameter allows CSRF to link attacker account
+    - Different client_id returns valid authorization code
+  negative:
+    - Strict exact-match redirect_uri validation
+    - PKCE with S256 challenge enforced for all clients
+    - State parameter validated server-side
+    - Client secret required and not exposed
+    - redirect_uri validated against registered URI patterns only
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl showing authorization code received at attacker redirect
+    - curl showing access token exchange with attacker redirect_uri code
+    - Decoded token or user info confirming account access
+    - Screenshot of successful redirect flow
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/06-Testing_for_OAuth
+    - https://portswigger.net/web-security/oauth
+  papers:
+    - "OAuth 2.0 Threat Model and Security Considerations (RFC 6819)"
+  writeups: []
+workflow_mapping:
+  skill: auth
+  workflow: W2 (OAuth redirect)
+payload_families:
+  - name: redirect_uri_variants
+    description: Common redirect_uri manipulation patterns
+    examples:
+      - "https://attacker.com"
+      - "https://app.target.com.attacker.com"
+      - "https://app.target.com%40attacker.com"
+      - "https://app.target.com/../redirect/attacker.com"
+  - name: open_redirect_chain
+    description: Chain app open redirect to steal authorization code
+    examples:
+      - "https://app.target.com/oauth/callback?redirect=https://attacker.com"
+  - name: path_traversal
+    description: Path traversal after registered redirect path
+    examples:
+      - "https://app.target.com/oauth/callback/../../attacker"
+tags:
+  - oauth
+  - redirect-uri
+  - authorization-code
+  - account-takeover
+  - open-redirect
+  - state-manipulation

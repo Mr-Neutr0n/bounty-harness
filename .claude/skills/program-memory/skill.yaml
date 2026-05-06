@@ -1,0 +1,111 @@
+name: program-memory
+version: 1.0.0
+description: Persist target-specific knowledge across engagements and feed learning back into planner rankings.
+bounded_context: ProgramMemoryContext
+owasp_wstg:
+  - WSTG-INFO-01
+  - WSTG-INFO-03
+owasp_api_top10: []
+severity_range: [info]
+tools_required:
+  - python3
+  - jq
+input_files: []
+workflows:
+  init-memory:
+    description: Create program memory store for the current program.
+    inputs: [OUTDIR, PROGRAM]
+    command: |
+      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action init --memory-dir engagements/${PROGRAM}/memory --output $OUTDIR/program-memory/init.json
+    outputs:
+      - engagements/${PROGRAM}/memory/program_memory.json
+    evidence_dir: null
+    next:
+      if_findings: import-run
+      if_no_findings: import-run
+
+  import-run:
+    description: Ingest findings, facts, and patterns from current run into program memory.
+    inputs: [OUTDIR, PROGRAM]
+    command: |
+      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action import --memory-dir engagements/${PROGRAM}/memory --run-dir $OUTDIR --output $OUTDIR/program-memory/import_report.json
+    outputs:
+      - engagements/${PROGRAM}/memory/program_memory.json
+    evidence_dir: null
+    next:
+      if_findings: summarize-memory
+      if_no_findings: summarize-memory
+
+  record-fact:
+    description: Add a manual fact about the program to memory.
+    inputs: [OUTDIR, PROGRAM]
+    command: |
+      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action record-fact --memory-dir engagements/${PROGRAM}/memory --fact-category "${FACT_CATEGORY:?Set FACT_CATEGORY}" --fact-value "${FACT_VALUE:?Set FACT_VALUE}" --confidence "${FACT_CONFIDENCE:-medium}" --output $OUTDIR/program-memory/fact_record.json
+    outputs:
+      - engagements/${PROGRAM}/memory/program_memory.json
+    evidence_dir: null
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  record-false-positive:
+    description: Record a confirmed false-positive pattern.
+    inputs: [OUTDIR, PROGRAM]
+    command: |
+      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action record-fp --memory-dir engagements/${PROGRAM}/memory --pattern "${FP_PATTERN:?Set FP_PATTERN}" --description "${FP_DESCRIPTION:?Set FP_DESCRIPTION}" --output $OUTDIR/program-memory/fp_record.json
+    outputs:
+      - engagements/${PROGRAM}/memory/false_positives.jsonl
+    evidence_dir: null
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  record-finding:
+    description: Record a submitted or finalized finding.
+    inputs: [OUTDIR, PROGRAM]
+    command: |
+      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action record-finding --memory-dir engagements/${PROGRAM}/memory --finding "${FINDING_JSON:?Set FINDING_JSON}" --output $OUTDIR/program-memory/finding_record.json
+    outputs:
+      - engagements/${PROGRAM}/memory/findings_history.jsonl
+    evidence_dir: null
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  summarize-memory:
+    description: Produce human-readable memory summary.
+    inputs: [OUTDIR, PROGRAM]
+    command: |
+      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action summarize --memory-dir engagements/${PROGRAM}/memory --output $OUTDIR/program-memory/memory_summary.md
+    outputs:
+      - $OUTDIR/program-memory/memory_summary.md
+    evidence_dir: null
+    next:
+      if_findings: export-planner-hints
+      if_no_findings: export-planner-hints
+
+  export-planner-hints:
+    description: Export planner-weighting hints from accumulated memory.
+    inputs: [OUTDIR, PROGRAM]
+    command: |
+      mkdir -p $OUTDIR/program-memory engagements/${PROGRAM}/memory && \
+      python3 .claude/skills/program-memory/scripts/memory_store.py --context .bb/context.json --action hints --memory-dir engagements/${PROGRAM}/memory --output $OUTDIR/program-memory/planner_hints.json
+    outputs:
+      - $OUTDIR/program-memory/planner_hints.json
+    evidence_dir: null
+    detection_signals:
+      - "false-positive patterns downranked"
+      - "accepted finding types upranked for similar surfaces"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  program_facts: "Learned facts with source, category, confidence, and timestamp"
+  false_positive_pattern: "Pattern with description, example, and affected skills"

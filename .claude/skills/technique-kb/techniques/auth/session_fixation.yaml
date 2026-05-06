@@ -1,0 +1,89 @@
+id: auth-session-fixation
+name: Session Fixation — Forced Session Identifier
+category: auth
+description: >
+  Application accepts a pre-authentication session ID (supplied via URL param,
+  cookie, or hidden form field) and continues using the same session ID after
+  login. Attacker sets a known session ID for victim, waits for victim to
+  authenticate, then uses the same session ID to access victim's account.
+  Session cookie not rotated on privilege escalation (login, MFA, role change).
+severity: medium
+standards:
+  wstg:
+    - WSTG-SESS-03
+  asvs:
+    - "V3.5.1"
+    - "V3.5.2"
+  vrt:
+    - authentication.session_fixation
+  cwe:
+    - CWE-384
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - login-endpoints
+    - auth-flow
+    - session-endpoints
+requires:
+  auth: none
+  inputs:
+    - Login endpoint URL and POST parameters
+    - Pre-authentication session mechanism (cookie name, URL param)
+    - List of pages that issue new session cookies
+  tools:
+    - curl
+    - python3
+signals:
+  positive:
+    - Pre-login session cookie remains valid after login (same cookie value)
+    - Session cookie not changed after successful authentication
+    - Session ID can be set via URL or POST parameter before login
+    - session_id GET parameter accepted and becomes authenticated session
+    - No new Set-Cookie header after login
+  negative:
+    - New Set-Cookie issued after login with different session ID
+    - Old session cookie invalidated after authentication
+    - Session cookie HttpOnly and Secure flags prevent client-side setting
+    - Anti-CSRF token tied to session and rotated on privilege change
+    - Application issues new session on every role or privilege escalation
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl showing pre-login cookie accepted as post-login session
+    - Confirmation that session ID remains unchanged across auth boundary
+    - Proof that attacker-set session ID persists after victim login
+    - "Comparison: pre-auth session cookie vs post-auth session cookie values"
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/03-Testing_for_Session_Fixation
+    - https://owasp.org/www-community/attacks/Session_fixation
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: auth
+  workflow: W3 (session fixation)
+payload_families:
+  - name: cookie_preservation
+    description: Check if pre-auth cookie survives authentication
+    examples:
+      - "Attacker sets session=KNOWN123, victim logs in, attacker uses KNOWN123"
+  - name: url_session
+    description: Session ID passed via URL parameter
+    examples:
+      - "http://target.com/?sessionid=KNOWN123"
+  - name: hidden_form
+    description: Session ID in hidden form field on login page
+    examples:
+      - '<input type="hidden" name="sessionid" value="KNOWN123">'
+tags:
+  - session
+  - cookie-reuse
+  - pre-auth-to-post-auth
+  - no-cookie-rotation
+  - privilege-boundary
+  - session-hijacking

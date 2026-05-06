@@ -1,0 +1,103 @@
+source: "https://portswigger.net/web-security/all-topics"
+server_side_topics:
+  - id: "sql-injection"
+    name: "SQL injection"
+    labs: 18
+  - id: "authentication"
+    name: "Authentication"
+    labs: 14
+  - id: "path-traversal"
+    name: "Path traversal"
+    labs: 7
+  - id: "command-injection"
+    name: "Command injection"
+    labs: 5
+  - id: "business-logic-vulnerabilities"
+    name: "Business logic vulnerabilities"
+    labs: 12
+  - id: "information-disclosure"
+    name: "Information disclosure"
+    labs: 5
+  - id: "access-control"
+    name: "Access control"
+    labs: 13
+  - id: "file-upload-vulnerabilities"
+    name: "File upload vulnerabilities"
+    labs: 8
+  - id: "server-side-request-forgery"
+    name: "Server-side request forgery (SSRF)"
+    labs: 7
+  - id: "xxe-injection"
+    name: "XXE injection"
+    labs: 9
+  - id: "nosql-injection"
+    name: "NoSQL injection"
+    labs: 3
+  - id: "api-testing"
+    name: "API testing"
+    labs: 5
+  - id: "web-llm-attacks"
+    name: "Web LLM attacks"
+    labs: 3
+  - id: "graphql-api-vulnerabilities"
+    name: "GraphQL API vulnerabilities"
+    labs: 5
+  - id: "server-side-template-injection"
+    name: "Server-side template injection"
+    labs: 7
+  - id: "web-cache-poisoning"
+    name: "Web cache poisoning"
+    labs: 7
+  - id: "http-host-header-attacks"
+    name: "HTTP Host header attacks"
+    labs: 7
+  - id: "http-request-smuggling"
+    name: "HTTP request smuggling"
+    labs: 22
+  - id: "race-conditions"
+    name: "Race conditions"
+    labs: 6
+  - id: "insecure-deserialization"
+    name: "Insecure deserialization"
+    labs: 10
+  - id: "os-command-injection"
+    name: "OS command injection"
+    labs: 3
+client_side_topics:
+  - id: "cross-site-scripting"
+    name: "Cross-site scripting (XSS)"
+    labs: 30
+  - id: "cross-site-request-forgery"
+    name: "Cross-site request forgery (CSRF)"
+    labs: 12
+  - id: "cross-origin-resource-sharing"
+    name: "Cross-origin resource sharing (CORS)"
+    labs: 3
+  - id: "clickjacking"
+    name: "Clickjacking"
+    labs: 5
+  - id: "dom-based-vulnerabilities"
+    name: "DOM-based vulnerabilities"
+    labs: 7
+  - id: "websockets"
+    name: "WebSockets"
+    labs: 3
+  - id: "web-storage"
+    name: "Web storage manipulation"
+    labs: 2
+  - id: "prototype-pollution"
+    name: "Prototype pollution"
+    labs: 10
+advanced_topics:
+  - id: "oauth-authentication"
+    name: "OAuth authentication"
+    labs: 6
+  - id: "jwt-attacks"
+    name: "JWT attacks"
+    labs: 8
+  - id: "essential-skills"
+    name: "Essential skills"
+    labs: 4
+  - id: "ssti"
+    name: "Server-side template injection"
+    labs: 7

@@ -1,0 +1,105 @@
+id: api-bola-id-swap
+name: Broken Object Level Authorization (BOLA / IDOR)
+category: api
+description: >
+  API endpoint allows a user to access or modify objects belonging to another
+  user by manipulating object identifiers (ID, UUID, email) in the request.
+  The server fails to verify that the requesting user owns or is authorized
+  to access the requested object. Common in REST endpoints like /users/{id},
+  /orders/{id}, /invoices/{id}, /files/{id}. Most common and impactful API
+  vulnerability.
+severity: high
+standards:
+  wstg:
+    - WSTG-ATHZ-04
+  asvs:
+    - "V8.2.1"
+    - "V8.2.2"
+  api_top10:
+    - "API1:2023"
+  vrt:
+    - improper_authorization.idor
+  cwe:
+    - CWE-863
+applies_to:
+  archetypes:
+    - developer-platform
+    - collaboration-saas
+    - media-platform
+    - ecommerce
+    - marketplace
+  surfaces:
+    - api-object-crud
+    - api-user-resources
+    - api-admin-endpoints
+requires:
+  auth: two_accounts
+  inputs:
+    - API endpoints with object ID parameters (user_id, order_id, file_id)
+    - Authenticated session tokens for two different user accounts
+    - API schema or OpenAPI spec showing resource endpoints
+  tools:
+    - curl
+    - autorize
+signals:
+  positive:
+    - User A can access User B's resources by swapping ID parameter
+    - Object returned with different owner's data
+    - Response contains PII or private data from another user
+    - DELETE or PUT operations succeed on another user's resources
+    - Sequential or predictable IDs enable mass enumeration
+  negative:
+    - Server returns 403 Forbidden for cross-user resource access
+    - Object-level authorization check before data access
+    - Authorization middleware consistently enforced across all endpoints
+    - UUID-based IDs are random enough (but still test — UUIDs can leak)
+    - Data filtered server-side to show only owned resources
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - User A's req showing own object
+    - User B's request showing User A's object via ID swap
+    - Side-by-side diff of responses proving cross-user access
+    - Screenshot of different user data returned
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/04-Testing_for_Insecure_Direct_Object_References
+    - https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/
+  papers:
+    - API Security Top 10 2023 (OWASP)
+  writeups: []
+workflow_mapping:
+  skill: api
+  workflow: W4 (BOLA/IDOR)
+payload_families:
+  - name: integer_id_increment
+    description: Increment or decrement integer IDs
+    examples:
+      - "ID: 1001 -> 1002"
+      - "ID: 1001 -> 1000"
+      - "ID: 1001 -> 0 (sentinel value)"
+  - name: uuid_substitution
+    description: Replace UUID with another user's UUID
+    examples:
+      - "Swap UUID from User A's profile into User B's request"
+  - name: parameter_pollution
+    description: Add duplicate ID parameters to confuse authorization
+    examples:
+      - "?id=1001&id=1002"
+      - "?id[]=1001&id[]=1002"
+  - name: email_or_username
+    description: Use email/username as object identifier
+    examples:
+      - "?user=userA@target.com -> ?user=userB@target.com"
+tags:
+  - idor
+  - bola
+  - authorization
+  - object-level
+  - cross-user
+  - two-accounts
+  - api-security

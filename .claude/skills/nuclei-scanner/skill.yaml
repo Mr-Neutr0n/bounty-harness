@@ -1,0 +1,76 @@
+name: nuclei-scanner
+version: 2.0.0
+description: Nuclei template-based vulnerability scanning — severity profiles, category scans, authenticated scanning, DAST mode, custom templates
+bounded_context: ScanningContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - nuclei
+  - httpx
+  - curl
+  - python3
+  - jq
+  - cvemap
+input_files:
+  - live_urls.txt
+  - all_urls.txt
+  - parameterized_urls.txt
+  - js_files.txt
+workflows:
+  cve-priority:
+    description: Prioritize explicit CVE IDs using cvemap.
+    inputs: [TARGET, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/nuclei/cve && \
+      python3 .claude/skills/nuclei-scanner/scripts/cve_priority.py --context .bb/context.json --cve-ids "${CVE_IDS:-}" --output $OUTDIR/nuclei/cve/findings.jsonl
+    outputs:
+      - $OUTDIR/nuclei/cve/findings.jsonl
+    evidence_dir: $OUTDIR/nuclei/cve/evidence/
+    next:
+      if_findings: standard-scan
+      if_no_findings: standard-scan
+
+  standard-scan:
+    description: Run the nuclei wrapper against a live target list with a bounded standard profile.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/nuclei && \
+      NUCLEI_LIST="${NUCLEI_TARGETS_FILE:-}" && \
+      if [ -z "$NUCLEI_LIST" ]; then if [ -s "$OUTDIR/recon/scoped/in_scope_hosts.txt" ]; then NUCLEI_LIST="$OUTDIR/recon/scoped/in_scope_hosts.txt"; else NUCLEI_LIST="$OUTDIR/recon/live/live_hosts.txt"; fi; fi && \
+      python3 .claude/skills/nuclei-scanner/scripts/nuclei_runner.py --context .bb/context.json --targets-file "$NUCLEI_LIST" --profile ${NUCLEI_PROFILE:-standard} --rate-limit ${NUCLEI_RATE_LIMIT:-100} --concurrency ${NUCLEI_CONCURRENCY:-25} --output $OUTDIR/nuclei/findings.jsonl
+    outputs:
+      - $OUTDIR/nuclei/findings.jsonl
+    evidence_dir: $OUTDIR/nuclei/evidence/
+    detection_signals:
+      - "nuclei templates report vulnerabilities, exposures, or misconfigurations"
+      - "severity and template metadata identify actionable findings"
+    false_positives:
+      - "template match is caused by generic error or WAF response"
+      - "reported version is patched or backported"
+    next:
+      if_findings: validate-findings
+      if_no_findings: validate-findings
+
+  validate-findings:
+    description: Validate nuclei JSONL findings with curl-based verification.
+    inputs: [OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/nuclei && \
+      python3 .claude/skills/nuclei-scanner/scripts/findings_validator.py --context .bb/context.json --nuclei-jsonl $OUTDIR/nuclei/findings.jsonl --output $OUTDIR/nuclei/validated_findings.jsonl
+    outputs:
+      - $OUTDIR/nuclei/validated_findings.jsonl
+    evidence_dir: $OUTDIR/nuclei/evidence/
+    detection_signals:
+      - "finding can be reproduced with an independent request"
+      - "validator preserves only actionable confirmed or likely findings"
+    false_positives:
+      - "finding cannot be reproduced outside the template engine"
+      - "target changed between scan and validation"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  nuclei_jsonl: "Full nuclei JSONL output for all findings"
+  validation_curl: "Curl output confirming the nucleus-detected vulnerability"

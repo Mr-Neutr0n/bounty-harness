@@ -1,0 +1,111 @@
+id: api-mass-assignment
+name: Mass Assignment / Auto-Binding
+category: api
+description: >
+  API framework automatically binds request body properties to internal
+  model attributes without filtering sensitive fields. Attacker includes
+  additional properties (is_admin, role, balance, verified, plan) in request
+  body that the application was not intended to accept. Application updates
+  these properties, granting unauthorized privileges or data manipulation.
+  Common in frameworks like Rails (params), Django (ModelForm), Spring Boot
+  (@ModelAttribute), Laravel (Eloquent mass assignment).
+severity: high
+standards:
+  wstg:
+    - WSTG-ATHZ-04
+  asvs:
+    - "V3.1.1"
+    - "V8.2.2"
+  api_top10:
+    - "API3:2023"
+  vrt:
+    - mass_assignment
+  cwe:
+    - CWE-915
+applies_to:
+  archetypes:
+    - collaboration-saas
+    - enterprise-api
+    - social-network
+    - ecommerce
+  surfaces:
+    - api-user-crud
+    - api-registration
+    - api-profile-update
+    - api-account-settings
+requires:
+  auth: single_account
+  inputs:
+    - API endpoints accepting JSON/XML body (POST, PUT, PATCH)
+    - Known model attributes (from docs, JS source, or API responses)
+  tools:
+    - curl
+    - ffuf
+signals:
+  positive:
+    - Extra body property accepted and persisted (role=admin took effect)
+    - Updated object returned with new unexpected property values
+    - Access granted to admin functionality after mass-assigning is_admin=true
+    - Response shows properties not present in the original request body
+    - API silently accepts extra fields without validation error
+  negative:
+    - Server rejects unknown properties (400 Bad Request or property stripped)
+    - Allowlist binding (only defined fields accepted, extras discarded)
+    - Explicit @JsonIgnore / @JsonProperty with specific field mapping
+    - Strong typing prevents unexpected property types
+    - Data Transfer Objects (DTOs) separate from entity models
+safety:
+  intrusive: true
+  data_modifying: true
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+    - Original request body (normal use)
+    - Modified request body with extra properties
+    - Response showing extra property values persisted
+    - Proof of privilege escalation or data modification
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/04-Testing_for_Insecure_Direct_Object_References
+    - https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/
+  papers:
+    - OWASP API3 Broken Object Property Level Authorization
+  writeups: []
+workflow_mapping:
+  skill: api
+  workflow: W5 (mass assignment)
+payload_families:
+  - name: privilege_fields
+    description: Properties that grant administrative access
+    examples:
+      - "is_admin: true"
+      - "role: admin"
+      - "access_level: 100"
+      - "permissions: [\"*\"]"
+  - name: financial_fields
+    description: Properties affecting billing or balance
+    examples:
+      - "balance: 999999"
+      - "credit: 10000"
+      - "plan: enterprise"
+      - "discount_percent: 100"
+  - name: auth_fields
+    description: Properties that bypass authentication checks
+    examples:
+      - "verified: true"
+      - "email_verified: true"
+      - "mfa_enabled: false"
+      - "password_bypass: true"
+  - name: nested_objects
+    description: Mass assignment through nested objects
+    examples:
+      - '{"user": {"name": "a", "role": "admin"}}'
+      - '{"data": {"attributes": {"admin": true}}}'
+tags:
+  - auto-binding
+  - excessive-properties
+  - privilege-escalation
+  - data-modifying
+  - requires-approval
+  - api-security

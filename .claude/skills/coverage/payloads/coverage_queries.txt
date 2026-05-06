@@ -1,0 +1,43 @@
+# Coverage Queries — Common questions to ask the coverage ledger
+
+# Overall
+What is our total coverage percentage across all standards?
+What is our total any-coverage percentage (covered + partial)?
+How many items are fully covered vs partial vs missing?
+
+# Per-standard
+What is our WSTG coverage?
+What is our ASVS coverage?
+What is our API Top 10 coverage?
+What is our Bugcrowd VRT coverage?
+Which standard has the best coverage?
+Which standard has the worst coverage?
+
+# Gap analysis
+What are the highest-priority gaps (missing + high priority)?
+Which gaps would a new skill close?
+What skill should we build next?
+What low-hanging fruit exists (partial items that could be covered)?
+
+# Sections
+Which WSTG sections (INFO, CONF, IDNT, ATHN, ATHZ, SESS, INPV, ERR, CRYP, BUSL, CLNT, APIT) are best covered?
+Which WSTG sections have the most gaps?
+Is there any WSTG section with zero coverage?
+
+# Skills
+Which existing skills cover the most WSTG items?
+Which existing skills have the most scripts?
+Are there any skills that don't cover any standard items?
+Which skills have the most "partial" coverage that needs deepening?
+
+# Trend
+What was coverage last month vs this month?
+Are we trending upward?
+How many new items did we cover this month?
+How many gaps did we close?
+
+# Priorities
+What critical-priority gaps exist?
+What high-priority gaps are easiest to close?
+What would it take to reach 50% overall covered?
+What is the most impactful single skill we could build?

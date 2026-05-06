@@ -1,0 +1,426 @@
+registry:
+  category: recon
+  source: various
+  tools:
+    - name: amass
+      repo: github.com/owasp-amass/amass
+      install_method: go
+      binary: amass
+      version_cmd: "amass -version"
+      health_cmd: "amass -version"
+      capabilities:
+        - subdomain_enum
+        - network_mapping
+        - active_recon
+        - passive_recon
+        - data_source_integ
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+        - osint
+
+    - name: assetfinder
+      repo: github.com/tomnomnom/assetfinder
+      install_method: go
+      binary: assetfinder
+      version_cmd: "assetfinder --version"
+      health_cmd: "assetfinder --version"
+      capabilities:
+        - subdomain_enum
+        - passive_recon
+        - cert_transparency
+        - source_aggregation
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+        - osint
+
+    - name: puredns
+      repo: github.com/d3mondev/puredns
+      install_method: go
+      binary: puredns
+      version_cmd: "puredns --version"
+      health_cmd: "puredns --version"
+      capabilities:
+        - mass_dns_resolve
+        - wildcard_filter
+        - bruteforce
+        - dns_validation
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: massdns
+      repo: github.com/blechschmidt/massdns
+      install_method: manual
+      binary: massdns
+      version_cmd: "massdns --version"
+      health_cmd: "massdns --version"
+      capabilities:
+        - mass_dns_resolve
+        - high_performance_dns
+        - raw_dns
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: dnsgen
+      repo: github.com/ProjectAnte/dnsgen
+      install_method: pipx
+      binary: dnsgen
+      version_cmd: "dnsgen --version"
+      health_cmd: "dnsgen --help"
+      capabilities:
+        - wordlist_gen
+        - subdomain_permute
+        - pattern_expand
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: gotator
+      repo: github.com/Josue87/gotator
+      install_method: go
+      binary: gotator
+      version_cmd: "gotator -h"
+      health_cmd: "gotator -h"
+      capabilities:
+        - subdomain_permute
+        - wordlist_gen
+        - double_permutation
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: gau
+      repo: github.com/lc/gau
+      install_method: go
+      binary: gau
+      version_cmd: "gau --version"
+      health_cmd: "gau --version"
+      capabilities:
+        - url_discovery
+        - archive_query
+        - passive_url_enum
+        - otx
+        - wayback
+        - commoncrawl
+      risk_tier: passive
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: waybackurls
+      repo: github.com/tomnomnom/waybackurls
+      install_method: go
+      binary: waybackurls
+      version_cmd: "waybackurls -h"
+      health_cmd: "waybackurls -h"
+      capabilities:
+        - url_discovery
+        - archive_query
+        - passive_url_enum
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: hakrawler
+      repo: github.com/hakluke/hakrawler
+      install_method: go
+      binary: hakrawler
+      version_cmd: "hakrawler -h"
+      health_cmd: "hakrawler -h"
+      capabilities:
+        - crawl
+        - link_discovery
+        - js_parsing
+        - sitemap_gen
+      risk_tier: active-safe
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: cariddi
+      repo: github.com/edoardottt/cariddi
+      install_method: go
+      binary: cariddi
+      version_cmd: "cariddi -h"
+      health_cmd: "cariddi -h"
+      capabilities:
+        - crawl
+        - secret_scan
+        - endpoint_enum
+        - param_enum
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: uro
+      repo: github.com/s0md3v/uro
+      install_method: pipx
+      binary: uro
+      version_cmd: "uro --version"
+      health_cmd: "uro --help"
+      capabilities:
+        - url_dedup
+        - url_filter
+        - path_normalization
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: ffuf
+      repo: github.com/ffuf/ffuf
+      install_method: go
+      binary: ffuf
+      version_cmd: "ffuf --version"
+      health_cmd: "ffuf --version"
+      capabilities:
+        - fuzz
+        - directory_brute
+        - vhost_brute
+        - param_brute
+        - header_brute
+        - content_discovery
+      risk_tier: intrusive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+        - api
+        - xss
+        - sqli
+        - rce
+
+    - name: feroxbuster
+      repo: github.com/epi052/feroxbuster
+      install_method: brew
+      binary: feroxbuster
+      version_cmd: "feroxbuster --version"
+      health_cmd: "feroxbuster --version"
+      capabilities:
+        - directory_brute
+        - content_discovery
+        - recursive_scan
+        - link_extraction
+      risk_tier: intrusive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: dirsearch
+      repo: github.com/maurosoria/dirsearch
+      install_method: pipx
+      binary: dirsearch
+      version_cmd: "dirsearch --version"
+      health_cmd: "dirsearch --version"
+      capabilities:
+        - directory_brute
+        - content_discovery
+        - extension_brute
+        - recursive_scan
+      risk_tier: intrusive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: arjun
+      repo: github.com/s0md3v/Arjun
+      install_method: pipx
+      binary: arjun
+      version_cmd: "arjun --version"
+      health_cmd: "arjun --version"
+      capabilities:
+        - param_enum
+        - http_param_discovery
+        - get_post_param
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - recon
+        - api
+        - xss
+        - sqli
+
+    - name: paramspider
+      repo: github.com/devanshbatham/paramspider
+      install_method: pipx
+      binary: paramspider
+      version_cmd: "paramspider --help"
+      health_cmd: "paramspider --help"
+      capabilities:
+        - param_enum
+        - passive_param_discovery
+        - query_string_extract
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: x8
+      repo: github.com/sh1yo/x8
+      install_method: manual
+      binary: x8
+      version_cmd: "x8 --version"
+      health_cmd: "x8 --version"
+      capabilities:
+        - param_enum
+        - hidden_param_brute
+        - reflection_detect
+      risk_tier: active-safe
+      output_support:
+        - json
+        - stdout
+        - files
+      skills:
+        - recon
+        - xss
+        - sqli
+
+    - name: anew
+      repo: github.com/tomnomnom/anew
+      install_method: go
+      binary: anew
+      version_cmd: "anew -h"
+      health_cmd: "anew -h"
+      capabilities:
+        - dedup
+        - append_new
+        - stream_filter
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+        - reporting
+
+    - name: gf
+      repo: github.com/tomnomnom/gf
+      install_method: go
+      binary: gf
+      version_cmd: "gf -h"
+      health_cmd: "gf -h"
+      capabilities:
+        - grep_filter
+        - pattern_match
+        - json_filter
+        - regex_extract
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+        - xss
+        - sqli
+        - ssrf
+        - rce
+
+    - name: qsreplace
+      repo: github.com/tomnomnom/qsreplace
+      install_method: go
+      binary: qsreplace
+      version_cmd: "qsreplace -h"
+      health_cmd: "qsreplace -h"
+      capabilities:
+        - query_string_replace
+        - param_inject
+        - url_mutation
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+        - xss
+        - sqli
+        - ssrf
+        - rce
+
+    - name: unfurl
+      repo: github.com/tomnomnom/unfurl
+      install_method: go
+      binary: unfurl
+      version_cmd: "unfurl -h"
+      health_cmd: "unfurl -h"
+      capabilities:
+        - url_parse
+        - domain_extract
+        - path_extract
+        - param_extract
+        - scheme_extract
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: httprobe
+      repo: github.com/tomnomnom/httprobe
+      install_method: go
+      binary: httprobe
+      version_cmd: "httprobe -h"
+      health_cmd: "httprobe -h"
+      capabilities:
+        - live_probe
+        - http_https_probe
+        - fast_probe
+      risk_tier: passive
+      output_support:
+        - stdout
+        - files
+      skills:
+        - recon

@@ -1,0 +1,31 @@
+id: role_downgrade_retain_access
+name: Role Downgrade Access Retention
+category: authorization
+severity: high
+description: Test whether a user retains elevated permissions after role downgrade by replaying privileged endpoints with downgraded persona.
+preconditions:
+  auth_required: mandatory
+  tools: [curl, python3, jq]
+  inputs: [persona/headers/, traffic-corpus/routes.jsonl]
+  personas_required: 2
+  role_relationship_required: admin_vs_user
+workflow: cross-account/role-downgrade
+detection_signals:
+  positive:
+    - "Downgraded user can still access admin endpoints"
+    - "Write/delete operations succeed after permission removal"
+  negative:
+    - "Downgraded user receives 403 on admin endpoints"
+evidence_required:
+  - "Pre-downgrade access proof (admin permission)"
+  - "Post-downgrade unauthorized access proof"
+false_positives:
+  - "Endpoint is accessible by both admin and user roles intentionally"
+standards:
+  owasp_wstg: [WSTG-ATHZ-01]
+  owasp_api_top10: [API5:2023]
+references:
+  - "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Testing_Automation_Cheat_Sheet.html"
+safety:
+  risk_tier: intrusive
+  data_modifying: false

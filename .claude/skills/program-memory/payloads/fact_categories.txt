@@ -1,0 +1,8 @@
+scope_boundary
+technology_stack
+auth_mechanism
+waf_behavior
+rate_limiting
+cdn_presence
+common_false_positives
+out_of_scope_pattern

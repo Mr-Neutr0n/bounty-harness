@@ -1,0 +1,10 @@
+name: "cors-misconfig"
+skill_tested: "cors-csrf"
+vulnerability_class: "cors-misconfiguration"
+severity: "medium"
+description: "API endpoint that echoes any Origin header back as Access-Control-Allow-Origin with credentials enabled"
+requirements:
+  port: 8084
+  timeout: 10
+positive_control: "Request with Origin: http://evil.com should reflect it back with Access-Control-Allow-Credentials: true"
+negative_control: "Request without Origin header should not return permissive CORS headers"

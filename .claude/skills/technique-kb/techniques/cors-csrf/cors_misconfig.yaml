@@ -1,0 +1,93 @@
+id: cors-csrf-misconfig
+name: CORS Misconfiguration — Origin Reflection
+category: cors-csrf
+description: 'Cross-Origin Resource Sharing (CORS) is misconfigured, allowing arbitrary
+  origins or null origins to access resources that should be restricted. The Access-Control-Allow-Origin
+  header reflects the request Origin value with credentials enabled (ACAO: *, or dynamic
+  reflection + ACAC: true). Enables attacker website to make authenticated cross-origin
+  requests and read responses, leading to account takeover via session token theft.
+
+  '
+severity: high
+standards:
+  wstg:
+  - WSTG-CONF-05
+  asvs:
+  - V14.5.3
+  vrt:
+  - cross_origin_resource_sharing.misconfiguration
+  cwe:
+  - CWE-942
+applies_to:
+  archetypes:
+  - all
+  surfaces:
+  - api-endpoints
+  - authenticated-pages
+  - session-endpoints
+requires:
+  auth: session_cookie
+  inputs:
+  - API endpoints with credentialed CORS headers
+  - httpx output showing CORS headers per endpoint
+  - Authenticated session cookies
+  tools:
+  - curl
+  - httpx
+signals:
+  positive:
+  - ACAO reflects any Origin value (not just allowed list)
+  - 'ACAO is * with ACAC: true (browsers block this, but check)'
+  - 'Origin: null accepted with ACAC: true'
+  - Origin with trailing characters or subdomain reflected (app.target.com.evil.com)
+  - Preflight request succeeds for arbitrary origin with custom headers
+  - 'Vary: Origin header missing (CDN may cache cross-origin responses)'
+  negative:
+  - ACAO only returns predefined list of trusted origins
+  - 'ACAC: true only for specific whitelist-matched origins'
+  - No ACAO header for authenticated endpoints (same-origin enforced by browser)
+  - Origin validation via exact string matching (no pattern bypass)
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+  - 'curl with Origin: attacker.com showing ACAO: attacker.com'
+  - 'curl showing ACAC: true alongside reflected origin'
+  - 'Proof of concept: attacker page reading cross-origin response'
+  - Screenshot of CORS headers in browser DevTools
+references:
+  urls:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/05-Test_CORS
+  - https://portswigger.net/web-security/cors
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: cors-csrf
+  workflow: W1 (CORS misconfig test)
+payload_families:
+- name: origin_reflection
+  description: Test if arbitrary origin is reflected back
+  examples:
+  - 'Origin: https://evil.com'
+  - 'Origin: null'
+  - 'Origin: https://app.target.com.evil.com'
+- name: preflight_abuse
+  description: Abusing OPTIONS method and preflight caching
+  examples:
+  - 'OPTIONS with Access-Control-Request-Method: PUT'
+  - 'OPTIONS with Access-Control-Request-Headers: X-Custom'
+- name: subdomain_bypass
+  description: Origin matching bypass via subdomain patterns
+  examples:
+  - 'Origin: https://app.target.com.attacker.com'
+  - 'Origin: https://apptarget.com'
+tags:
+- cors
+- cross-origin
+- origin-reflection
+- access-control
+- cookie-theft
+- session-hijacking

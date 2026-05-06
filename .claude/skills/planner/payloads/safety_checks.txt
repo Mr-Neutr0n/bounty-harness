@@ -1,0 +1,10 @@
+scope_confirm: Confirm the target endpoint is within the program scope before testing
+auth_boundary: Do not test authenticated endpoints unless you have valid credentials or explicit authorization
+rate_limit_gate: Check for rate limiting before running automated scanners at full speed
+destructive_gate: Never run destructive payloads (DELETE, DROP, rm, etc.) without explicit approval
+intrusive_gate: For intrusive tests, verify they are permitted by the engagement scope
+prod_warning: Confirm whether the target is production or staging before testing
+payload_safety: Use safe payloads first (sleep, dns-based) before trying dangerous payloads
+data_leakage: Ensure response data is not saved in shared or public locations
+tool_version: Log tool versions used for reproducibility and CVE correlation
+rollback_plan: Have documented rollback steps for each intrusive workflow

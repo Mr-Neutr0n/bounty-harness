@@ -1,0 +1,12 @@
+REPORT READINESS SCORING RUBRIC
+================================
+Evidence (25 pts): confirmed request/response, screenshot, reproduction steps
+Impact (25 pts): demonstrable business harm, quantified if possible
+Reproducibility (20 pts): working PoC script, consistent results
+False Positive Risk (20 pts): ruled out scanner artifacts, verified manually
+Writeup Quality (10 pts): clear title, summary, CVSS, remediation
+--------------------------------
+>= 80: Submission-ready
+60-79: Needs minor evidence or writeup improvements
+40-59: Requires deeper verification
+< 40: Not ready for submission

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+echo "=== Validating context ==="
+source .bb/context.env 2>/dev/null || { echo "Run: bin/bb-init <target>"; exit 1; }
+MISSING=0
+for VAR in TARGET TARGET_URL OUTDIR EVIDENCE_DIR SCOPE_FILE; do
+  if [ -z "${!VAR:-}" ]; then echo "MISSING: $VAR"; MISSING=1; fi
+done
+if [ -n "${SCOPE_FILE:-}" ] && [ ! -f "$SCOPE_FILE" ]; then
+  echo "MISSING FILE: SCOPE_FILE=$SCOPE_FILE"; MISSING=1
+fi
+if [ $MISSING -eq 0 ]; then echo "Context OK"; else echo "Run: bin/bb-init <target>"; exit 1; fi
+
+echo "=== Validating tool registry ==="
+python3 - <<'PYEOF'
+import json, yaml, glob, os, sys
+lock=".bb/tool-lock.json"
+if os.path.exists(lock):
+    try: json.load(open(lock)); print("tool-lock.json OK")
+    except json.JSONDecodeError as e: print(f"INVALID JSON: {lock}: {e}"); sys.exit(1)
+registry=glob.glob("tools/registry/*.yaml")
+if not registry: print("MISSING: No tool registry YAML files"); sys.exit(1)
+print(f"Registry OK ({len(registry)} files)")
+for path in ["tools/safety_profiles.yaml","tools/capabilities.yaml"]:
+    if not os.path.exists(path): print(f"MISSING: {path}"); sys.exit(1)
+    try: yaml.safe_load(open(path)); print(f"{os.path.basename(path)} OK")
+    except yaml.YAMLError as e: print(f"INVALID YAML: {path}: {e}"); sys.exit(1)
+tools=set()
+for f in registry:
+    try:
+        for t in yaml.safe_load(open(f)).get("registry",{}).get("tools",[]):
+            tools.add(t.get("name"))
+    except Exception as e: print(f"WARN: Failed to parse {f}: {e}")
+for sf in glob.glob(".claude/skills/*/skill.yaml"):
+    try:
+        data=yaml.safe_load(open(sf))
+        name=data.get("name",os.path.basename(os.path.dirname(sf)))
+        for t in data.get("tools_required",[]):
+            if t not in tools: print(f"WARNING: {t} required by {name} not found in tool registry")
+    except Exception: pass
+print("Tool validation complete")
+PYEOF
+if [ -x "bin/bb-tools" ]; then echo "Run: bin/bb-tools doctor to check tool health"; fi

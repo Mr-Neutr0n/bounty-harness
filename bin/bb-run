@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ $# -lt 2 ]; then
+  echo "Usage: bb-run <skill> <workflow>"
+  echo "Example: bb-run xss reflected"
+  echo ""
+  echo "Available workflows are in .claude/skills/<skill>/runbooks/"
+  exit 1
+fi
+
+SKILL="$1"
+WORKFLOW="$2"
+SCRIPT_DIR=".claude/skills/${SKILL}"
+
+if [ ! -f "${SCRIPT_DIR}/skill.yaml" ]; then
+  echo "ERROR: No skill.yaml found for ${SKILL}"
+  exit 1
+fi
+
+# Source context and export it so preflight helpers see the same RunContext.
+if [ -f .bb/context.env ]; then
+  set -a
+  source .bb/context.env
+  set +a
+  export PATH="$HOME/.pdtm/go/bin:$HOME/go/bin:$PATH"
+else
+  echo "Run bb-init first"
+  exit 1
+fi
+
+# Find workflow by name
+WF_CMD=$(python3 -c "
+import yaml, sys
+with open('${SCRIPT_DIR}/skill.yaml') as f:
+    data = yaml.safe_load(f)
+for name, wf in data.get('workflows', {}).items():
+    if name == '${WORKFLOW}':
+        print(wf.get('command', ''))
+        break
+" 2>/dev/null)
+
+if [ -z "$WF_CMD" ]; then
+  echo "Workflow ${WORKFLOW} not found in ${SKILL}/skill.yaml"
+  echo "Available workflows:"
+  python3 -c "
+import yaml
+with open('${SCRIPT_DIR}/skill.yaml') as f:
+    data = yaml.safe_load(f)
+for name in data.get('workflows', {}) or {}:
+    print(f'  {name}')
+" 2>/dev/null
+  exit 1
+fi
+
+# Preflight checks
+python3 - "$WF_CMD" "${SCRIPT_DIR}" "${SKILL}" "${WORKFLOW}" <<'PY'
+import os, re, shlex, shutil, sys, glob, yaml
+cmd, sdir, skill, wf = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+registry = {}
+for f in glob.glob("tools/registry/*.yaml"):
+    try:
+        for t in yaml.safe_load(open(f)).get("registry", {}).get("tools", []):
+            name = t.get("name", "")
+            binary = t.get("binary", name)
+            if name:
+                registry[name] = t
+            if binary:
+                registry[binary] = t
+    except Exception:
+        pass
+try:
+    tokens = set(shlex.split(cmd))
+except Exception:
+    tokens = set(re.findall(r"[A-Za-z0-9_.+-]+", cmd))
+command_words = set()
+for token in tokens:
+    base = os.path.basename(token)
+    if base in registry:
+        command_words.add(base)
+try:
+    with open(f"{sdir}/skill.yaml") as f:
+        data = yaml.safe_load(f)
+    for t in data.get("tools_required", []):
+        info = registry.get(t, {})
+        binary = info.get("binary", t)
+        if t in command_words or binary in command_words:
+            if not shutil.which(binary):
+                print(f"WARNING: {t} not on PATH — run: bin/bb-tools doctor --skill {skill}")
+except Exception:
+    pass
+intrusive = {name for name, info in registry.items() if info.get("risk_tier") in ("intrusive", "destructive-manual")}
+if command_words & intrusive:
+    s = os.environ.get("SCOPE_FILE", "")
+    if not s or not os.path.isfile(s) or os.path.getsize(s) == 0:
+        print(f"WARNING: intrusive workflow {wf} without scope file — require scope before continuing")
+if command_words & {"nuclei", "ffuf", "dalfox", "katana"} and not os.environ.get("RATE_LIMIT"):
+    print("HINT: Set RATE_LIMIT in .bb/context.env to avoid getting blocked")
+PY
+
+# Substitute longest variable names first so $TARGET_URL is not partially
+# rewritten as ${TARGET}_URL.
+WF_CMD="${WF_CMD//\$EVIDENCE_DIR/$EVIDENCE_DIR}"
+WF_CMD="${WF_CMD//\$TARGET_URL/$TARGET_URL}"
+WF_CMD="${WF_CMD//\$TARGET_HOST/${TARGET_HOST:-$TARGET}}"
+WF_CMD="${WF_CMD//\$OUTDIR/$OUTDIR}"
+WF_CMD="${WF_CMD//\$TARGET/$TARGET}"
+
+echo "=== Running: ${SKILL}/${WORKFLOW} ==="
+echo "$WF_CMD"
+eval "$WF_CMD"

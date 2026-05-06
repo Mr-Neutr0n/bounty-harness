@@ -1,0 +1,8 @@
+[allowlist]
+description = "Ignore local engagement state and vendored third-party scanner templates"
+paths = [
+  '''^\.bb/''',
+  '''^engagements/''',
+  '''^output/''',
+  '''^templates/nuclei-templates/''',
+]

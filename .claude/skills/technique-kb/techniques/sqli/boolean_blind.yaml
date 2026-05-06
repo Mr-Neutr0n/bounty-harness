@@ -1,0 +1,87 @@
+id: sqli-boolean-blind
+name: Boolean-Based Blind SQL Injection
+category: sqli
+description: >
+  SQL injection where the application does not return error messages or data
+  directly but behaves differently based on a true/false condition in the
+  injected SQL. Attacker infers data one bit at a time by observing response
+  differences in page content, HTTP status, redirects, or timing. Requires
+  automated tools for efficient exploitation.
+severity: high
+standards:
+  wstg:
+    - WSTG-INPV-05
+  asvs:
+    - "V5.3.4"
+    - "V5.3.5"
+  vrt:
+    - sql_injection.blind_based
+  cwe:
+    - CWE-89
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - all-parameterized-endpoints
+    - api-filter-params
+    - database-backed-page-ids
+requires:
+  auth: none
+  inputs:
+    - list of URL parameters that affect page content or status
+    - confirmed parameter reflection points (no encoding)
+  tools:
+    - sqlmap
+    - curl
+signals:
+  positive:
+    - AND 1=1 returns one page, AND 1=2 returns different page or 404
+    - Different content length for true vs false condition
+    - Different HTTP status code for true vs false condition
+    - Response body contains or omits specific element based on condition
+    - sqlmap --technique=B finds injectable parameter
+  negative:
+    - No detectable difference between true/false responses (use time-based instead)
+    - Random tokens or CSRF nonces change response size (false positive)
+    - Response difference only due to session timeout or rate limiting
+    - Application uses read-replica returning stale data (timing issues)
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - Two curl commands showing true and false condition responses side-by-side
+    - sqlmap output log confirming boolean blind SQLi
+    - Diff of response bodies or status codes
+    - Extracted database name as proof of data exfiltration
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05-Testing_for_SQL_Injection
+    - https://portswigger.net/web-security/sql-injection/blind
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: sqli
+  workflow: W2 (blind detection)
+payload_families:
+  - name: boolean_condition
+    description: True/false conditions to observe response differences
+    examples:
+      - "AND 1=1"
+      - "AND 1=2"
+      - "AND 'a'='a"
+      - "AND 'a'='b"
+  - name: substring_extraction
+    description: Extract data character by character via boolean conditions
+    examples:
+      - "AND SUBSTRING((SELECT password FROM users LIMIT 1),1,1)='a'"
+      - "AND (SELECT ascii(substring(database(),1,1)))>64"
+tags:
+  - blind
+  - boolean
+  - true-false
+  - content-diff
+  - no-error-messages
+  - automated-extraction

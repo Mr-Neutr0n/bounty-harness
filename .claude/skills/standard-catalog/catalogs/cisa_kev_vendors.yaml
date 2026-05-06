@@ -1,0 +1,28 @@
+source: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+vendors:
+  - name: "Apache"
+    products: ["Log4j", "Struts 2", "ActiveMQ", "Tomcat", "HTTP Server", "Solr"]
+  - name: "Atlassian"
+    products: ["Confluence Server/Data Center", "Jira Server/Data Center", "Bamboo"]
+  - name: "Citrix"
+    products: ["ADC", "Gateway", "StoreFront", "Workspace App"]
+  - name: "F5"
+    products: ["BIG-IP", "BIG-IQ"]
+  - name: "Fortinet"
+    products: ["FortiOS", "FortiGate", "FortiClient EMS", "FortiWeb"]
+  - name: "Ivanti"
+    products: ["Connect Secure", "Policy Secure", "Endpoint Manager", "Sentinel"]
+  - name: "Jenkins"
+    products: ["Jenkins Server", "Jenkins CLI"]
+  - name: "Microsoft"
+    products: ["Exchange Server", "SharePoint", "Outlook", "Windows Remote Desktop Services"]
+  - name: "Oracle"
+    products: ["WebLogic Server", "Java SE", "Application Testing Suite"]
+  - name: "Palo Alto"
+    products: ["PAN-OS", "GlobalProtect"]
+  - name: "Progress"
+    products: ["Telerik UI for ASP.NET AJAX", "MOVEit Transfer", "WS_FTP Server"]
+  - name: "VMware"
+    products: ["vCenter Server", "Workspace ONE Access", "Horizon"]
+  - name: "Zimbra"
+    products: ["Collaboration Suite"]

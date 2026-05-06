@@ -1,0 +1,33 @@
+# Deduplication rules for technique candidates
+# Format: <field>: <weight>
+
+# Fields used for similarity comparison (must match ingest_rules.yaml)
+fields_to_compare:
+  - name
+  - description
+  - signals.positive
+
+# Additional normalization steps before comparison
+normalization:
+  - lowercase
+  - strip_whitespace
+  - remove_punctuation
+  - remove_articles
+  - stem_words
+
+# Minimum length for a field to be considered in comparison
+min_field_length:
+  name: 3
+  description: 20
+
+# Exact match blocks (no similarity needed, these always count as duplicate)
+exact_match_fields:
+  - cve_id
+  - source_url
+  - source_hash
+
+# Near-duplicate pattern: same technique name + same precondition = duplicate
+# regardless of description differences
+blocking_keys:
+  - technique_name_normalized
+  - source_id + source_path

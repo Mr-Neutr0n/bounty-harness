@@ -1,0 +1,10 @@
+name: "xss-reflected"
+skill_tested: "xss"
+vulnerability_class: "reflected-xss"
+severity: "medium"
+description: "Simple webapp that reflects a GET parameter without encoding"
+requirements:
+  port: 8081
+  timeout: 10
+positive_control: "GET /search?q=<script>alert(1)</script> should reflect the script tag"
+negative_control: "GET /search?q=hello should reflect 'hello' without triggering XSS detection"

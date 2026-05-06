@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: bb-init <target-domain> [--program NAME] [--scope-file FILE] [--scheme https] [--port 443] [--outdir ./output/TARGET]"
+}
+
+TARGET=""
+PROGRAM="${PROGRAM:-}"
+SCOPE_FILE="${SCOPE_FILE:-}"
+SCHEME="${SCHEME:-https}"
+PORT="${PORT:-443}"
+OUTDIR="${OUTDIR:-}"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --scheme)
+      [ $# -lt 2 ] && { echo "ERROR: --scheme requires a value" >&2; exit 1; }
+      SCHEME="${2:-}"; shift 2 ;;
+    --port)
+      [ $# -lt 2 ] && { echo "ERROR: --port requires a value" >&2; exit 1; }
+      PORT="${2:-}"; shift 2 ;;
+    --outdir)
+      [ $# -lt 2 ] && { echo "ERROR: --outdir requires a value" >&2; exit 1; }
+      OUTDIR="${2:-}"; shift 2 ;;
+    --program)
+      [ $# -lt 2 ] && { echo "ERROR: --program requires a value" >&2; exit 1; }
+      PROGRAM="${2:-}"; shift 2 ;;
+    --scope-file)
+      [ $# -lt 2 ] && { echo "ERROR: --scope-file requires a value" >&2; exit 1; }
+      SCOPE_FILE="${2:-}"; shift 2 ;;
+    -h|--help)
+      usage; exit 0 ;;
+    --*)
+      echo "ERROR: unknown option $1" >&2; usage; exit 1 ;;
+    *)
+      if [ -n "$TARGET" ]; then
+        echo "ERROR: multiple targets supplied" >&2; usage; exit 1
+      fi
+      TARGET="$1"; shift ;;
+  esac
+done
+
+if [ -z "$TARGET" ]; then
+  usage
+  exit 1
+fi
+
+OUTDIR="${OUTDIR:-./output/${TARGET}/$(date +%Y-%m-%d_%H%M)}"
+TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+if [ -z "$PROGRAM" ]; then
+  case "$TARGET" in
+    *openai*|*chatgpt*) PROGRAM="openai" ;;
+    *ycombinator*|news.ycombinator.com|news.ycombinator.net) PROGRAM="ycombinator" ;;
+  esac
+fi
+
+if { [ "$SCHEME" = "https" ] && [ "$PORT" = "443" ]; } || { [ "$SCHEME" = "http" ] && [ "$PORT" = "80" ]; }; then
+  TARGET_URL="${SCHEME}://${TARGET}"
+else
+  TARGET_URL="${SCHEME}://${TARGET}:${PORT}"
+fi
+
+if [ -z "$SCOPE_FILE" ]; then
+  case "$PROGRAM" in
+    ycombinator) SCOPE_FILE="${PWD}/engagements/ycombinator/scope/Security-Assessment-Authorization-YC.md" ;;
+    openai) SCOPE_FILE="${PWD}/engagements/openai/scope/SCOPE_SUMMARY.md" ;;
+    *) SCOPE_FILE="" ;;
+  esac
+fi
+
+if [ ! -f "$SCOPE_FILE" ] && [ -f "${PWD}/Security-Assessment-Authorization-YC.md" ]; then
+  SCOPE_FILE="${PWD}/Security-Assessment-Authorization-YC.md"
+fi
+
+mkdir -p "$OUTDIR" "${OUTDIR}/evidence"
+mkdir -p .bb
+
+# Generate context files. Values are shell-escaped because this repository path
+# commonly contains spaces ("bug bounty").
+{
+  printf 'TARGET=%q\n' "$TARGET"
+  printf 'PROGRAM=%q\n' "$PROGRAM"
+  printf 'TARGET_HOST=%q\n' "$TARGET"
+  printf 'TARGET_URL=%q\n' "$TARGET_URL"
+  printf 'TARGET_SCHEME=%q\n' "$SCHEME"
+  printf 'TARGET_PORT=%q\n' "$PORT"
+  printf 'OUTDIR=%q\n' "$OUTDIR"
+  printf 'EVIDENCE_DIR=%q\n' "${OUTDIR}/evidence"
+  printf 'SCOPE_FILE=%q\n' "$SCOPE_FILE"
+  printf 'AUTH_HEADER=%q\n' ""
+  printf 'COOKIE_JAR=%q\n' ".bb/cookies.txt"
+  printf 'OAST_DOMAIN=%q\n' ""
+  printf 'INTERACTSH_URL=%q\n' ""
+  printf 'RATE_LIMIT=%q\n' "50"
+  printf 'CONCURRENCY=%q\n' "10"
+  printf 'USER_AGENT=%q\n' "BugBountyAgent/2.0 (security research)"
+  printf 'PROXY=%q\n' ""
+  printf 'HTTP2=%q\n' "true"
+  printf 'DRY_RUN=%q\n' "false"
+  printf 'TIMEOUT=%q\n' "30"
+  printf 'RETRIES=%q\n' "2"
+  printf 'RUN_ID=%q\n' "$TS"
+  printf 'TOOLS_PATH=%q\n' "/opt/homebrew/bin:${HOME}/.pdtm/go/bin:${HOME}/go/bin:${HOME}/Library/Python/3.14/bin:${PATH}"
+  printf 'export PATH="$TOOLS_PATH"\n'
+} > .bb/context.env
+
+# Generate JSON context
+cat > .bb/context.json << EOFJSON
+{
+  "target": "${TARGET}",
+  "program": "${PROGRAM}",
+  "target_host": "${TARGET}",
+  "target_url": "${TARGET_URL}",
+  "target_scheme": "${SCHEME}",
+  "target_port": "${PORT}",
+  "outdir": "${OUTDIR}",
+  "evidence_dir": "${OUTDIR}/evidence",
+  "scope_file": "${SCOPE_FILE}",
+  "auth_header": "",
+  "cookie_jar": "${PWD}/.bb/cookies.txt",
+  "oast_domain": "",
+  "interactsh_url": "",
+  "rate_limit": 50,
+  "concurrency": 10,
+  "user_agent": "BugBountyAgent/2.0 (security research)",
+  "proxy": "",
+  "http2": true,
+  "dry_run": false,
+  "timeout": 30,
+  "retries": 2,
+  "run_id": "${TS}"
+}
+EOFJSON
+
+# Verify tools
+echo "=== Context initialized ==="
+echo "Target: $TARGET"
+echo "Program: ${PROGRAM:-unknown}"
+echo "Scheme: $SCHEME"
+echo "Target URL: $TARGET_URL"
+echo "Output: $OUTDIR"
+echo "Run ID: $TS"
+echo "Run: source .bb/context.env"

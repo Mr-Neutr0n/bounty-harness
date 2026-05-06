@@ -1,0 +1,122 @@
+name: oob-infra
+version: 1.0.0
+description: Manage out-of-band callback infrastructure for detecting blind vulnerabilities via interactsh.
+bounded_context: OobContext
+owasp_wstg:
+  - WSTG-INPV-07
+  - WSTG-INPV-11
+  - WSTG-INPV-12
+owasp_api_top10:
+  - API7:2023
+severity_range: [medium, high, critical]
+tools_required:
+  - python3
+  - interactsh-client
+  - jq
+input_files: []
+workflows:
+  start-client:
+    description: Launch interactsh client and extract callback URL.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action start --output $OUTDIR/oob/session.json
+    outputs:
+      - $OUTDIR/oob/session.json
+    evidence_dir: null
+    next:
+      if_findings: generate-canary
+      if_no_findings: generate-canary
+
+  generate-canary:
+    description: Create a unique canary payload for a specific test purpose.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action canary --session $OUTDIR/oob/session.json --purpose "${CANARY_PURPOSE:?Set CANARY_PURPOSE}" --test-id "${TEST_ID:-unknown}" --output $OUTDIR/oob/canaries.jsonl
+    outputs:
+      - $OUTDIR/oob/canaries.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "unique canary URL generated with embedded test correlation ID"
+    false_positives: []
+    next:
+      if_findings: poll-interactions
+      if_no_findings: null
+
+  poll-interactions:
+    description: Query interactsh server for received callbacks.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action poll --session $OUTDIR/oob/session.json --output $OUTDIR/oob/interactions.jsonl
+    outputs:
+      - $OUTDIR/oob/interactions.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "DNS/HTTP/SMTP callbacks received from target"
+      - "interaction protocol and remote address captured"
+    false_positives:
+      - "callbacks from CDN, proxy, or scanner infrastructure, not target origin"
+    next:
+      if_findings: correlate
+      if_no_findings: null
+
+  correlate:
+    description: Map interactions back to specific tests and requests.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action correlate --canaries $OUTDIR/oob/canaries.jsonl --interactions $OUTDIR/oob/interactions.jsonl --output $OUTDIR/oob/correlation.jsonl
+    outputs:
+      - $OUTDIR/oob/correlation.jsonl
+    evidence_dir: null
+    detection_signals:
+      - "interaction mapped to originating test, route, and persona"
+    false_positives:
+      - "unmapped interactions from unknown callers"
+    next:
+      if_findings: evidence-export
+      if_no_findings: null
+
+  stop-client:
+    description: Cleanly shut down the interactsh client.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action stop --session $OUTDIR/oob/session.json --output $OUTDIR/oob/session.json
+    outputs: []
+    evidence_dir: null
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  self-host-check:
+    description: Verify self-hosted interactsh server health.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action health --server "${INTERACTSH_SERVER:-oast.pro}" --output $OUTDIR/oob/health_check.json
+    outputs:
+      - $OUTDIR/oob/health_check.json
+    evidence_dir: null
+    next:
+      if_findings: start-client
+      if_no_findings: null
+
+  evidence-export:
+    description: Package confirmed OOB findings for reporting.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob/evidence && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action evidence --correlation $OUTDIR/oob/correlation.jsonl --output-dir $OUTDIR/oob/evidence
+    outputs: []
+    evidence_dir: $OUTDIR/oob/evidence/
+    detection_signals:
+      - "confirmed OOB callback with full correlation and replay evidence"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  oob_callback: "Canary payload, interaction data, correlation proof, raw callback body"

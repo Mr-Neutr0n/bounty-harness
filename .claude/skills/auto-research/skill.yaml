@@ -1,0 +1,56 @@
+name: auto-research
+version: 1.0.0
+description: Imports and normalizes public security knowledge into the technique knowledge base
+bounded_context: AutoResearchContext
+owasp_wstg: []
+owasp_api_top10: []
+severity_range: [info]
+tools_required:
+  - python3
+  - jq
+input_files: []
+workflows:
+  scan:
+    description: Scan all sources for new content since last check.
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/auto-research/scripts/source_scanner.py --sources .claude/skills/auto-research/sources.yaml --cache-dir .claude/skills/auto-research/cache/ --output .claude/skills/auto-research/cache/scan_result.json
+    outputs:
+      - .claude/skills/auto-research/cache/scan_result.json
+    evidence_dir: $OUTDIR/auto-research/evidence/
+    detection_signals:
+      - "sources checked for changes"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  batch:
+    description: Run full import pipeline scan extract deduplicate review.
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/auto-research/scripts/batch_importer.py --sources .claude/skills/auto-research/sources.yaml --cache-dir .claude/skills/auto-research/cache/ --rules .claude/skills/auto-research/ingest_rules.yaml
+    outputs:
+      - .claude/skills/auto-research/cache/pipeline_log.json
+    evidence_dir: $OUTDIR/auto-research/evidence/
+    detection_signals:
+      - "pipeline completed"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  review:
+    description: Review pipeline output candidates.
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/auto-research/scripts/candidate_reviewer.py --candidates .claude/skills/auto-research/cache/dedup_batch.json --rules .claude/skills/auto-research/ingest_rules.yaml --output .claude/skills/auto-research/cache/batch_review.json
+    outputs:
+      - .claude/skills/auto-research/cache/batch_review.json
+    evidence_dir: $OUTDIR/auto-research/evidence/
+    detection_signals:
+      - "candidates scored and filtered"
+    false_positives: []
+    next:
+      if_findings: null
+      if_no_findings: null

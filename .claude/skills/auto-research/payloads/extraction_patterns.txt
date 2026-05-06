@@ -1,0 +1,38 @@
+# Extraction patterns for security knowledge
+# Format: <pattern_name>: <regex_or_marker>
+
+owasp_wstg_heading: ^## WSTG-\w+-\d+
+nuclei_template_id: ^id:\s+.+$
+nuclei_info_block: ^info:[\s\S]*?(?=^requests:|^- |^matchers:|^extractors:|^http:|^network:|^dns:|^file:|^headless:|^code:|^self-contained:|^javascript:|\Z)
+markdown_heading: ^#{1,4}\s+.+$
+markdown_code_block: ^```[\s\S]*?^```
+yaml_frontmatter: ^---[\s\S]*?^---
+cve_id_pattern: CVE-\d{4}-\d{4,}
+ghsa_id_pattern: GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}
+bugcrowd_vrt_section: "technical_severity|vulnerability_class|category"
+payload_list_marker: ^\s*[-*+]\s+.+
+http_template_section: ^requests:[\s\S]*?(?=^[a-z]+:|\Z)
+
+# Signals for technique extraction
+technique_signals:
+  - exploit
+  - bypass
+  - vulnerability
+  - CVE
+  - misconfiguration
+  - injection
+  - escalation
+
+# Signals for payload extraction
+payload_signals:
+  - payload
+  - wordlist
+  - encoding
+  - obfuscation
+
+# Signals for reference extraction
+reference_signals:
+  - writeup
+  - disclosure
+  - advisory
+  - paper

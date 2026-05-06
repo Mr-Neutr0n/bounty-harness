@@ -1,0 +1,88 @@
+id: cloud-s3-open-bucket
+name: S3 Bucket — Open/Public Access
+category: cloud
+description: >
+  Amazon S3 bucket (or equivalent GCS, Azure Blob) is configured with public
+  read or write access, allowing anyone to list, download, or upload objects.
+  Often discovered via DNS enumeration (CNAME to s3.amazonaws.com), HTTP
+  response analysis, or targeted bucket name guessing with common patterns
+  (company-name, app-name, env prefix). Can lead to sensitive data exposure
+  or malicious content hosting.
+severity: high
+standards:
+  wstg:
+    - WSTG-CONF-10
+  asvs:
+    - "V11.1.2"
+  vrt:
+    - amazon_web_services.s3_bucket_public
+  cwe:
+    - CWE-284
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - s3-buckets
+    - cdn-origins
+    - static-asset-hosts
+requires:
+  auth: none
+  inputs:
+    - Subdomain list with DNS records
+    - CNAME records pointing to s3.amazonaws.com or s3-*.amazonaws.com
+    - Company name variants for bucket name guessing
+  tools:
+    - dnsx
+    - aws_cli
+    - curl
+signals:
+  positive:
+    - GET / on bucket returns XML listing of objects
+    - Objects accessible without authentication
+    - Bucket allows s3:PutObject (write access for anyone)
+    - Bucket ACL or policy allows AllUsers or AuthenticatedUsers group
+    - ListBucket permission granted to everyone
+  negative:
+    - Bucket returns AccessDenied for all unauthenticated requests
+    - Bucket not found (NoSuchBucket)
+    - Only specific paths public (not entire bucket)
+    - Bucket access restricted via CloudFront OAI
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl showing object listing or file content
+    - aws s3 ls or s3api output confirming public access
+    - Screenshot of exposed data in browser
+    - Bucket name and list of exposed objects
+references:
+  urls:
+    - https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html
+    - https://cloud.hacktricks.xyz/pentesting-cloud/aws-security/aws-services/aws-s3
+  papers: []
+  writeups: []
+workflow_mapping:
+  skill: cloud
+  workflow: W1 (bucket enumeration)
+payload_families:
+  - name: direct_access
+    description: Direct HTTP access to bucket
+    examples:
+      - "http://s3.amazonaws.com/BUCKETNAME/"
+      - "http://BUCKETNAME.s3.amazonaws.com/"
+      - "http://BUCKETNAME.s3-website-us-east-1.amazonaws.com/"
+  - name: bucket_name_generation
+    description: Generate bucket name candidates
+    examples:
+      - "company-prod, company-dev, company-staging, company-assets"
+      - "appname-static, appname-media, appname-uploads"
+tags:
+  - aws
+  - s3
+  - bucket
+  - public-access
+  - data-exposure
+  - cloud-storage

@@ -1,0 +1,30 @@
+SESSION-COOKIES: Add session cookie attribute testing to detect missing HttpOnly/Secure/SameSite flags
+OPEN-REDIRECT: Add open redirect probe to detect user-supplied redirect URLs in auth flows
+HSTS-HEADER: Add HSTS header presence test with max-age and includeSubDomains validation
+CORS-WILDCARD: Add CORS misconfiguration test for wildcard Access-Control-Allow-Origin with credentials
+CSP-BYPASS: Add CSP bypass detection for missing nonce/hash on script-src directives
+TLS-VERSION: Add TLS minimum version enforcement test to reject TLS 1.0/1.1 connections
+ERROR-LEAK: Add error message leak detection for stack traces and debug mode in production responses
+SVG-XSS: Add SVG+XSS payload upload to detect missing Content-Disposition or sandbox headers
+GRAPHQL-INTROSPECTION: Add GraphQL introspection probe and field-suggestion leak detection
+JWT-NONE: Add JWT algorithm confusion test for alg=none and HMAC vs RSA key confusion
+METADATA-SSRF: Add cloud metadata endpoint probe with IP format bypasses (decimal, octal, IPv6)
+BLIND-SQLI: Add time-based blind SQLi probe with multi-second delay calibration against baseline
+DOM-XSS-POSTMESSAGE: Add DOM XSS probe for missing origin validation on postMessage event listeners
+RATE-LIMIT: Add rate-limit probe with concurrent login attempts over configurable time window
+SUBDOMAIN-TAKEOVER: Add subdomain takeover detection with CNAME dangling record validation
+OPEN-S3: Add open S3 bucket detection with anonymous listing and write capability testing
+GRAPHQL-BATCHING: Add GraphQL batching attack probe to bypass rate limits via aliased queries
+WEBSOCKET-CSRF: Add WebSocket CSRF probe to detect missing Origin header validation on WS upgrades
+CACHE-POISON: Add web cache poisoning detection with unkeyed header injection and response reflection
+XXE-INJECTION: Add XXE detection with out-of-band callback via parameterized DTD entities
+RACE-CONDITION-COUPON: Add race condition probe for coupon/referral code multi-use via concurrent requests
+DESERIALIZATION-RCE: Add insecure deserialization probe with ysoserial-style gadget chain detection
+SSTI-DETECTION: Add server-side template injection detection with polyglot payload and out-of-band callbacks
+CRLF-INJECTION: Add CRLF injection probe for HTTP response splitting via newline injection in headers
+HOST-HEADER-INJECTION: Add Host header injection probe for password reset poisoning and cache poisoning
+SAML-BYPASS: Add SAML authentication bypass with XML signature wrapping and comment injection
+LDAP-INJECTION: Add LDAP injection probe with filter bypass and wildcard character testing
+NOSQL-INJECTION: Add NoSQL injection probe with MongoDB $where and $regex operator injection
+PROTOTYPE-POLLUTION: Add prototype pollution probe with __proto__ and constructor.prototype payload injection
+EMAIL-SPOOFING: Add email spoofing probe to detect missing SPF/DKIM/DMARC records on sending domains

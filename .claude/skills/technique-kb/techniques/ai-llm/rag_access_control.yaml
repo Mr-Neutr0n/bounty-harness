@@ -1,0 +1,29 @@
+id: rag_access_control
+name: RAG Access Control Inheritance
+category: ai-llm
+severity: high
+description: Test whether RAG vector stores properly inherit access controls from source documents when queried by users with different permission levels.
+preconditions:
+  auth_required: mandatory
+  tools: [curl, python3, jq]
+  inputs: [ai-llm/surface_findings.jsonl]
+  personas_required: 2
+workflow: ai-llm/rag-poison
+detection_signals:
+  positive:
+    - "Restricted document chunks returned to unauthorized user"
+    - "Document level permissions not enforced at vector chunk level"
+  negative:
+    - "Restricted chunks excluded from unauthorized query results"
+evidence_required:
+  - "User A query response showing restricted document data"
+  - "User B cannot access same data"
+false_positives:
+  - "Document is intentionally public"
+standards:
+  owasp_llm_top10_2025: [LLM06:2025]
+references:
+  - "https://cheatsheetseries.owasp.org/cheatsheets/RAG_Security_Cheat_Sheet.html"
+safety:
+  risk_tier: active-safe
+  data_modifying: false

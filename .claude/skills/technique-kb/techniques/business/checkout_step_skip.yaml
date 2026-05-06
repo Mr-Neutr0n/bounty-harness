@@ -1,0 +1,31 @@
+id: checkout_step_skip
+name: Checkout Step Skip
+category: business-logic
+severity: critical
+description: Attempt to complete checkout without going through payment by skipping or reordering workflow steps.
+preconditions:
+  auth_required: mandatory
+  tools: [curl, python3, jq]
+  inputs: [persona/headers/, traffic-corpus/routes.jsonl]
+  personas_required: 1
+workflow: business-logic/test-skip-step
+detection_signals:
+  positive:
+    - "Order completed without payment confirmation"
+    - "Payment step bypassed"
+    - "Price modification during checkout"
+  negative:
+    - "Payment required before order confirmation"
+    - "Server-side price recalculation"
+evidence_required:
+  - "Checkout workflow trace showing skipped payment"
+  - "Order confirmation without payment record"
+false_positives:
+  - "Free trial or zero-price item checkout is intentional"
+standards:
+  owasp_wstg: [WSTG-BUSL-02]
+references:
+  - "https://portswigger.net/web-security/logic-flaws"
+safety:
+  risk_tier: intrusive
+  data_modifying: true

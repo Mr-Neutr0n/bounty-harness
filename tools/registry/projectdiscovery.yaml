@@ -1,0 +1,421 @@
+registry:
+  category: projectdiscovery
+  source: https://github.com/projectdiscovery
+  tools:
+    - name: pdtm
+      repo: github.com/projectdiscovery/pdtm/cmd/pdtm
+      install_method: go
+      binary: pdtm
+      version_cmd: "pdtm -version"
+      health_cmd: "pdtm -version"
+      capabilities:
+        - tool_manager
+        - installer
+      risk_tier: passive
+      output_support:
+        - stdout
+        - json
+      skills:
+        - recon
+
+    - name: subfinder
+      repo: github.com/projectdiscovery/subfinder
+      install_method: pdtm
+      binary: subfinder
+      version_cmd: "subfinder -version"
+      health_cmd: "subfinder -version"
+      capabilities:
+        - subdomain_enum
+        - passive_recon
+        - source_aggregation
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: httpx
+      repo: github.com/projectdiscovery/httpx
+      install_method: pdtm
+      binary: httpx
+      version_cmd: "httpx -version"
+      health_cmd: "httpx -version"
+      capabilities:
+        - live_probe
+        - banner_grab
+        - screenshot
+        - tech_fingerprint
+        - jarm_fingerprint
+        - cdn_detection
+      risk_tier: active-safe
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+        - nuclei-scanner
+
+    - name: dnsx
+      repo: github.com/projectdiscovery/dnsx
+      install_method: pdtm
+      binary: dnsx
+      version_cmd: "dnsx -version"
+      health_cmd: "dnsx -version"
+      capabilities:
+        - dns_probe
+        - wildcard_filter
+        - dns_brute
+        - axfr_check
+        - ptr_lookup
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: naabu
+      repo: github.com/projectdiscovery/naabu
+      install_method: pdtm
+      binary: naabu
+      version_cmd: "naabu -version"
+      health_cmd: "naabu -version"
+      capabilities:
+        - port_scan
+        - syn_scan
+        - connect_scan
+        - service_detection
+      risk_tier: active-safe
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: katana
+      repo: github.com/projectdiscovery/katana
+      install_method: pdtm
+      binary: katana
+      version_cmd: "katana -version"
+      health_cmd: "katana -version"
+      capabilities:
+        - crawl
+        - headless_crawl
+        - js_parsing
+        - form_discovery
+        - sitemap_gen
+      risk_tier: active-safe
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: nuclei
+      repo: github.com/projectdiscovery/nuclei
+      install_method: pdtm
+      binary: nuclei
+      version_cmd: "nuclei -version"
+      health_cmd: "nuclei -version"
+      capabilities:
+        - vuln_scan
+        - template_scan
+        - dast
+        - network_scan
+        - code_scan
+        - fuzz
+      risk_tier: intrusive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - nuclei-scanner
+        - xss
+        - sqli
+        - ssrf
+        - rce
+        - auth
+        - api
+        - cors-csrf
+        - cloud
+        - http-protocol
+
+    - name: interactsh-client
+      repo: github.com/projectdiscovery/interactsh
+      install_method: pdtm
+      binary: interactsh-client
+      version_cmd: "interactsh-client -version"
+      health_cmd: "interactsh-client -version"
+      capabilities:
+        - oast
+        - dns_collab
+        - http_collab
+        - smtp_collab
+        - ldap_collab
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - xss
+        - sqli
+        - ssrf
+        - rce
+        - nuclei-scanner
+
+    - name: tlsx
+      repo: github.com/projectdiscovery/tlsx
+      install_method: pdtm
+      binary: tlsx
+      version_cmd: "tlsx -version"
+      health_cmd: "tlsx -version"
+      capabilities:
+        - tls_probe
+        - cipher_enum
+        - cert_info
+        - ja3_fingerprint
+        - tls_version_check
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: uncover
+      repo: github.com/projectdiscovery/uncover
+      install_method: pdtm
+      binary: uncover
+      version_cmd: "uncover -version"
+      health_cmd: "uncover -version"
+      capabilities:
+        - search_engine_query
+        - shodan
+        - censys
+        - fofa
+        - quake
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+        - osint
+
+    - name: asnmap
+      repo: github.com/projectdiscovery/asnmap
+      install_method: pdtm
+      binary: asnmap
+      version_cmd: "asnmap -version"
+      health_cmd: "asnmap -version"
+      capabilities:
+        - asn_lookup
+        - ip_to_asn
+        - org_to_asn
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: mapcidr
+      repo: github.com/projectdiscovery/mapcidr
+      install_method: pdtm
+      binary: mapcidr
+      version_cmd: "mapcidr -version"
+      health_cmd: "mapcidr -version"
+      capabilities:
+        - cidr_aggregate
+        - ip_to_cidr
+        - cidr_to_ip
+        - shuffle
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: alterx
+      repo: github.com/projectdiscovery/alterx
+      install_method: pdtm
+      binary: alterx
+      version_cmd: "alterx -version"
+      health_cmd: "alterx -version"
+      capabilities:
+        - subdomain_permute
+        - wordlist_gen
+        - pattern_expand
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: urlfinder
+      repo: github.com/projectdiscovery/urlfinder
+      install_method: pdtm
+      binary: urlfinder
+      version_cmd: "urlfinder -version"
+      health_cmd: "urlfinder -version"
+      capabilities:
+        - url_discovery
+        - passive_url_enum
+        - archive_query
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: chaos-client
+      repo: github.com/projectdiscovery/chaos-client
+      install_method: pdtm
+      binary: chaos-client
+      version_cmd: "chaos-client -version"
+      health_cmd: "chaos-client -version"
+      capabilities:
+        - subdomain_enum
+        - pd_cloud_query
+        - cert_transparency
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+
+    - name: cloudlist
+      repo: github.com/projectdiscovery/cloudlist
+      install_method: pdtm
+      binary: cloudlist
+      version_cmd: "cloudlist -version"
+      health_cmd: "cloudlist -version"
+      capabilities:
+        - cloud_asset_enum
+        - multi_provider
+        - ip_discovery
+        - dns_discovery
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+        - cloud
+
+    - name: cvemap
+      repo: github.com/projectdiscovery/cvemap
+      install_method: pdtm
+      binary: cvemap
+      version_cmd: "cvemap -version"
+      health_cmd: "cvemap -version"
+      capabilities:
+        - cve_lookup
+        - epss_score
+        - exploit_query
+        - poc_query
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - standard-catalog
+        - nuclei-scanner
+
+    - name: notify
+      repo: github.com/projectdiscovery/notify
+      install_method: pdtm
+      binary: notify
+      version_cmd: "notify -version"
+      health_cmd: "notify -version"
+      capabilities:
+        - notification
+        - webhook
+        - slack
+        - discord
+        - telegram
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - reporting
+
+    - name: proxify
+      repo: github.com/projectdiscovery/proxify
+      install_method: pdtm
+      binary: proxify
+      version_cmd: "proxify -version"
+      health_cmd: "proxify -version"
+      capabilities:
+        - proxy
+        - traffic_capture
+        - replay
+        - traffic_mutation
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon
+        - http-protocol
+
+    - name: shuffledns
+      repo: github.com/projectdiscovery/shuffledns
+      install_method: pdtm
+      binary: shuffledns
+      version_cmd: "shuffledns -version"
+      health_cmd: "shuffledns -version"
+      capabilities:
+        - mass_dns_resolve
+        - wildcard_filter
+        - bruteforce
+      risk_tier: passive
+      output_support:
+        - json
+        - jsonl
+        - stdout
+        - files
+      skills:
+        - recon

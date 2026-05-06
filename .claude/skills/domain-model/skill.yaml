@@ -1,0 +1,86 @@
+name: domain-model
+version: 1.0.0
+description: Application-agnostic domain archetype classification for bug bounty targets. Infers what the target does and maps detected infrastructure to attack surfaces before vulnerability testing.
+bounded_context: DomainModelContext
+owasp_wstg:
+  - WSTG-INFO-01
+  - WSTG-INFO-02
+  - WSTG-INFO-03
+  - WSTG-INFO-05
+  - WSTG-INFO-06
+owasp_api_top10: []
+severity_range: [info, low, medium]
+tools_required:
+  - python3
+input_files:
+  - subs.txt
+  - live_full.csv
+  - js_endpoints.txt
+workflows:
+  classify:
+    description: Classify target into domain archetypes from recon data.
+    inputs: [TARGET, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/domain-model && \
+      python3 .claude/skills/domain-model/scripts/archetype_classifier.py \
+        --target $TARGET \
+        --context $OUTDIR/recon \
+        --output $OUTDIR/domain-model/archetypes.json
+    outputs:
+      - $OUTDIR/domain-model/archetypes.json
+    evidence_dir: null
+    detection_signals:
+      - "recon corpus contains url patterns matching an archetype"
+      - "tech stack signals match archetype definition"
+    false_positives:
+      - "generic cdn or hosting provider signals match multiple archetypes"
+      - "common javascript frameworks cause false signal overlap"
+    next:
+      if_findings: map-surfaces
+      if_no_findings: map-surfaces
+
+  map-surfaces:
+    description: Map detected infrastructure to attack surface taxonomy.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/domain-model && \
+      python3 .claude/skills/domain-model/scripts/surface_mapper.py \
+        --context $OUTDIR/recon \
+        --archetypes $OUTDIR/domain-model/archetypes.json \
+        --output $OUTDIR/domain-model/surfaces.json
+    outputs:
+      - $OUTDIR/domain-model/surfaces.json
+    evidence_dir: null
+    detection_signals:
+      - "detection signals from surfaces.yaml match recon data"
+      - "archetype membership indicates likely surfaces"
+    false_positives:
+      - "generic api endpoints match multiple surface types"
+      - "platform-as-a-service infrastructure causes ambiguous signal matching"
+    next:
+      if_findings: profile
+      if_no_findings: profile
+
+  profile:
+    description: Generate full domain profile report with prioritized testing order.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/domain-model && \
+      python3 .claude/skills/domain-model/scripts/domain_report.py \
+        --target $TARGET \
+        --program $PROGRAM \
+        --archetypes $OUTDIR/domain-model/archetypes.json \
+        --surfaces $OUTDIR/domain-model/surfaces.json \
+        --output $OUTDIR/domain-model/domain-profile.md \
+        --json-output $OUTDIR/domain-model/domain-profile.json
+    outputs:
+      - $OUTDIR/domain-model/domain-profile.md
+      - $OUTDIR/domain-model/domain-profile.json
+    evidence_dir: null
+    detection_signals:
+      - "archetype and surface analysis produce a complete domain profile"
+    false_positives:
+      - "low-confidence archetypes may produce inaccurate surface listings"
+    next:
+      if_findings: null
+      if_no_findings: null

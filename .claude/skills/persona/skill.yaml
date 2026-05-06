@@ -1,0 +1,99 @@
+name: persona
+version: 1.0.0
+description: Manage authenticated testing personas with secure credential storage, session validation, and per-persona header export for replay-based security testing.
+bounded_context: PersonaContext
+owasp_wstg:
+  - WSTG-ATHN-01
+  - WSTG-ATHN-02
+  - WSTG-ATHN-04
+  - WSTG-ATHN-05
+owasp_api_top10:
+  - API1:2023
+  - API2:2023
+  - API5:2023
+severity_range: [info, medium]
+tools_required:
+  - python3
+  - curl
+  - jq
+  - openssl
+input_files:
+  - live_hosts.txt
+workflows:
+  init-personas:
+    description: Create persona manifest template for the current engagement.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/persona/creds && \
+      python3 .claude/skills/persona/scripts/persona_manager.py --context .bb/context.json --action init --output $OUTDIR/persona/personas.json
+    outputs:
+      - $OUTDIR/persona/personas.json
+    evidence_dir: null
+    next:
+      if_findings: import-cookie
+      if_no_findings: import-cookie
+
+  import-cookie:
+    description: Import a cookie, bearer token, API key, or header set for one persona.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/persona/creds && \
+      python3 .claude/skills/persona/scripts/persona_manager.py --context .bb/context.json --action import --persona-dir $OUTDIR/persona --persona "${PERSONA_ID:?Set PERSONA_ID}" --source "${PERSONA_SOURCE:?Set PERSONA_SOURCE (cookie,token,apikey,headers)}" --value "${PERSONA_VALUE:?Set PERSONA_VALUE}"
+    outputs:
+      - $OUTDIR/persona/creds/${PERSONA_ID}.json
+    evidence_dir: null
+    safety:
+      requires_confirmation: true
+    next:
+      if_findings: validate-sessions
+      if_no_findings: validate-sessions
+
+  validate-sessions:
+    description: Request a known URL as each persona and classify auth state.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/persona && \
+      python3 .claude/skills/persona/scripts/persona_manager.py --context .bb/context.json --action validate --persona-dir $OUTDIR/persona --output $OUTDIR/persona/validation.json
+    outputs:
+      - $OUTDIR/persona/validation.json
+    evidence_dir: $OUTDIR/persona/evidence/
+    detection_signals:
+      - "auth state classified as active, expired, partial, or anonymous"
+      - "persona count >= 2 enables cross-account testing"
+    false_positives:
+      - "nonce or short-lived tokens expire during validation"
+    next:
+      if_findings: export-headers
+      if_no_findings: export-headers
+
+  redact-secrets:
+    description: Produce safe redacted manifest for reports and logs.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/persona && \
+      python3 .claude/skills/persona/scripts/persona_manager.py --context .bb/context.json --action redact --persona-dir $OUTDIR/persona --output $OUTDIR/persona/redacted_manifest.json
+    outputs:
+      - $OUTDIR/persona/redacted_manifest.json
+    evidence_dir: null
+    safety:
+      requires_confirmation: false
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  export-headers:
+    description: Generate per-persona replay headers for consumption by other skills.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/persona/headers && \
+      python3 .claude/skills/persona/scripts/persona_manager.py --context .bb/context.json --action export --persona-dir $OUTDIR/persona --output-dir $OUTDIR/persona/headers
+    outputs:
+      - $OUTDIR/persona/headers/
+    evidence_dir: null
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  persona_manifest: "Redacted persona manifest with hashed credential identifiers"
+  session_validation: "Auth state classification per persona"

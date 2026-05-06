@@ -1,0 +1,10 @@
+name: "graphql-introspection"
+skill_tested: "api"
+vulnerability_class: "graphql-introspection-enabled"
+severity: "medium"
+description: "GraphQL endpoint with introspection enabled that returns the full schema including sensitive fields"
+requirements:
+  port: 8087
+  timeout: 10
+positive_control: "POST /graphql with __schema introspection query should return full schema"
+negative_control: "POST /graphql with a normal user query should return only requested data without schema"

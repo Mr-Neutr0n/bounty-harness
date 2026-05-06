@@ -1,0 +1,202 @@
+name: http-protocol
+version: 1.0.0
+description: HTTP protocol-layer attacks — request smuggling (HTTP/1+2), cache poisoning, cache deception, URL parser differentials, email parser bypasses, TLS 0-RTT replay
+bounded_context: ProtocolContext
+owasp_wstg:
+  - WSTG-CONF-01
+  - WSTG-ATHZ-01
+owasp_api_top10:
+  - API7:2019
+  - API8:2019
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - curl
+  - python3
+  - nc
+  - openssl
+  - jq
+input_files:
+  - live_urls.txt
+  - tech_fingerprint.json
+workflows:
+  http1-smuggling:
+    description: Test CL.TE, TE.CL, and TE.TE HTTP/1.1 request smuggling using Python socket-based probes with obfuscated Transfer-Encoding variants
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/http-protocol/smuggling && \
+      python3 .claude/skills/http-protocol/scripts/http_smuggling_probe.py --context .bb/context.json --target $TARGET_URL --mode all --output $OUTDIR/http-protocol/smuggling/http1_findings.jsonl
+    outputs:
+      - $OUTDIR/http-protocol/smuggling/http1_findings.jsonl
+    evidence_dir: $OUTDIR/http-protocol/smuggling/evidence/
+    detection_signals:
+      - "follow-up request receives smuggled 404 response"
+      - "response queue poisoned — different response order than expected"
+      - "time differential confirms frontend/backend TE vs CL mismatch"
+      - "obfuscated Transfer-Encoding bypasses frontend parser"
+    false_positives:
+      - "transient network error mistaken for smuggling response"
+      - "proxy re-chunking causes false TE.TE detection"
+      - "load balancer response variance falsely signals queue poison"
+    next:
+      if_findings: verify
+      if_no_findings: http2-smuggling
+
+  http2-smuggling:
+    description: Test H2.CL and H2.TE downgrade smuggling where HTTP/2 frontend connects to HTTP/1.1 backend via Content-Length or Transfer-Encoding injection
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/http-protocol/smuggling && \
+      python3 .claude/skills/http-protocol/scripts/http_smuggling_probe.py --context .bb/context.json --target $TARGET_URL --mode h2 --output $OUTDIR/http-protocol/smuggling/http2_findings.jsonl
+    outputs:
+      - $OUTDIR/http-protocol/smuggling/http2_findings.jsonl
+    evidence_dir: $OUTDIR/http-protocol/smuggling/evidence/
+    detection_signals:
+      - "Content-Length: 0 in HTTP/2 downgrade causes backend hang"
+      - "Transfer-Encoding header survives downgrade to backend"
+      - "timing-based detection confirms H2.CL backend consumption"
+      - "curl --http2-prior-knowledge request hangs with injected CL"
+    false_positives:
+      - "server timeout unrelated to smuggling (network congestion)"
+      - "h2load benchmark variance mistaken for timing attack"
+    next:
+      if_findings: verify
+      if_no_findings: cache-poisoning
+
+  cache-poisoning:
+    description: Test web cache poisoning via unkeyed header injection (X-Forwarded-Host, X-Forwarded-Scheme, X-Original-URL), fat GET body poisoning, and parameter cloaking
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/http-protocol/cache && \
+      python3 .claude/skills/http-protocol/scripts/cache_poison_probe.py --context .bb/context.json --target $TARGET_URL --headers-file .claude/skills/http-protocol/payloads/cache-poison-headers.txt --output $OUTDIR/http-protocol/cache/poison_findings.jsonl
+    outputs:
+      - $OUTDIR/http-protocol/cache/poison_findings.jsonl
+    evidence_dir: $OUTDIR/http-protocol/cache/evidence/
+    detection_signals:
+      - "Injected header value reflected in subsequent cache-hit response"
+      - "X-Forwarded-Host causes redirect to attacker-controlled domain"
+      - "Fat GET body header cached and served to subsequent visitors"
+      - "Parameter cloaking reveals duplicate parameter handling"
+    false_positives:
+      - "header reflected but not cached (only in direct response)"
+      - "X-Forwarded-Host in response but from own proxy/CDN config"
+      - "cache miss despite Age header due to vary/cookie keying"
+    next:
+      if_findings: verify
+      if_no_findings: cache-deception
+
+  cache-deception:
+    description: Test web cache deception attacks where sensitive pages get cached as static files via path confusion (account.css, profile.js, .css/.js extensions on dynamic paths)
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/http-protocol/cache && \
+      python3 .claude/skills/http-protocol/scripts/cache_deception_probe.py --context .bb/context.json --target $TARGET_URL --output $OUTDIR/http-protocol/cache/deception_findings.jsonl
+    outputs:
+      - $OUTDIR/http-protocol/cache/deception_findings.jsonl
+    evidence_dir: $OUTDIR/http-protocol/cache/evidence/
+    detection_signals:
+      - "account/profile.css returns cached account page with PII"
+      - "CSRF token visible in cached static-path response"
+      - "Age/X-Cache-CF headers indicate cache hit on deception path"
+      - "second request returns faster with cached sensitive content"
+    false_positives:
+      - "cache hit but only public/static content (no PII in response)"
+      - "extension-handling returns 404 rather than sensitive content"
+      - "CDN strips sensitive content before caching"
+    next:
+      if_findings: verify
+      if_no_findings: url-parser-differential
+
+  url-parser-differential:
+    description: Test URL parser differentials — backslash vs forward slash normalization, URL encoding confusion, double encoding, Unicode UTF-8 overlong bypasses, null-byte truncation, path parameter separation
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/http-protocol/url-parser && \
+      python3 .claude/skills/http-protocol/scripts/url_parser_differential.py --context .bb/context.json --target $TARGET_URL --output $OUTDIR/http-protocol/url-parser/differential_findings.jsonl
+    outputs:
+      - $OUTDIR/http-protocol/url-parser/differential_findings.jsonl
+    evidence_dir: $OUTDIR/http-protocol/url-parser/evidence/
+    detection_signals:
+      - "backslash path accesses protected resource bypassing ACL"
+      - "double URL encoding skips frontend parser normalization"
+      - "Unicode overlong UTF-8 traverses to unauthorized directory"
+      - "null-byte truncation causes path mismatch between parsers"
+    false_positives:
+      - "different HTTP status code but same response content"
+      - "302 redirect due to trailing slash normalization"
+      - "403/404 variance caused by path normalization, not bypass"
+    next:
+      if_findings: verify
+      if_no_findings: email-parser-bypass
+
+  email-parser-bypass:
+    description: Test email parser bypasses — encoded @ signs, quoted local-parts, comments in emails, multiple @ signs, backslash escapes, Unicode confusables, display name injection, based on PortSwigger "Splitting the email atom" research
+    inputs: [TARGET_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/http-protocol/email-parser && \
+      python3 .claude/skills/http-protocol/scripts/email_parser_bypass.py --context .bb/context.json --target $TARGET_URL --output $OUTDIR/http-protocol/email-parser/bypass_findings.jsonl
+    outputs:
+      - $OUTDIR/http-protocol/email-parser/bypass_findings.jsonl
+    evidence_dir: $OUTDIR/http-protocol/email-parser/evidence/
+    detection_signals:
+      - "email with encoded @ accepted but parsed differently by SMTP backend"
+      - "quoted local-part bypass causes password reset to attacker's inbox"
+      - "multiple @ signs: frontend sees target domain, backend sees attacker domain"
+      - "registration email parser misrouted to attacker-controlled domain"
+    false_positives:
+      - "email rejected by frontend validation before reaching parser differential"
+      - "backend parser agrees with frontend (no differential)"
+      - "email accepted but never dispatched (silent drop)"
+    next:
+      if_findings: verify
+      if_no_findings: early-data-probe
+
+  early-data-probe:
+    description: TLS 1.3 0-RTT early data replay testing — checks if server accepts early data, replays POST requests creating duplicate side effects, detects Early-Data header for GET replay feasibility
+    inputs: [TARGET_HOST, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/http-protocol/tls && \
+      python3 .claude/skills/http-protocol/scripts/early_data_probe.py --context .bb/context.json --target $TARGET_HOST --output $OUTDIR/http-protocol/tls/early_data_findings.jsonl
+    outputs:
+      - $OUTDIR/http-protocol/tls/early_data_findings.jsonl
+    evidence_dir: $OUTDIR/http-protocol/tls/evidence/
+    detection_signals:
+      - "POST in early data creates duplicate resource (2 users created)"
+      - "Early-Data: 1 header present indicating server accepts 0-RTT replay"
+      - "session tickets enable unlimited 0-RTT replay window"
+      - "GET with early data replayed returning authenticated content"
+    false_positives:
+      - "Early-Data header from middleware not from actual 0-RTT acceptance"
+      - "duplicate side effect from double-submit, not from 0-RTT replay"
+      - "TLS 1.2 fallback — 0-RTT not actually negotiated"
+    next:
+      if_findings: verify
+      if_no_findings: null
+
+  verify:
+    description: Verify protocol findings with raw socket captures and secondary confirmation probes
+    inputs: [FINDING_URL, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/http-protocol/verified && \
+      echo "Finding URL: $FINDING_URL" > $OUTDIR/http-protocol/verified/manifest.txt && \
+      echo "Finding Type: $FINDING_TYPE" >> $OUTDIR/http-protocol/verified/manifest.txt && \
+      echo "Finding Payload: $FINDING_PAYLOAD" >> $OUTDIR/http-protocol/verified/manifest.txt && \
+      date -u +%Y-%m-%dT%H:%M:%SZ >> $OUTDIR/http-protocol/verified/manifest.txt
+    outputs:
+      - $OUTDIR/http-protocol/verified/manifest.txt
+    evidence_dir: $OUTDIR/http-protocol/verified/
+    detection_signals:
+      - "raw socket output confirms protocol mismatch"
+      - "cached response replay confirms poisoning persistence"
+    false_positives:
+      - "single-run variance not reproducible"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  smuggling_curl: "curl -v raw smuggling request/response pair"
+  cache_header_dump: "curl -sD headers.txt showing cache hit with poisoned value"
+  deception_body: "Full response body showing PII/CSRF tokens in cached static file"
+  url_diff_response: "Side-by-side curl of normal vs encoded path responses"
+  email_injection_log: "curl log showing crafted email accepted at registration"
+  early_data_capture: "openssl s_client early-data send + replay confirmation"

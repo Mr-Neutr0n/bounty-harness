@@ -1,0 +1,5 @@
+Coupon Application: add item -> apply coupon -> verify discount -> remove item -> verify total
+Role Escalation: free signup -> access basic features -> change role param -> access admin endpoint
+Payment Bypass: start checkout -> intercept payment callback -> modify status to paid -> verify access granted
+Inventory Race: load product page -> add max stock to cart -> checkout -> verify stock updated atomically
+Referral Fraud: create account -> generate referral code -> self-redeem via proxy -> check for duplicate detection

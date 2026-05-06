@@ -1,0 +1,99 @@
+id: ssrf-cloud-metadata
+name: SSRF Cloud Metadata Extraction
+category: ssrf
+description: >
+  Targeted SSRF attack against cloud metadata endpoints (AWS IMDS, GCP metadata,
+  Azure IMDS, DigitalOcean metadata). These endpoints expose IAM credentials,
+  SSH keys, user data scripts, and network configuration. AWS IMDSv1 at
+  169.254.169.254 returns temporary security credentials for IAM roles.
+severity: critical
+standards:
+  wstg:
+    - WSTG-INPV-08
+  asvs:
+    - "V13.1.1"
+  api_top10:
+    - "API7:2023"
+  vrt:
+    - server_side_request_forgery_ssrf.aws
+  cwe:
+    - CWE-918
+applies_to:
+  archetypes:
+    - all
+  surfaces:
+    - webhook-callbacks
+    - url-import-fields
+    - image-proxy-endpoints
+    - pdf-generators
+requires:
+  auth: none
+  inputs:
+    - SSRF-vulnerable endpoint confirmed via basic probe
+    - Cloud provider context (target infrastructure clues)
+  tools:
+    - curl
+    - interact_sh_client
+signals:
+  positive:
+    - Response from 169.254.169.254 contains IAM role name
+    - SecurityCredentials endpoint returns AccessKeyId, SecretAccessKey, Token
+    - GCP metadata endpoint returns service account token or identity document
+    - Azure IMDS returns access token for managed identity
+    - Metadata response contains internal IP, hostname, or user-data script
+  negative:
+    - IMDSv2 enforced (requires PUT with session token first, GET blocked)
+    - Metadata endpoint firewalled from application servers
+    - No IAM role attached to the cloud instance
+    - Application on bare metal or non-cloud infrastructure
+safety:
+  intrusive: false
+  data_modifying: false
+  rate_limited: false
+  requires_approval: false
+evidence:
+  required:
+    - curl showing metadata endpoint request and credential response
+    - Extracted IAM credentials or access tokens (redacted for report)
+    - Confirmation of credential validity (AWS STS get-caller-identity)
+    - Screenshot of full metadata endpoint response
+references:
+  urls:
+    - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
+    - https://cloud.hacktricks.xyz/pentesting-cloud/ssrf-cloud
+  papers:
+    - SSRF in Platform as a Service (Orange Tsai)
+  writeups:
+    - Capital One breach (2019) via SSRF to AWS metadata
+workflow_mapping:
+  skill: ssrf
+  workflow: W2 (cloud metadata)
+payload_families:
+  - name: aws_imdsv1
+    description: AWS Instance Metadata Service v1 endpoints
+    examples:
+      - "http://169.254.169.254/latest/meta-data/"
+      - "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+      - "http://169.254.169.254/latest/user-data/"
+  - name: gcp_metadata
+    description: GCP metadata server endpoints
+    examples:
+      - "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+      - "http://169.254.169.254/computeMetadata/v1/instance/?recursive=true"
+  - name: azure_metadata
+    description: Azure IMDS endpoints
+    examples:
+      - "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/"
+  - name: digitalocean_metadata
+    description: DigitalOcean metadata endpoint
+    examples:
+      - "http://169.254.169.254/metadata/v1.json"
+tags:
+  - cloud
+  - metadata
+  - iam-credentials
+  - aws
+  - gcp
+  - azure
+  - critical
+  - instance-credentials
