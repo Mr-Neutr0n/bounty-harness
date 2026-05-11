@@ -99,6 +99,8 @@ bin/bb-run impact-verifier readiness-report
 | 34 | `impact-verifier` | Candidate-to-bounty-grade verification gate with impact classification |
 | 35 | `agent-safety` | AI agent guardrails against prompt injection in target content |
 | 36 | `program-memory` | Per-program knowledge persistence across engagements |
+| 37 | `vuln-intel` | CVE tracking, disclosed report hunting, PoC discovery |
+| 38 | `scope-manager` | Scope definition, validation, versioning, guardrails |
 
 ## Validation
 

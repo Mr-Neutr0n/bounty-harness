@@ -1,0 +1,148 @@
+name: vuln-intel
+version: "1.0.0"
+description: >
+  Automated vulnerability intelligence for bug bounty targets.
+  Searches NVD, GitHub advisories, disclosed reports, PoCs, and security news.
+  Maps findings to technique-kb entries for actionable test plans.
+bounded_context: VulnIntelContext
+safety_tier: passive
+owasp_wstg:
+  - WSTG-INFO-01
+  - WSTG-INFO-02
+owasp_api_top10:
+  - API7:2023
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - python3
+  - curl
+  - jq
+input_files:
+  - .bb/context.json
+workflows:
+  search-cves:
+    description: Search NVD for CVEs related to target within lookback period.
+    inputs: [TARGET, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/vuln-intel && \
+      python3 .claude/skills/vuln-intel/scripts/vuln_intel.py search-cves \
+        --target "$TARGET" \
+        --days "${INTEL_DAYS:-60}" \
+        --cvss-min "${INTEL_CVSS_MIN:-0.0}" \
+        --output "$OUTDIR/vuln-intel/cves.json"
+    outputs:
+      - $OUTDIR/vuln-intel/cves.json
+    evidence_dir: $OUTDIR/vuln-intel/evidence/
+    detection_signals:
+      - "CVEs published for target technology stack"
+      - "High-severity CVEs indicate immediate test priority"
+    false_positives:
+      - "CVEs for third-party libraries not used by target"
+      - "Old CVEs already patched in target's deployed version"
+    next:
+      if_findings: search-pocs
+      if_no_findings: search-reports
+
+  search-reports:
+    description: Search disclosed bug bounty reports for the target program.
+    inputs: [PROGRAM, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/vuln-intel && \
+      python3 .claude/skills/vuln-intel/scripts/vuln_intel.py search-reports \
+        --program "$PROGRAM" \
+        --platforms "${INTEL_PLATFORMS:-hackerone,bugcrowd}" \
+        --output "$OUTDIR/vuln-intel/reports.json"
+    outputs:
+      - $OUTDIR/vuln-intel/reports.json
+    evidence_dir: $OUTDIR/vuln-intel/evidence/
+    detection_signals:
+      - "Disclosed reports reveal previously found vulnerability classes"
+      - "Report titles indicate active attack surfaces"
+    false_positives:
+      - "Old reports for deprecated features or endpoints"
+      - "Third-party reports not directly applicable"
+    next:
+      if_findings: generate-report
+      if_no_findings: generate-report
+
+  search-pocs:
+    description: Search GitHub for proof-of-concept code for discovered CVEs.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/vuln-intel && \
+      python3 .claude/skills/vuln-intel/scripts/vuln_intel.py generate-report \
+        --target "$TARGET" \
+        --program "$PROGRAM" \
+        --days "${INTEL_DAYS:-60}" \
+        --cvss-min "${INTEL_CVSS_MIN:-0.0}" \
+        --output "$OUTDIR/vuln-intel/intel_report.json"
+    outputs:
+      - $OUTDIR/vuln-intel/intel_report.json
+    evidence_dir: $OUTDIR/vuln-intel/evidence/
+    next:
+      if_findings: correlate-techniques
+      if_no_findings: correlate-techniques
+
+  search-news:
+    description: Search security news and researcher chatter about target.
+    inputs: [TARGET, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/vuln-intel && \
+      python3 .claude/skills/vuln-intel/scripts/vuln_intel.py search-news \
+        --target "$TARGET" \
+        --days "${INTEL_DAYS:-30}" \
+        --output "$OUTDIR/vuln-intel/news.json"
+    outputs:
+      - $OUTDIR/vuln-intel/news.json
+    evidence_dir: $OUTDIR/vuln-intel/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  generate-report:
+    description: Generate comprehensive intelligence report from all sources.
+    inputs: [TARGET, PROGRAM, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/vuln-intel && \
+      python3 .claude/skills/vuln-intel/scripts/vuln_intel.py generate-report \
+        --target "$TARGET" \
+        --program "$PROGRAM" \
+        --days "${INTEL_DAYS:-60}" \
+        --cvss-min "${INTEL_CVSS_MIN:-0.0}" \
+        --output "$OUTDIR/vuln-intel/intel_report.json"
+    outputs:
+      - $OUTDIR/vuln-intel/intel_report.json
+    evidence_dir: $OUTDIR/vuln-intel/evidence/
+    detection_signals:
+      - "Comprehensive view of target's threat landscape"
+      - "CVEs + reports + PoCs + news combined into actionable intel"
+    false_positives:
+      - "News articles may be speculative or unrelated"
+    next:
+      if_findings: correlate-techniques
+      if_no_findings: null
+
+  correlate-techniques:
+    description: Map discovered vulnerabilities to technique-kb entries.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/vuln-intel && \
+      python3 .claude/skills/vuln-intel/scripts/vuln_intel.py correlate \
+        --report "$OUTDIR/vuln-intel/intel_report.json" \
+        --technique-kb "${TECHNIQUE_KB_DIR:-.claude/skills/technique-kb/}" \
+        --output "$OUTDIR/vuln-intel/technique_correlation.json"
+    outputs:
+      - $OUTDIR/vuln-intel/technique_correlation.json
+    evidence_dir: $OUTDIR/vuln-intel/evidence/
+    detection_signals:
+      - "CVEs map to specific test techniques in technique-kb"
+      - "Correlation enables prioritized test plan generation"
+    false_positives:
+      - "Keyword matching may produce false correlations"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  cve_finding: "CVE ID, CVSS score, affected product versions, PoC availability, patch status"
+  disclosed_report: "Report ID, platform, title, bounty amount (if known), vulnerability class"
+  intel_summary: "Executive summary of threat landscape with prioritized test recommendations"

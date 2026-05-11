@@ -1,0 +1,36 @@
+# Scope Validation Patterns
+
+## Common In-Scope Patterns
+*.example.com
+api.example.com
+*.api.example.com
+partner.example.com
+admin.example.com
+staging.example.com
+dev.example.com
+
+## Common Out-of-Scope Patterns
+www.example.com/blog
+help.example.com
+status.example.com
+*.thirdparty-cdn.com
+mail.example.com
+
+## URL Path Patterns
+/example.com/api/*
+/example.com/admin/*
+/example.com/v1/*
+/example.com/v2/*
+
+## IP Range Patterns
+203.0.113.0/24
+198.51.100.0/24
+
+## Mobile App Identifiers
+# iOS Bundle IDs
+com.example.app
+com.example.app.beta
+
+# Android Package Names
+com.example.android
+com.example.android.staging

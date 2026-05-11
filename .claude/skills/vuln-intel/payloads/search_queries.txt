@@ -1,0 +1,38 @@
+# Search Query Templates
+
+## NVD Keyword Queries
+- {target_domain} → e.g., "anthropic.com", "icicilombard.com"
+- {product_name} → e.g., "Claude", "Shopify", "Jira"
+- {vendor_name} → e.g., "Atlassian", "Cloudflare", "Twilio"
+
+## DuckDuckGo Search Queries
+### CVE Discovery
+site:cve.mitre.org {target}
+site:nvd.nist.gov {target}
+{target} CVE 2024 2025
+
+### Disclosed Reports
+{program_name} site:hackerone.com/reports
+{program_name} bug bounty disclosed
+{program_name} vulnerability writeup
+
+### Proof of Concept
+{CVE_ID} github poc
+{CVE_ID} exploit github
+{CVE_ID} proof of concept
+
+### Security News
+{target} security vulnerability
+{target} breach 2024 2025
+{target} security advisory
+{target} CVE disclosure
+
+## GitHub Search Queries
+### Advisories
+repo:{owner}/{repo} security advisory
+{product} CVE site:github.com/advisories
+
+### PoCs
+{CVE_ID} in:readme in:description
+{CVE_ID} language:python stars:>10
+{CVE_ID} exploit OR poc OR proof-of-concept

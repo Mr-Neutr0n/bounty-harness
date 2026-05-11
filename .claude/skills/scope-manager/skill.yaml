@@ -1,0 +1,113 @@
+name: scope-manager
+version: "1.0.0"
+description: >
+  Structured scope definition, validation, versioning, and guardrails for bug bounty engagements.
+  Prevents accidental out-of-scope testing and tracks scope changes over time.
+bounded_context: ScopeManagementContext
+safety_tier: passive
+owasp_wstg:
+  - WSTG-INFO-01
+owasp_api_top10: []
+severity_range: [info]
+tools_required:
+  - python3
+input_files:
+  - scope.txt
+workflows:
+  init-scope:
+    description: Generate a structured scope file for a new target.
+    inputs: [TARGET, OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/scope && \
+      python3 .claude/skills/scope-manager/scripts/scope_manager.py init \
+        --target "$TARGET" \
+        --scope-file "$OUTDIR/scope/scope.txt" \
+        --wildcards
+    outputs:
+      - $OUTDIR/scope/scope.txt
+    evidence_dir: $OUTDIR/scope/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  validate-url:
+    description: Check if a specific URL is within scope before testing.
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/scope-manager/scripts/scope_manager.py validate \
+        --url "$VALIDATE_URL" \
+        --scope-file "${SCOPE_FILE:-$OUTDIR/scope/scope.txt}"
+    outputs: []
+    evidence_dir: $OUTDIR/scope/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  diff-scope:
+    description: Compare two scope files to find additions and removals.
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/scope-manager/scripts/scope_manager.py diff \
+        --old-scope "${OLD_SCOPE_FILE}" \
+        --new-scope "${NEW_SCOPE_FILE}"
+    outputs: []
+    evidence_dir: $OUTDIR/scope/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  guard-request:
+    description: Guard an HTTP request against scope before sending.
+    inputs: [OUTDIR]
+    command: |
+      python3 .claude/skills/scope-manager/scripts/scope_manager.py guard \
+        --request-file "$REQUEST_FILE" \
+        --scope-file "${SCOPE_FILE:-$OUTDIR/scope/scope.txt}"
+    outputs: []
+    evidence_dir: $OUTDIR/scope/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  track-scope:
+    description: Record a snapshot of the current scope for versioning.
+    inputs: [PROGRAM, OUTDIR]
+    command: |
+      python3 .claude/skills/scope-manager/scripts/scope_manager.py track \
+        --scope-file "${SCOPE_FILE:-$OUTDIR/scope/scope.txt}" \
+        --program "$PROGRAM"
+    outputs: []
+    evidence_dir: $OUTDIR/scope/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  check-changes:
+    description: Check if scope has changed since last snapshot.
+    inputs: [PROGRAM]
+    command: |
+      python3 .claude/skills/scope-manager/scripts/scope_manager.py check-changes \
+        --program "$PROGRAM"
+    outputs: []
+    evidence_dir: $OUTDIR/scope/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  export-scope:
+    description: Export the latest scope snapshot in JSON or text format.
+    inputs: [PROGRAM]
+    command: |
+      python3 .claude/skills/scope-manager/scripts/scope_manager.py export \
+        --program "$PROGRAM" \
+        --format "${EXPORT_FORMAT:-json}"
+    outputs: []
+    evidence_dir: $OUTDIR/scope/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  scope_snapshot: "Scope file hash, timestamp, program name, full content"
+  scope_diff: "Added/removed items between two scope versions with timestamps"
+  scope_guard: "Request URL, allowed/disallowed status, matching pattern, reason"

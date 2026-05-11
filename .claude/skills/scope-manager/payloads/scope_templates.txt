@@ -1,0 +1,49 @@
+# Example Scope Files
+
+## Minimal Scope
+```
+# In Scope
+example.com
+*.example.com
+
+# Out of Scope
+www.example.com/blog
+```
+
+## Complex Scope (Enterprise Program)
+```
+# In Scope
+example.com
+*.example.com
+api.example.com
+admin.example.com
+partner.example.com
+
+# Out of Scope
+mail.example.com
+cdn.example.com
+status.example.com
+*.thirdparty-cdn.com
+
+# APIs
+api.example.com/v1
+api.example.com/v2/graphql
+webhook.example.com
+
+# Mobile Apps
+# iOS: com.example.ios
+# Android: com.example.android
+
+# IPs / Infrastructure
+203.0.113.0/24
+
+# Notes
+# - Do NOT test payment processing endpoints
+# - Max 10 requests/second
+# - Do NOT brute-force login endpoints
+```
+
+## Wildcard Patterns
+- `*.example.com` — All subdomains
+- `*.api.example.com` — API subdomains only
+- `example.com/api/*` — API paths only

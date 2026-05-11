@@ -159,6 +159,8 @@ Always prefer `bin/bb-run <skill> <workflow>` after context is initialized. If y
 | 34 | `impact-verifier` | Candidate-to-bounty-grade verification gate with impact classification. |
 | 35 | `agent-safety` | AI agent guardrails against prompt injection in target content. |
 | 36 | `program-memory` | Per-program knowledge persistence across engagements. |
+| 37 | `vuln-intel` | CVE tracking, disclosed report hunting, PoC discovery, security news aggregation. |
+| 38 | `scope-manager` | Scope definition, validation, versioning, and guardrails for engagements. |
 
 ## Dispatch Rules
 
@@ -199,6 +201,8 @@ Always prefer `bin/bb-run <skill> <workflow>` after context is initialized. If y
 | Verify finding impact before reporting | `impact-verifier` |
 | Protect AI agent from prompt injection | `agent-safety` |
 | Program knowledge, false-positive history | `program-memory` |
+| Latest CVEs, disclosed reports, PoCs for target | `vuln-intel` |
+| Scope validation, out-of-scope guardrails | `scope-manager` |
 
 If multiple skills match, pick the most specific vulnerability class after recon. If no skill matches but a domain is provided, start with `recon`. If scope is unclear, ask for authorization before intrusive testing.
 

@@ -9,6 +9,7 @@ owasp_wstg:
 owasp_api_top10:
   - API7:2023
 severity_range: [medium, high, critical]
+safety_tier: active-safe
 tools_required:
   - python3
   - interactsh-client
@@ -23,7 +24,7 @@ workflows:
       python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action start --output $OUTDIR/oob/session.json
     outputs:
       - $OUTDIR/oob/session.json
-    evidence_dir: null
+    evidence_dir: $OUTDIR/oob/evidence/
     next:
       if_findings: generate-canary
       if_no_findings: generate-canary
@@ -36,7 +37,7 @@ workflows:
       python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action canary --session $OUTDIR/oob/session.json --purpose "${CANARY_PURPOSE:?Set CANARY_PURPOSE}" --test-id "${TEST_ID:-unknown}" --output $OUTDIR/oob/canaries.jsonl
     outputs:
       - $OUTDIR/oob/canaries.jsonl
-    evidence_dir: null
+    evidence_dir: $OUTDIR/oob/evidence/
     detection_signals:
       - "unique canary URL generated with embedded test correlation ID"
     false_positives: []
@@ -52,7 +53,7 @@ workflows:
       python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action poll --session $OUTDIR/oob/session.json --output $OUTDIR/oob/interactions.jsonl
     outputs:
       - $OUTDIR/oob/interactions.jsonl
-    evidence_dir: null
+    evidence_dir: $OUTDIR/oob/evidence/
     detection_signals:
       - "DNS/HTTP/SMTP callbacks received from target"
       - "interaction protocol and remote address captured"
@@ -70,7 +71,7 @@ workflows:
       python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action correlate --canaries $OUTDIR/oob/canaries.jsonl --interactions $OUTDIR/oob/interactions.jsonl --output $OUTDIR/oob/correlation.jsonl
     outputs:
       - $OUTDIR/oob/correlation.jsonl
-    evidence_dir: null
+    evidence_dir: $OUTDIR/oob/evidence/
     detection_signals:
       - "interaction mapped to originating test, route, and persona"
     false_positives:
@@ -86,7 +87,7 @@ workflows:
       mkdir -p $OUTDIR/oob && \
       python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action stop --session $OUTDIR/oob/session.json --output $OUTDIR/oob/session.json
     outputs: []
-    evidence_dir: null
+    evidence_dir: $OUTDIR/oob/evidence/
     next:
       if_findings: null
       if_no_findings: null
@@ -99,7 +100,7 @@ workflows:
       python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action health --server "${INTERACTSH_SERVER:-oast.pro}" --output $OUTDIR/oob/health_check.json
     outputs:
       - $OUTDIR/oob/health_check.json
-    evidence_dir: null
+    evidence_dir: $OUTDIR/oob/evidence/
     next:
       if_findings: start-client
       if_no_findings: null
@@ -116,6 +117,55 @@ workflows:
       - "confirmed OOB callback with full correlation and replay evidence"
     next:
       if_findings: null
+      if_no_findings: null
+
+  auto-setup:
+    description: Automatically start OOB infrastructure and verify health before testing.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action health --server "${INTERACTSH_SERVER:-oast.pro}" --output $OUTDIR/oob/health_check.json && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action start --output $OUTDIR/oob/session.json
+    outputs:
+      - $OUTDIR/oob/session.json
+      - $OUTDIR/oob/health_check.json
+    evidence_dir: $OUTDIR/oob/evidence/
+    detection_signals:
+      - "OOB server is healthy and reachable"
+      - "Interactsh session is active with callback URL"
+    next:
+      if_findings: generate-canary
+      if_no_findings: null
+
+  auto-cleanup:
+    description: Cleanly stop OOB client and archive session data.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action stop --session $OUTDIR/oob/session.json --output $OUTDIR/oob/session.json && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action evidence --correlation $OUTDIR/oob/correlation.jsonl --output-dir $OUTDIR/oob/evidence
+    outputs: []
+    evidence_dir: $OUTDIR/oob/evidence/
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  quick-poll:
+    description: Single-command poll + correlate for rapid testing loops.
+    inputs: [OUTDIR]
+    command: |
+      mkdir -p $OUTDIR/oob && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action poll --session $OUTDIR/oob/session.json --output $OUTDIR/oob/interactions.jsonl && \
+      python3 .claude/skills/oob-infra/scripts/oob_manager.py --context .bb/context.json --action correlate --canaries $OUTDIR/oob/canaries.jsonl --interactions $OUTDIR/oob/interactions.jsonl --output $OUTDIR/oob/correlation.jsonl
+    outputs:
+      - $OUTDIR/oob/correlation.jsonl
+    evidence_dir: $OUTDIR/oob/evidence/
+    detection_signals:
+      - "callbacks received and mapped to originating canary payloads"
+    false_positives:
+      - "interactions from scanner infrastructure or CDN"
+    next:
+      if_findings: evidence-export
       if_no_findings: null
 
 evidence_templates:
