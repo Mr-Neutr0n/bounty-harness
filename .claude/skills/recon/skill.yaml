@@ -61,7 +61,7 @@ workflows:
     inputs: [OUTDIR]
     command: |
       mkdir -p $OUTDIR/recon/live && \
-      python3 .claude/skills/recon/scripts/live_discovery.py --subs-file $OUTDIR/recon/subdomains/subs.txt --context $OUTDIR/recon/live --screenshot
+      python3 .claude/skills/recon/scripts/live_discovery.py --subs-file $OUTDIR/recon/subdomains/subs.txt --context $OUTDIR/recon/live --rate-limit $RATE_LIMIT --screenshot
     outputs:
       - $OUTDIR/recon/live/live_hosts.txt
       - $OUTDIR/recon/live/live_full.csv
@@ -82,7 +82,7 @@ workflows:
     inputs: [OUTDIR]
     command: |
       mkdir -p $OUTDIR/recon/js && \
-      python3 .claude/skills/recon/scripts/js_recon.py --urls-file $OUTDIR/recon/live/live_hosts.txt --context $OUTDIR/recon/js
+      python3 .claude/skills/recon/scripts/js_recon.py --urls-file $OUTDIR/recon/live/live_hosts.txt --context $OUTDIR/recon/js --rate-limit $RATE_LIMIT --concurrency $CONCURRENCY
     outputs:
       - $OUTDIR/recon/js/js_files.txt
       - $OUTDIR/recon/js/js_secrets.txt

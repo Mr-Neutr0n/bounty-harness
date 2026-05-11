@@ -206,11 +206,13 @@ Outputs (in --context dir):
     )
     p.add_argument("--urls-file", "-u", required=True, help="File with all crawled URLs")
     p.add_argument("--context", "-c", default=".", help="Output directory (default: .)")
+    p.add_argument("--rate-limit", type=int, default=int(os.environ.get("RATE_LIMIT", "50")), help="Katana rate limit in req/s (default: $RATE_LIMIT or 50)")
+    p.add_argument("--concurrency", type=int, default=int(os.environ.get("CONCURRENCY", "10")), help="Katana concurrency (default: $CONCURRENCY or 10)")
     p.add_argument("--dry-run", action="store_true", help="Print commands without executing")
     return p
 
 
-def run_crawler(hosts_file: Path, crawl_out: Path, dry: bool, target_url: str = "") -> None:
+def run_crawler(hosts_file: Path, crawl_out: Path, dry: bool, target_url: str = "", rate_limit: int = 50, concurrency: int = 10) -> None:
     if not cmd_exists("katana"):
         log("katana not installed; skipping crawl")
         return
@@ -222,18 +224,18 @@ def run_crawler(hosts_file: Path, crawl_out: Path, dry: bool, target_url: str = 
     if not target_url:
         log("No target URL to crawl")
         return
-    log(f"Crawling {target_url} with katana...")
+    log(f"Crawling {target_url} with katana (rate={rate_limit}/s, concurrency={concurrency})...")
     rc, out, err = run(
-        ["katana", "-u", target_url, "-jc", "-d", "3", "-c", "10", "-silent", "-o", str(crawl_out)],
+        ["katana", "-u", target_url, "-jc", "-d", "3", "-rl", str(rate_limit), "-c", str(concurrency), "-silent", "-o", str(crawl_out)],
         timeout=600, dry_run=dry)
     if rc != 0 and not dry:
         log(f"katana crawl warning: {err.strip() or 'exit ' + str(rc)}")
 
-def crawl_and_extract(hosts_file: Path, crawls_dir: Path, dry: bool, target_url: str = "") -> list[str]:
+def crawl_and_extract(hosts_file: Path, crawls_dir: Path, dry: bool, target_url: str = "", rate_limit: int = 50, concurrency: int = 10) -> list[str]:
     crawls_dir.mkdir(parents=True, exist_ok=True)
     crawl_out = crawls_dir / "katana_crawl.txt"
     if not crawl_out.exists() or os.path.getsize(str(crawl_out)) == 0:
-        run_crawler(hosts_file, crawl_out, dry, target_url=target_url)
+        run_crawler(hosts_file, crawl_out, dry, target_url=target_url, rate_limit=rate_limit, concurrency=concurrency)
     js_urls: list[str] = []
     if crawl_out.exists():
         js_urls = extract_js_urls(crawl_out)
@@ -276,11 +278,11 @@ def main() -> None:
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     start_ts = now_iso()
-    log(f"URLs file: {live_file}  Context: {ctx}  Dry: {dry}")
+    log(f"URLs file: {live_file}  Context: {ctx}  Rate limit: {args.rate_limit}/s  Concurrency: {args.concurrency}  Dry: {dry}")
 
     crawls_dir = ctx / "crawls"
     target_url = load_target_url()
-    js_urls = crawl_and_extract(live_file, crawls_dir, dry, target_url=target_url)
+    js_urls = crawl_and_extract(live_file, crawls_dir, dry, target_url=target_url, rate_limit=args.rate_limit, concurrency=args.concurrency)
     log(f"Extracted {len(js_urls)} JS URLs")
 
     js_txt = ctx / "js_files.txt"

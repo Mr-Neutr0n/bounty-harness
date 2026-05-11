@@ -68,7 +68,7 @@ workflows:
       mkdir -p $OUTDIR/domain-model && \
       python3 .claude/skills/domain-model/scripts/domain_report.py \
         --target $TARGET \
-        --program $PROGRAM \
+        --program "$PROGRAM" \
         --archetypes $OUTDIR/domain-model/archetypes.json \
         --surfaces $OUTDIR/domain-model/surfaces.json \
         --output $OUTDIR/domain-model/domain-profile.md \

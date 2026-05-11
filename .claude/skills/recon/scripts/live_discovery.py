@@ -51,7 +51,7 @@ def run(cmd: list[str], timeout: int = 300, dry_run: bool = False) -> tuple[int,
         return 124, "", f"timeout after {timeout}s"
 
 
-def probe_httpx(subs_file: Path, ctx: Path, dry: bool) -> tuple[Path, list[dict]]:
+def probe_httpx(subs_file: Path, ctx: Path, dry: bool, rate_limit: int = 50) -> tuple[Path, list[dict]]:
     csv_path = ctx / "live_full.csv"
     txt_path = ctx / "live_hosts.txt"
 
@@ -70,6 +70,7 @@ def probe_httpx(subs_file: Path, ctx: Path, dry: bool) -> tuple[Path, list[dict]
         "-content-length",
         "-location",
         "-web-server",
+        "-rate-limit", str(rate_limit),
         "-csv",
         "-o", str(csv_path),
     ]
@@ -161,6 +162,7 @@ Outputs (in --context dir):
     p.add_argument("--subs-file", "-s", required=True, help="File with subdomains (one per line)")
     p.add_argument("--context", "-c", default=".", help="Output directory (default: .)")
     p.add_argument("--screenshot", action="store_true", help="Take screenshots of live hosts")
+    p.add_argument("--rate-limit", type=int, default=int(os.environ.get("RATE_LIMIT", "50")), help="Requests per second (default: $RATE_LIMIT or 50)")
     p.add_argument("--dry-run", action="store_true", help="Print commands without executing")
     return p
 
@@ -181,9 +183,9 @@ def main() -> None:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     start_ts = now_iso()
 
-    log(f"Subs file: {subs_file}  Context: {ctx}  Screenshot: {args.screenshot}  Dry: {dry}")
+    log(f"Subs file: {subs_file}  Context: {ctx}  Screenshot: {args.screenshot}  Rate limit: {args.rate_limit}/s  Dry: {dry}")
 
-    csv_path, entries = probe_httpx(subs_file, ctx, dry)
+    csv_path, entries = probe_httpx(subs_file, ctx, dry, args.rate_limit)
 
     ss_dir: Optional[Path] = None
     if args.screenshot:
