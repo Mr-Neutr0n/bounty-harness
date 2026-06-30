@@ -16,6 +16,7 @@ input_files:
 workflows:
   init-scope:
     description: Generate a structured scope file for a new target.
+    safety_tier: passive
     inputs: [TARGET, OUTDIR]
     command: |
       mkdir -p $OUTDIR/scope && \
@@ -32,6 +33,7 @@ workflows:
 
   validate-url:
     description: Check if a specific URL is within scope before testing.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       python3 .claude/skills/scope-manager/scripts/scope_manager.py validate \
@@ -45,6 +47,7 @@ workflows:
 
   diff-scope:
     description: Compare two scope files to find additions and removals.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       python3 .claude/skills/scope-manager/scripts/scope_manager.py diff \
@@ -58,6 +61,7 @@ workflows:
 
   guard-request:
     description: Guard an HTTP request against scope before sending.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       python3 .claude/skills/scope-manager/scripts/scope_manager.py guard \
@@ -71,6 +75,7 @@ workflows:
 
   track-scope:
     description: Record a snapshot of the current scope for versioning.
+    safety_tier: passive
     inputs: [PROGRAM, OUTDIR]
     command: |
       python3 .claude/skills/scope-manager/scripts/scope_manager.py track \
@@ -84,6 +89,7 @@ workflows:
 
   check-changes:
     description: Check if scope has changed since last snapshot.
+    safety_tier: passive
     inputs: [PROGRAM]
     command: |
       python3 .claude/skills/scope-manager/scripts/scope_manager.py check-changes \
@@ -96,6 +102,7 @@ workflows:
 
   export-scope:
     description: Export the latest scope snapshot in JSON or text format.
+    safety_tier: passive
     inputs: [PROGRAM]
     command: |
       python3 .claude/skills/scope-manager/scripts/scope_manager.py export \

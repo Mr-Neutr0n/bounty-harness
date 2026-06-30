@@ -1,4 +1,4 @@
-# Bug Bounty Agent Toolkit
+# BountyHarness Agent Guide
 
 ## Architecture
 
@@ -15,6 +15,7 @@ The harness is deliberately small:
 | `bin/bb-init` | Creates `.bb/context.env` and `.bb/context.json`. |
 | `bin/bb-validate` | Checks context and scope file presence. |
 | `bin/bb-run` | Runs one command from `.claude/skills/<skill>/skill.yaml`. |
+| `bin/bb-hunt` | Autonomous campaign: bootstraps context from a URL, then runs recon → plan → execute → report unattended (thin wrapper over the `campaign` skill). |
 | `bin/bb-tools` | Install, update, verify, and lock external tools. |
 | `tools/validate_skills.py` | Scores skill package quality. |
 
@@ -105,6 +106,20 @@ For a new target with no prior recon:
 
 For a target with prior recon, load the most specific skill directly and use the workflows in that skill's `skill.yaml`.
 
+## Autonomous Campaign
+
+When the user drops a bare URL or asks to "find everything / hunt this / run for a while," use the `campaign` skill instead of issuing the 13 steps by hand:
+
+```text
+bin/bb-hunt <url> --time-budget 2h                 # active-safe by default
+bin/bb-hunt <url> --scope-file <auth> --max-tier intrusive --time-budget 3h
+bin/bb-run campaign status                          # progress
+```
+
+`bin/bb-hunt` bootstraps its own context (no prior `bb-init` needed), then runs recon → domain-model → technique-kb → planner, parses `plan.json` for skill priority, and executes every applicable skill workflow filtered by safety tier, then reporting. It is bounded by `--time-budget`, resumable, and continues past individual workflow failures.
+
+Agent responsibilities around the campaign (see `.claude/skills/campaign/SKILL.md`): (1) confirm authorization; (2) use web search + `vuln-intel`/`osint` to understand the target before/while it runs; (3) monitor `bin/bb-run campaign status`; (4) triage candidates through the matching verify workflow and `impact-verifier`; (5) report only impact-verified findings. The safety ceiling defaults to `intrusive` but is auto-capped to `active-safe` unless a non-empty `--scope-file` is supplied.
+
 ## Skill Loading
 
 Every skill lives at `.claude/skills/<skill>/`.
@@ -161,11 +176,13 @@ Always prefer `bin/bb-run <skill> <workflow>` after context is initialized. If y
 | 36 | `program-memory` | Per-program knowledge persistence across engagements. |
 | 37 | `vuln-intel` | CVE tracking, disclosed report hunting, PoC discovery, security news aggregation. |
 | 38 | `scope-manager` | Scope definition, validation, versioning, and guardrails for engagements. |
+| 39 | `campaign` | Autonomous end-to-end run: recon → domain-model → plan → priority-ordered multi-skill execution → reporting, from one URL, bounded by a time budget. |
 
 ## Dispatch Rules
 
 | User intent | First skill |
 |---|---|
+| Bare URL, "find everything", "hunt this", "run for a while", autonomous/unattended scan | `campaign` (`bin/bb-hunt <url>`) |
 | New target, scan domain, enumerate, map attack surface | `recon` then `domain-model` then `planner` |
 | XSS, cross-site scripting, JavaScript injection, CSP bypass | `xss` |
 | SQL injection, NoSQL injection, database error, blind SQL | `sqli` |

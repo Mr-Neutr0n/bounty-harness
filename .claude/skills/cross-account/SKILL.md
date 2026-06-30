@@ -36,6 +36,8 @@ Automate IDOR/BOLA/BFLA/tenant isolation testing by replaying captured requests 
 - Diff showing status code, body field, or authorization discrepancy.
 - Persona relationship (same tenant, different tenant, admin vs user).
 
+Persona credentials, session cookies, and auth headers are stored local-only under `$OUTDIR/persona` and are never committed (gitignore enforced); all evidence written by these workflows must redact/sanitize tokens, cookies, and bearer values before it is saved or shared.
+
 ## References
 - OWASP WSTG-ATHZ-02 (Insecure Direct Object References)
 - OWASP API1:2023 (Broken Object Level Authorization)

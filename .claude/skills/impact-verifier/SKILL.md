@@ -33,6 +33,7 @@ The final gate before reporting. Converts candidate findings into confirmed boun
 - False-positive checklist completed.
 - Report readiness score >= 80.
 - All standard evidence artifacts present.
+- Redact credentials, session cookies, bearer tokens, and auth headers from all collected evidence before reporting. Evidence stays local-only under `$OUTDIR/impact-verifier` and is never committed; sanitize requests/responses (gitignore evidence directories) so no secrets leak into reports.
 
 ## References
 - Bugcrowd VRT 1.18

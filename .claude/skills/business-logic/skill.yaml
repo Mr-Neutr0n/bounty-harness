@@ -19,6 +19,7 @@ owasp_api_top10:
   - API6:2023
   - API8:2023
 severity_range: [medium, high, critical]
+safety_tier: active-safe
 tools_required:
   - python3
   - curl
@@ -35,7 +36,8 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action infer --routes $OUTDIR/traffic-corpus/routes.jsonl --domain-profile $OUTDIR/domain-model/domain-profile.json --output $OUTDIR/business-logic/workflows.json
     outputs:
       - $OUTDIR/business-logic/workflows.json
-    evidence_dir: null
+    safety_tier: passive
+    evidence_dir: $OUTDIR/business-logic
     next:
       if_findings: test-skip-step
       if_no_findings: null
@@ -48,7 +50,8 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action define --workflow-def "${WORKFLOW_DEF:?Set WORKFLOW_DEF as JSON}" --output $OUTDIR/business-logic/workflows.json
     outputs:
       - $OUTDIR/business-logic/workflows.json
-    evidence_dir: null
+    safety_tier: passive
+    evidence_dir: $OUTDIR/business-logic
     next:
       if_findings: test-skip-step
       if_no_findings: test-skip-step
@@ -61,6 +64,7 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-skip --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/transition_tests.jsonl
     outputs:
       - $OUTDIR/business-logic/transition_tests.jsonl
+    safety_tier: active-safe
     evidence_dir: $OUTDIR/business-logic/evidence/
     safety:
       requires_scope: true
@@ -77,6 +81,7 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-repeat --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/transition_tests.jsonl
     outputs:
       - $OUTDIR/business-logic/transition_tests.jsonl
+    safety_tier: active-safe
     evidence_dir: $OUTDIR/business-logic/evidence/
     safety:
       requires_scope: true
@@ -93,6 +98,7 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-reorder --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/transition_tests.jsonl
     outputs:
       - $OUTDIR/business-logic/transition_tests.jsonl
+    safety_tier: active-safe
     evidence_dir: $OUTDIR/business-logic/evidence/
     safety:
       requires_scope: true
@@ -109,6 +115,7 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-race --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/race_tests.jsonl
     outputs:
       - $OUTDIR/business-logic/race_tests.jsonl
+    safety_tier: active-safe
     evidence_dir: $OUTDIR/business-logic/evidence/
     safety:
       requires_scope: true
@@ -125,6 +132,7 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-idempotent --workflows $OUTDIR/business-logic/workflows.json --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/idempotent_tests.jsonl
     outputs:
       - $OUTDIR/business-logic/idempotent_tests.jsonl
+    safety_tier: active-safe
     evidence_dir: $OUTDIR/business-logic/evidence/
     safety:
       requires_scope: true
@@ -141,6 +149,7 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-coupon --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/coupon_tests.jsonl
     outputs:
       - $OUTDIR/business-logic/coupon_tests.jsonl
+    safety_tier: active-safe
     evidence_dir: $OUTDIR/business-logic/evidence/
     safety:
       requires_scope: true
@@ -157,6 +166,7 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action test-refund --persona-dir $OUTDIR/persona --output $OUTDIR/business-logic/refund_tests.jsonl
     outputs:
       - $OUTDIR/business-logic/refund_tests.jsonl
+    safety_tier: active-safe
     evidence_dir: $OUTDIR/business-logic/evidence/
     safety:
       requires_scope: true
@@ -173,7 +183,8 @@ workflows:
       python3 .claude/skills/business-logic/scripts/logic_tester.py --context .bb/context.json --action summarize --test-dir $OUTDIR/business-logic --output $OUTDIR/business-logic/findings.jsonl
     outputs:
       - $OUTDIR/business-logic/findings.jsonl
-    evidence_dir: null
+    safety_tier: passive
+    evidence_dir: $OUTDIR/business-logic
     detection_signals:
       - "invariant violations: skip, repeat, reorder, race, double-spend, refund-after-cancel"
     next:
@@ -183,3 +194,4 @@ workflows:
 evidence_templates:
   workflow_violation: "Workflow model, violated invariant, request/response trace"
   race_evidence: "Concurrent request timestamps, duplicated state, TOCTOU proof"
+  value_abuse: "Coupon/refund redemption requests, resulting balance or entitlement, before/after state diff"

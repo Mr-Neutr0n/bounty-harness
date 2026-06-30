@@ -35,6 +35,7 @@ This is a thin human-facing router. Use `skill.yaml` as the source of truth for 
 - Save raw request and response data for each confirmed finding.
 - Include timestamps, affected target, exact workflow name, tool versions, and reproduction steps.
 - Store screenshots or terminal captures in the workflow evidence directory when the workflow defines one.
+- Credential-hunting workflows may surface live passwords, tokens, session secrets, and authorization material from host config and history; redact and sanitize these values before they leave the host. Keep raw credential output local-only, never committed to git, and ensure evidence directories are covered by gitignore so secrets are never committed.
 - Evidence templates from `skill.yaml`:
 - `suid`: Output of find / -perm -4000 with GTFOBins cross-reference
 - `sudo_escape`: sudo -l output with GTFOBins cross-reference

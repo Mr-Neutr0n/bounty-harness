@@ -2,6 +2,7 @@ name: planner
 version: 1.0.0
 description: "Domain-driven ranked test plan generator — consumes domain model, technique catalog, coverage ledger, and outputs a prioritized list of workflows with rationales, safety flags, and evidence requirements"
 bounded_context: PlanningContext
+safety_tier: passive
 owasp_wstg: []
 owasp_api_top10: []
 severity_range: [info]
@@ -23,7 +24,8 @@ workflows:
         --output ${PLAN_OUTPUT:-$OUTDIR/planner/plan.json}
     outputs:
       - $OUTDIR/planner/plan.json
-    evidence_dir: null
+    evidence_dir: $OUTDIR/planner
+    safety_tier: passive
     detection_signals:
       - "plan JSON contains ranked plan_items with scores and rationales"
       - "summary shows coverage delta and priority distribution"
@@ -48,7 +50,8 @@ workflows:
         --output ${PLAN_OUTPUT:-$OUTDIR/planner/plan.json}
     outputs:
       - $OUTDIR/planner/plan.json
-    evidence_dir: null
+    evidence_dir: $OUTDIR/planner
+    safety_tier: passive
     detection_signals:
       - "plan JSON contains only safe, non-destructive plan_items"
     false_positives:
@@ -68,7 +71,8 @@ workflows:
         --format ${FORMAT:-markdown}
     outputs:
       - $OUTDIR/planner/plan.md
-    evidence_dir: null
+    evidence_dir: $OUTDIR/planner
+    safety_tier: passive
     detection_signals:
       - "output file populated with formatted plan content"
     false_positives:
@@ -85,7 +89,8 @@ workflows:
         --plan ${PLAN:-$OUTDIR/planner/plan.json} \
         --schema ${SCHEMA:-.claude/skills/planner/plan_schema.yaml}
     outputs: []
-    evidence_dir: null
+    evidence_dir: $OUTDIR/planner
+    safety_tier: passive
     detection_signals:
       - "validator exits 0 with PASSED message"
       - "no structural or consistency errors detected"
@@ -101,7 +106,8 @@ workflows:
     command: |
       python3 .claude/skills/planner/scripts/playbook_validator.py --all
     outputs: []
-    evidence_dir: null
+    evidence_dir: $OUTDIR/planner
+    safety_tier: passive
     detection_signals:
       - "all playbooks validate against schema with PASS status"
       - "no cycle, missing-ref, or safety-mismatch errors"
@@ -118,7 +124,8 @@ workflows:
       python3 .claude/skills/planner/scripts/plan_validator.py \
         --validate-playbook-dag ${PLAYBOOK_FILE}
     outputs: []
-    evidence_dir: null
+    evidence_dir: $OUTDIR/planner
+    safety_tier: passive
     detection_signals:
       - "no DAG cycles, safety tier monotonicity holds, tools available"
     false_positives: []
@@ -134,7 +141,8 @@ workflows:
         ${PLAYBOOK_FILE:-playbooks/new-target-passive.yaml} \
         --auto-safe
     outputs: []
-    evidence_dir: null
+    evidence_dir: $OUTDIR/planner
+    safety_tier: passive
     detection_signals:
       - "playbook phases executed in order with resume_policy and safety checks"
     false_positives:
@@ -149,7 +157,8 @@ workflows:
     command: |
       ls .claude/skills/planner/playbooks/*.yaml
     outputs: []
-    evidence_dir: null
+    evidence_dir: $OUTDIR/planner
+    safety_tier: passive
     detection_signals:
       - "playbook YAML files found in playbooks/ directory"
     false_positives:
@@ -158,4 +167,7 @@ workflows:
       if_findings: null
       if_no_findings: null
 
-evidence_templates: {}
+evidence_templates:
+  plan_json: "Ranked test plan with scores, rationales, safety flags, and evidence requirements per plan item — saved to $OUTDIR/planner/plan.json"
+  plan_markdown: "Human-readable visualization of the ranked plan for review before execution — saved to $OUTDIR/planner/plan.md"
+  validation_report: "Schema and consistency validation output for the generated plan — saved to $OUTDIR/planner/validation.txt"

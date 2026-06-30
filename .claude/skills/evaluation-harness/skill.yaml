@@ -5,15 +5,21 @@ bounded_context: EvaluationContext
 owasp_wstg: []
 owasp_api_top10: []
 severity_range: [info]
+safety_tier: passive
 tools_required:
   - python3
   - jq
   - docker
   - curl
 input_files: []
+evidence_templates:
+  precision_recall: "Per-skill precision, recall, and F1 computed from positive/negative control outcomes against lab fixtures."
+  confusion_matrix: "True positive, false positive, true negative, and false negative counts per fixture and skill."
+  eval_report: "Markdown evaluation dashboard summarizing health scores, regressions, and per-fixture detection results."
 workflows:
   run-skill-test:
     description: Test a specific skill against its designated lab fixtures.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       mkdir -p $OUTDIR/recon/eval && python3 .claude/skills/evaluation-harness/scripts/run_skill_test.py --skills-dir .claude/skills --fixtures-dir .claude/skills/evaluation-harness/fixtures --context $OUTDIR/recon/eval
@@ -31,6 +37,7 @@ workflows:
 
   generate-matrix:
     description: Generate full evaluation matrix across all skills and fixtures.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       mkdir -p $OUTDIR/recon/eval && python3 .claude/skills/evaluation-harness/scripts/generate_matrix.py --results-manifest $OUTDIR/recon/eval/results_manifest.json --context $OUTDIR/recon/eval
@@ -48,6 +55,7 @@ workflows:
 
   benchmark-runner:
     description: Compare current skill performance to previous baseline.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       mkdir -p $OUTDIR/recon/eval && python3 .claude/skills/evaluation-harness/scripts/benchmark_runner.py --eval-matrix $OUTDIR/recon/eval/eval_matrix.json --context $OUTDIR/recon/eval

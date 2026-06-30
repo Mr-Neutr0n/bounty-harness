@@ -2,6 +2,7 @@ name: asset-graph
 version: 1.0.0
 description: Persistent target asset graph connecting recon, traffic, objects, personas, and findings across runs.
 bounded_context: AssetGraphContext
+safety_tier: passive
 owasp_wstg:
   - WSTG-INFO-01
   - WSTG-INFO-02
@@ -26,7 +27,8 @@ workflows:
     outputs:
       - $OUTDIR/asset-graph/asset_graph.sqlite
       - $OUTDIR/asset-graph/graph_summary.md
-    evidence_dir: null
+    evidence_dir: $OUTDIR/asset-graph
+    safety_tier: passive
     next:
       if_findings: ingest-recon
       if_no_findings: ingest-recon
@@ -39,7 +41,8 @@ workflows:
       python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action ingest-recon --db $OUTDIR/asset-graph/asset_graph.sqlite --recon-dir $OUTDIR/recon
     outputs:
       - $OUTDIR/asset-graph/asset_graph.sqlite
-    evidence_dir: null
+    evidence_dir: $OUTDIR/asset-graph
+    safety_tier: passive
     next:
       if_findings: ingest-corpus
       if_no_findings: ingest-corpus
@@ -52,7 +55,8 @@ workflows:
       python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action ingest-corpus --db $OUTDIR/asset-graph/asset_graph.sqlite --routes ${ROUTES_FILE:-$OUTDIR/traffic-corpus/routes.jsonl} --objects ${OBJECTS_FILE:-$OUTDIR/traffic-corpus/objects.jsonl}
     outputs:
       - $OUTDIR/asset-graph/asset_graph.sqlite
-    evidence_dir: null
+    evidence_dir: $OUTDIR/asset-graph
+    safety_tier: passive
     next:
       if_findings: ingest-personas
       if_no_findings: ingest-personas
@@ -65,7 +69,8 @@ workflows:
       python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action ingest-personas --db $OUTDIR/asset-graph/asset_graph.sqlite --personas $OUTDIR/persona/personas.json --validation $OUTDIR/persona/validation.json
     outputs:
       - $OUTDIR/asset-graph/asset_graph.sqlite
-    evidence_dir: null
+    evidence_dir: $OUTDIR/asset-graph
+    safety_tier: passive
     next:
       if_findings: ingest-findings
       if_no_findings: build-hotlist
@@ -78,7 +83,8 @@ workflows:
       python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action ingest-findings --db $OUTDIR/asset-graph/asset_graph.sqlite --findings-dir $OUTDIR/impact-verifier
     outputs:
       - $OUTDIR/asset-graph/asset_graph.sqlite
-    evidence_dir: null
+    evidence_dir: $OUTDIR/asset-graph
+    safety_tier: passive
     next:
       if_findings: build-hotlist
       if_no_findings: build-hotlist
@@ -91,7 +97,8 @@ workflows:
       python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action hotlist --db $OUTDIR/asset-graph/asset_graph.sqlite --output $OUTDIR/asset-graph/hotlist.json
     outputs:
       - $OUTDIR/asset-graph/hotlist.json
-    evidence_dir: null
+    evidence_dir: $OUTDIR/asset-graph
+    safety_tier: passive
     detection_signals:
       - "assets ranked by auth surface, object density, payment/admin/AI surface exposure"
     false_positives: []
@@ -107,7 +114,8 @@ workflows:
       python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action diff --db $OUTDIR/asset-graph/asset_graph.sqlite --output $OUTDIR/asset-graph/delta.json
     outputs:
       - $OUTDIR/asset-graph/delta.json
-    evidence_dir: null
+    evidence_dir: $OUTDIR/asset-graph
+    safety_tier: passive
     detection_signals:
       - "new hosts, new routes, new objects, new surfaces detected"
     false_positives:
@@ -124,7 +132,8 @@ workflows:
       python3 .claude/skills/asset-graph/scripts/graph_manager.py --context .bb/context.json --action query --db $OUTDIR/asset-graph/asset_graph.sqlite --sql "${GRAPH_QUERY:?Set GRAPH_QUERY}" --output $OUTDIR/asset-graph/query_result.json
     outputs:
       - $OUTDIR/asset-graph/query_result.json
-    evidence_dir: null
+    evidence_dir: $OUTDIR/asset-graph
+    safety_tier: passive
     next:
       if_findings: null
       if_no_findings: null

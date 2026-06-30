@@ -29,6 +29,7 @@ This is a thin human-facing router. Use `skill.yaml` as the source of truth for 
 - Save raw request and response data for each confirmed finding.
 - Include timestamps, affected target, exact workflow name, tool versions, and reproduction steps.
 - Store screenshots or terminal captures in the workflow evidence directory when the workflow defines one.
+- Redact or sanitize any auth headers, session cookies, bearer tokens, and PII in requests/responses before a report leaves the local machine; evidence stays local-only and is never committed (kept under `.gitignore`).
 - Evidence templates from `skill.yaml`:
 - `cvss`: CVSS vector string and breakdown
 - `report`: Markdown report with all required sections

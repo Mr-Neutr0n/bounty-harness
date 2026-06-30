@@ -10,6 +10,11 @@ owasp_wstg:
   - WSTG-INFO-06
 owasp_api_top10: []
 severity_range: [info, low, medium]
+safety_tier: passive
+evidence_templates:
+  classification: "Archetype classification JSON for target with confidence scores and supporting recon-derived evidence strings; local-only, sanitize before sharing."
+  surface_map: "Attack surface map JSON listing detected surfaces, auth requirements, and intrusive levels derived from recon data; redact hostnames if needed."
+  domain_profile: "Full domain profile (markdown + JSON) with prioritized testing order and recommended skill sequence; never committed with target identifiers."
 tools_required:
   - python3
 input_files:
@@ -28,7 +33,8 @@ workflows:
         --output $OUTDIR/domain-model/archetypes.json
     outputs:
       - $OUTDIR/domain-model/archetypes.json
-    evidence_dir: null
+    safety_tier: passive
+    evidence_dir: $OUTDIR/domain-model
     detection_signals:
       - "recon corpus contains url patterns matching an archetype"
       - "tech stack signals match archetype definition"
@@ -50,7 +56,8 @@ workflows:
         --output $OUTDIR/domain-model/surfaces.json
     outputs:
       - $OUTDIR/domain-model/surfaces.json
-    evidence_dir: null
+    safety_tier: passive
+    evidence_dir: $OUTDIR/domain-model
     detection_signals:
       - "detection signals from surfaces.yaml match recon data"
       - "archetype membership indicates likely surfaces"
@@ -76,7 +83,8 @@ workflows:
     outputs:
       - $OUTDIR/domain-model/domain-profile.md
       - $OUTDIR/domain-model/domain-profile.json
-    evidence_dir: null
+    safety_tier: passive
+    evidence_dir: $OUTDIR/domain-model
     detection_signals:
       - "archetype and surface analysis produce a complete domain profile"
     false_positives:

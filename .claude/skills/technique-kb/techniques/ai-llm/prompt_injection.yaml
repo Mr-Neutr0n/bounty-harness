@@ -104,3 +104,7 @@ tags:
   - tool-calling
   - rag
   - requires-approval
+
+related_skills:
+  - ai-llm
+  - agent-safety

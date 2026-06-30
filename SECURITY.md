@@ -2,7 +2,7 @@
 
 ## Scope
 
-This security policy applies to **bugs in the bb_agent_toolkit software itself** — the
+This security policy applies to **bugs in the BountyHarness software itself** — the
 harness, tools, skill packages, and supporting scripts in this repository.
 
 **Target applications, bug bounty programs, and remote systems are not in scope**
@@ -11,10 +11,12 @@ third-party hosts or services. Report those to the relevant program directly.
 
 ## Reporting a Vulnerability
 
-If you discover a security issue in the bb_agent_toolkit codebase:
+If you discover a security issue in the BountyHarness codebase:
 
-1. **Do not open a public issue.** Instead, email
-   `security@example.com` (replace with your actual security contact).
+1. **Do not open a public issue with exploit details.** Use GitHub private
+   vulnerability reporting for this repository if it is enabled. If it is not
+   enabled, open a public issue asking for a private contact path, without
+   including sensitive technical details.
 
 2. Include:
    - A clear description of the issue

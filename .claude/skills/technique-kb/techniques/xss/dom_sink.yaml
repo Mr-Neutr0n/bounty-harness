@@ -96,3 +96,7 @@ tags:
   - postmessage
   - location-hash
   - no-server-interaction
+
+related_skills:
+  - xss
+  - modern-browser

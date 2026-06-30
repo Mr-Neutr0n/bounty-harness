@@ -32,6 +32,9 @@ Persistent target understanding across runs. Connect recon output, traffic corpu
 - Hotlist JSON with ranked assets and scores.
 - Delta report highlighting new hosts, routes, objects.
 
+## Safety
+- The SQLite asset graph is local-only and must never be committed; keep `$OUTDIR/asset-graph/` in `.gitignore`. When ingesting personas, traffic, or findings, redact any captured auth headers, session tokens, and cookies before they are stored or exported so the graph holds references rather than live credentials.
+
 ## References
 - OWASP WSTG-INFO-01 (Conduct Search Engine Discovery Reconnaissance)
 - OWASP WSTG-INFO-02 (Fingerprint Web Server)

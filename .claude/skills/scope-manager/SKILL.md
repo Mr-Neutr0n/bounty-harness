@@ -64,6 +64,15 @@ For every scope operation, collect:
 - Guard decision log (URL, allowed/disallowed, reason)
 - Validation results for batch URL checks
 
+## Data Handling and Safety
+Scope files, guard decision logs, and any captured auth headers, session
+identifiers, tokens, or cookies are kept local-only and are never committed.
+Add the scope evidence directory to `.gitignore` so snapshots stay out of the
+repository, and redact (sanitize) any auth header, token, or cookie value
+before including request samples in an exported report or shared evidence
+bundle. All scope-manager workflows are passive and read-only — they perform no
+target interaction beyond inspecting URLs against the local scope file.
+
 ## Integration with Other Skills
 - Use `guard-request` before `api`, `xss`, `sqli` workflows to prevent OOS testing
 - Use `track-scope` after `bb-init` to establish baseline

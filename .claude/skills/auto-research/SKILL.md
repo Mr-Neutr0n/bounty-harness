@@ -11,6 +11,7 @@ This is a thin human-facing router. Use `skill.yaml` as the source of truth for 
 - Required tools: `python3`, `jq`
 - Expected input files: none
 - Scope check: not applicable — imports public data into local KB.
+- Redaction: imported research and the source cache are local-only and must never be committed; keep the `cache/` directory in `.gitignore` and sanitize any captured tokens or credentials before sharing.
 
 ## Workflow Selection
 - Start with `scan` to check all sources for changes since last scan.

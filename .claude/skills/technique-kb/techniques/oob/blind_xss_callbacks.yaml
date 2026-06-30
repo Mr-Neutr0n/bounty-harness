@@ -28,3 +28,7 @@ references:
 safety:
   risk_tier: active-safe
   data_modifying: false
+
+related_skills:
+  - oob-infra
+  - xss

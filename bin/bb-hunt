@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Thin wrapper for the autonomous campaign runner. All orchestration logic lives
+# in the campaign skill (.claude/skills/campaign/). This just sets PATH, anchors
+# at the repo root, and hands off to the engine, which bootstraps its own context
+# (bb-init) so it can be pointed at a brand-new URL with no prior setup.
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+export PATH="/opt/homebrew/bin:$HOME/.pdtm/go/bin:$HOME/go/bin:$HOME/Library/Python/3.14/bin:$PATH"
+
+RUNNER=".claude/skills/campaign/scripts/campaign_runner.py"
+
+if [ $# -lt 1 ] || [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  cat <<'EOF'
+Usage: bb-hunt <url-or-domain> [options]
+
+Runs an autonomous recon -> domain-model -> plan -> execute -> report campaign
+against a single target, bounded by a time budget.
+
+Common options:
+  --scope-file FILE     Authorization/scope file (REQUIRED to unlock intrusive).
+  --max-tier TIER       passive | active-safe | intrusive  (default: intrusive,
+                        auto-capped to active-safe without --scope-file).
+  --time-budget DUR     e.g. 2h, 90m, 3600  (default: 2h).
+  --program NAME        Bug bounty program name.
+  --skills a,b,c        Restrict execution to a subset of skills.
+  --rate-limit N        Override RATE_LIMIT.
+  --resume ID --no-init Resume an interrupted campaign.
+  --dry-run             Print the full plan of action without executing.
+
+Examples:
+  bb-hunt example.com --time-budget 90m
+  bb-hunt https://example.com --scope-file ./engagements/example/scope.md --max-tier intrusive --time-budget 3h
+  bb-hunt example.com --dry-run
+
+Full flag list: python3 .claude/skills/campaign/scripts/campaign_runner.py hunt --help
+EOF
+  exit 0
+fi
+
+TARGET="$1"; shift
+exec python3 "$RUNNER" hunt --target "$TARGET" "$@"

@@ -2,6 +2,7 @@ name: reporting
 version: 2.0.0
 description: Bug bounty report generation, CVSS scoring, evidence packaging, platform-specific exports
 bounded_context: FindingContext
+safety_tier: passive
 owasp_wstg: []
 owasp_api_top10: []
 severity_range: [info, low, medium, high, critical]
@@ -15,6 +16,7 @@ input_files:
 workflows:
   generate-single:
     description: Generate a single finding report from evidence
+    safety_tier: passive
     inputs: [FINDING_DIR, OUTDIR, CONTEXT]
     command: |
       mkdir -p $OUTDIR/reports && \
@@ -30,6 +32,7 @@ workflows:
 
   cvss-score:
     description: Calculate CVSS v3.1 score for a finding
+    safety_tier: passive
     inputs: [FINDING_DIR, CONTEXT]
     command: |
       mkdir -p $OUTDIR/reports && \
@@ -45,6 +48,7 @@ workflows:
 
   batch-generate:
     description: Generate reports from nuclei/skill JSONL output
+    safety_tier: passive
     inputs: [OUTDIR, CONTEXT]
     command: |
       mkdir -p $OUTDIR/reports && \
@@ -52,6 +56,22 @@ workflows:
     outputs:
       - $OUTDIR/reports/summary.md
       - $OUTDIR/reports/findings/
+    evidence_dir: $OUTDIR/reports/evidence/
+    detection_signals: []
+    false_positives: []
+    next:
+      if_findings: platform-export
+      if_no_findings: platform-export
+
+  platform-export:
+    description: Render a finding into a platform-specific report (HackerOne, Bugcrowd, or generic disclosure)
+    safety_tier: passive
+    inputs: [FINDING_DIR, OUTDIR, CONTEXT]
+    command: |
+      mkdir -p $OUTDIR/reports && \
+      python3 .claude/skills/reporting/scripts/platform_templates.py render --finding-dir "${FINDING_DIR:?Set FINDING_DIR}" --platform ${PLATFORM:-hackerone} --output $OUTDIR/reports/report_${PLATFORM:-hackerone}.md
+    outputs:
+      - $OUTDIR/reports/report_hackerone.md
     evidence_dir: $OUTDIR/reports/evidence/
     detection_signals: []
     false_positives: []

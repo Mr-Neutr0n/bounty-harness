@@ -27,6 +27,9 @@ Import real application traffic (HAR, Burp, mitmproxy, proxify, browser logs) an
 | `extract-websockets` | Extract WebSocket message patterns from captured traffic. |
 | `summarize-corpus` | Produce human-readable summary of corpus size, routes, objects, and coverage. |
 
+## Redaction and Secrets Handling
+Imported traffic (HAR exports, captured cookies, `Authorization` / bearer tokens, session IDs, and API keys) is treated as sensitive and kept local-only under `$OUTDIR/traffic-corpus/`; these raw captures are never committed and the directory is covered by `.gitignore`. Before any corpus is shared or exported, secrets in headers and bodies are redacted/sanitized so cookies and bearer tokens never leave the local engagement workspace.
+
 ## Evidence Required
 - Source traffic files (raw) stored under `$OUTDIR/traffic-corpus/raw/`.
 - Normalized corpus in JSONL format.

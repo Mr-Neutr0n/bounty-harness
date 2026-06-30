@@ -27,6 +27,7 @@ Lab fixture framework for validating bug bounty skills. Each fixture is a minima
 - Positive control must trigger detection.
 - Negative control must not trigger detection.
 - Evidence completeness is scored per fixture.
+- Keep eval fixtures and run outputs local-only and gitignored, and redact any auth headers, session cookies, or tokens that a fixture or skill response may embed so they are never committed.
 
 ## References
 - Source of truth: `skill.yaml`

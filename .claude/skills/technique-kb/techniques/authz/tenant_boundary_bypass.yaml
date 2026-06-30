@@ -33,3 +33,7 @@ references:
 safety:
   risk_tier: intrusive
   data_modifying: false
+
+related_skills:
+  - cross-account
+  - persona

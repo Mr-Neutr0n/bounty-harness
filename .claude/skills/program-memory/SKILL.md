@@ -27,6 +27,9 @@ Persist target-specific knowledge across engagements. Track accepted/rejected fi
 | `summarize-memory` | Produce human-readable memory summary. |
 | `export-planner-hints` | Export planner-weighting hints from accumulated memory. |
 
+## Redaction and Storage Policy
+Program memory is **local-only**: the SQLite store (`.bb/memory.sqlite`) and all summaries live under `.bb/` / `$OUTDIR` and are **never committed** (keep them in `.gitignore`). Before any fact is persisted, secrets, tokens, cookies, and auth headers must be redacted; the `export-safe` workflow enforces this redaction so only report-safe, sanitized facts ever leave the store.
+
 ## Evidence Required
 - Program facts with source attribution and confidence.
 - False-positive patterns with example request/response pairs.

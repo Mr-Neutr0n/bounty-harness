@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# bb-tools — Bug Bounty Agent Toolkit: tool lifecycle manager
+# bb-tools — BountyHarness tool lifecycle manager
 # Thin harness: no vulnerability logic, only registry and install operations.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

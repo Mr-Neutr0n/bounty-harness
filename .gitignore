@@ -1,17 +1,27 @@
-# Local engagement state
+# Local engagement state and target data
 /engagements/
 /.bb/
 /output/
 /evidence/
+/artifacts/
+/captures/
+/reports/
+/runs/
+/scans/
+/tmp/
 /templates/nuclei-templates/
+.claude/skills/auto-research/cache/*
+!.claude/skills/auto-research/cache/.gitkeep
 
 # Credentials, sessions, and captured traffic
 /.env
 /.env.*
 !.env.example
+/.envrc
 /cookies/
 /sessions/
 /secrets/
+/.secrets/
 /*.cookie
 /*.cookies
 /*.har
@@ -26,6 +36,15 @@
 /*credential*.json
 /*credentials*.json
 /*persona*.json
+/*auth*.json
+/*scope*.json
+/*request*.txt
+/*response*.txt
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
 
 # Generated databases and reports
 /*.db
@@ -34,6 +53,17 @@
 /*.log
 /*.tmp
 /*.bak
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.tmp
+*.bak
+findings.jsonl
+results.jsonl
+campaign.log
+status.json
+tool-lock.json
 
 # Python/cache artifacts
 __pycache__/

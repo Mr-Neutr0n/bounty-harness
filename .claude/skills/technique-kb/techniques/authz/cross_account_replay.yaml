@@ -37,3 +37,9 @@ safety:
   risk_tier: intrusive
   data_modifying: false
   rate_limited: true
+
+related_skills:
+  - cross-account
+  - persona
+  - traffic-corpus
+  - asset-graph

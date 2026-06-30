@@ -13,6 +13,7 @@ This is a thin human-facing router. Use `skill.yaml` as the source of truth for 
 - Required tools: `python3`, `jq`, `yq`
 - Expected input files: Domain profile JSON (from `domain-model/`), Technique YAML catalog (from `technique-kb/`), optional coverage matrix YAML or JSON
 - Scope check: The planner itself does not execute intrusive tests — it plans them. Ensure scope authorization exists before executing any plan items.
+- Secret handling: Any auth headers, session tokens, cookies, or bearer credentials referenced in domain profiles or plan items are local-only and must be redacted before sharing; sanitize plan artifacts and never commit secrets (covered by gitignore).
 
 ## When to Use
 Trigger phrases:

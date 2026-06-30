@@ -1,4 +1,4 @@
-# Contributing
+# Contributing to BountyHarness
 
 ## Quick Start
 
@@ -42,7 +42,7 @@ See `.claude/skills/recon/` for a well-structured example.
 ## PR Requirements
 
 - [ ] `make test` passes (all skill.yaml parse, all Python compile)
-- [ ] `make validate` passes (all skills at or above 85/100 quality threshold)
+- [ ] `make validate` passes (all skills at or above the configured quality threshold)
 - [ ] `make secrets` passes (`gitleaks detect --source . --no-git -v`)
 - [ ] `make audit` passes (workflow + security audit)
 - [ ] No placeholders (`TODO`, `TBD`, `YOUR_`, `<script>`) in SKILL.md files

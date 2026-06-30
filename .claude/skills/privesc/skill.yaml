@@ -9,6 +9,7 @@ owasp_wstg:
   - WSTG-ATHZ-04
 owasp_api_top10: []
 severity_range: [high, critical]
+safety_tier: active-safe
 tools_required:
   - curl
   - python3
@@ -20,6 +21,7 @@ input_files: []
 workflows:
   linux-quick-enum:
     description: Quick Linux privilege escalation enumeration
+    safety_tier: active-safe
     inputs: [OUTDIR]
     command: |
       mkdir -p $OUTDIR/privesc/
@@ -53,6 +55,7 @@ workflows:
 
   auto-enum:
     description: Run automated enumeration tool (linPEAS)
+    safety_tier: active-safe
     inputs: [OUTDIR]
     command: |
       curl -sL https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh -o $OUTDIR/privesc/linpeas.sh && bash $OUTDIR/privesc/linpeas.sh -a > $OUTDIR/privesc/linpeas_output.txt 2>&1
@@ -67,6 +70,7 @@ workflows:
 
   suid-exploit:
     description: Check SUID binaries against GTFOBins for exploitation
+    safety_tier: active-safe
     inputs: [OUTDIR]
     command: |
       echo "Check each SUID binary against https://gtfobins.github.io/" > $OUTDIR/privesc/suid_analysis.txt && while read binary; do echo "SUID: $binary — check GTFOBins"; done < $OUTDIR/privesc/suid.txt >> $OUTDIR/privesc/suid_analysis.txt
@@ -81,6 +85,7 @@ workflows:
 
   sudo-exploit:
     description: Check sudo permissions against GTFOBins
+    safety_tier: active-safe
     inputs: [OUTDIR]
     command: |
       echo "Sudo permissions: $(cat $OUTDIR/privesc/sudo.txt)" > $OUTDIR/privesc/sudo_analysis.txt && echo "Check each entry at https://gtfobins.github.io/#+sudo" >> $OUTDIR/privesc/sudo_analysis.txt
@@ -95,6 +100,7 @@ workflows:
 
   capability-abuse:
     description: Analyze Linux capabilities for exploitation paths
+    safety_tier: active-safe
     inputs: [OUTDIR]
     command: |
       cat $OUTDIR/privesc/caps.txt | grep -iE 'cap_sys_admin|cap_sys_ptrace|cap_dac_read_search|cap_net_raw|cap_sys_module|cap_setuid|cap_setgid' > $OUTDIR/privesc/dangerous_caps.txt 2>/dev/null
@@ -109,6 +115,7 @@ workflows:
 
   cron-abuse:
     description: Check for writable cron jobs and PATH abuse
+    safety_tier: active-safe
     inputs: [OUTDIR]
     command: |
       echo "Writable cron files:" > $OUTDIR/privesc/cron_analysis.txt
@@ -126,6 +133,7 @@ workflows:
 
   docker-escape:
     description: Check if running in container and enumerate escape vectors
+    safety_tier: active-safe
     inputs: [OUTDIR]
     command: |
       if grep -q docker /proc/1/cgroup 2>/dev/null; then
@@ -147,6 +155,7 @@ workflows:
 
   credential-hunt:
     description: Search for credentials in config files and history
+    safety_tier: active-safe
     inputs: [OUTDIR]
     command: |
       rg -n -i 'password|passwd|secret|token|api[_-]?key|credential|authorization' /etc/ /var/ /home/ 2>/dev/null > $OUTDIR/privesc/credentials.txt || true
@@ -163,6 +172,7 @@ workflows:
 
   evidence:
     description: Package privesc findings
+    safety_tier: passive
     inputs: [OUTDIR, EVIDENCE_DIR]
     command: |
       mkdir -p $EVIDENCE_DIR/privesc/ && cp $OUTDIR/privesc/*.txt $EVIDENCE_DIR/privesc/ 2>/dev/null; date -u +%Y-%m-%dT%H:%M:%SZ > $EVIDENCE_DIR/privesc/timestamp.txt

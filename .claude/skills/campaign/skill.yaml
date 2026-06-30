@@ -1,0 +1,91 @@
+name: campaign
+version: 1.0.0
+description: Autonomous end-to-end campaign orchestrator — recon, domain modeling, planning, priority-ordered multi-skill execution, and reporting from a single target, bounded by a time budget.
+bounded_context: CampaignContext
+safety_tier: active-safe
+owasp_wstg:
+  - WSTG-INFO-01
+  - WSTG-INFO-10
+owasp_api_top10: []
+severity_range: [info, low, medium, high, critical]
+tools_required:
+  - python3
+input_files:
+  - context.env
+workflows:
+  hunt:
+    description: Run a full autonomous campaign using the already-initialized context (active-safe ceiling).
+    safety_tier: active-safe
+    inputs: [TARGET, OUTDIR, TIME_BUDGET]
+    command: |
+      python3 .claude/skills/campaign/scripts/campaign_runner.py hunt \
+        --target "$TARGET" --no-init \
+        --max-tier ${MAX_TIER:-active-safe} \
+        --time-budget ${TIME_BUDGET:-2h} \
+        ${RATE_LIMIT:+--rate-limit $RATE_LIMIT}
+    outputs:
+      - .bb/campaigns/
+    evidence_dir: .bb/campaigns
+    detection_signals:
+      - "findings surfaced by individual skill workflows and aggregated by reporting"
+    false_positives:
+      - "scanner output not yet impact-verified"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  hunt-intrusive:
+    description: Run a full autonomous campaign at the intrusive ceiling (requires SCOPE_FILE authorization; blackbox active+intrusive testing).
+    safety_tier: intrusive
+    inputs: [TARGET, OUTDIR, SCOPE_FILE, TIME_BUDGET]
+    command: |
+      python3 .claude/skills/campaign/scripts/campaign_runner.py hunt \
+        --target "$TARGET" --no-init \
+        --scope-file "${SCOPE_FILE:?Set SCOPE_FILE to an authorization file to unlock intrusive testing}" \
+        --max-tier intrusive \
+        --time-budget ${TIME_BUDGET:-2h} \
+        ${RATE_LIMIT:+--rate-limit $RATE_LIMIT}
+    outputs:
+      - .bb/campaigns/
+    evidence_dir: .bb/campaigns
+    detection_signals:
+      - "findings surfaced by individual skill workflows including intrusive probes"
+    false_positives:
+      - "scanner output not yet impact-verified"
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  status:
+    description: Print the latest (or named) campaign status summary.
+    safety_tier: passive
+    inputs: []
+    command: |
+      python3 .claude/skills/campaign/scripts/campaign_runner.py status ${CAMPAIGN_ID:+--campaign $CAMPAIGN_ID}
+    outputs: []
+    evidence_dir: .bb/campaigns
+    next:
+      if_findings: null
+      if_no_findings: null
+
+  resume:
+    description: Resume a previously interrupted campaign, skipping completed workflows.
+    safety_tier: active-safe
+    inputs: [CAMPAIGN_ID, TIME_BUDGET]
+    command: |
+      python3 .claude/skills/campaign/scripts/campaign_runner.py hunt \
+        --target "$TARGET" --no-init \
+        --resume "${CAMPAIGN_ID:?Set CAMPAIGN_ID to resume}" \
+        --max-tier ${MAX_TIER:-active-safe} \
+        --time-budget ${TIME_BUDGET:-2h}
+    outputs:
+      - .bb/campaigns/
+    evidence_dir: .bb/campaigns
+    next:
+      if_findings: null
+      if_no_findings: null
+
+evidence_templates:
+  campaign_log: "Timestamped, redacted log of every workflow run with timing and exit codes — .bb/campaigns/<id>/campaign.log"
+  results: "Per-workflow result records (skill, workflow, exit code, elapsed) — .bb/campaigns/<id>/results.jsonl"
+  status: "Live campaign status (phase, counts, budget) — .bb/campaigns/<id>/status.json"

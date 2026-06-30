@@ -2,6 +2,7 @@ name: impact-verifier
 version: 1.0.0
 description: Convert candidate findings into confirmed bounty-grade reports only when impact is proven.
 bounded_context: ImpactContext
+safety_tier: passive
 owasp_wstg:
   - WSTG-REPT-01
   - WSTG-REPT-02
@@ -22,7 +23,8 @@ workflows:
       - $OUTDIR/impact-verifier/candidates.jsonl
       - kind: finding
         path: $OUTDIR/impact-verifier/candidates.jsonl
-    evidence_dir: null
+    evidence_dir: $OUTDIR/impact-verifier
+    safety_tier: passive
     next:
       if_findings: classify-impact
       if_no_findings: null
@@ -35,7 +37,8 @@ workflows:
       python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action classify --candidates $OUTDIR/impact-verifier/candidates.jsonl --output $OUTDIR/impact-verifier/candidates.jsonl
     outputs:
       - $OUTDIR/impact-verifier/candidates.jsonl
-    evidence_dir: null
+    evidence_dir: $OUTDIR/impact-verifier
+    safety_tier: passive
     detection_signals:
       - "impact class assigned: data_exposure, privilege_escalation, tenant_break, account_takeover, financial_loss, rce, xss, ssrf"
     next:
@@ -52,6 +55,7 @@ workflows:
       - $OUTDIR/impact-verifier/verified.jsonl
       - $OUTDIR/impact-verifier/rejected.jsonl
     evidence_dir: $OUTDIR/impact-verifier/evidence/
+    safety_tier: passive
     detection_signals:
       - "private/PII/sensitive fields confirmed in unauthorized response"
       - "data belongs to a different user or tenant"
@@ -72,6 +76,7 @@ workflows:
       - $OUTDIR/impact-verifier/verified.jsonl
       - $OUTDIR/impact-verifier/rejected.jsonl
     evidence_dir: $OUTDIR/impact-verifier/evidence/
+    safety_tier: passive
     next:
       if_findings: verify-account-takeover
       if_no_findings: verify-account-takeover
@@ -86,6 +91,7 @@ workflows:
       - $OUTDIR/impact-verifier/verified.jsonl
       - $OUTDIR/impact-verifier/rejected.jsonl
     evidence_dir: $OUTDIR/impact-verifier/evidence/
+    safety_tier: passive
     next:
       if_findings: verify-tenant-break
       if_no_findings: verify-tenant-break
@@ -100,6 +106,7 @@ workflows:
       - $OUTDIR/impact-verifier/verified.jsonl
       - $OUTDIR/impact-verifier/rejected.jsonl
     evidence_dir: $OUTDIR/impact-verifier/evidence/
+    safety_tier: passive
     next:
       if_findings: false-positive-gate
       if_no_findings: false-positive-gate
@@ -112,7 +119,8 @@ workflows:
       python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action fp-check --candidates $OUTDIR/impact-verifier/candidates.jsonl --false-positive-db ${FP_DB:-.claude/skills/impact-verifier/false_positives.yaml} --output $OUTDIR/impact-verifier/candidates.jsonl
     outputs:
       - $OUTDIR/impact-verifier/candidates.jsonl
-    evidence_dir: null
+    evidence_dir: $OUTDIR/impact-verifier
+    safety_tier: passive
     detection_signals:
       - "false positive patterns matched and flagged on candidates"
     next:
@@ -127,7 +135,8 @@ workflows:
       python3 .claude/skills/impact-verifier/scripts/impact_analyzer.py --context .bb/context.json --action readiness --verified $OUTDIR/impact-verifier/verified.jsonl --output $OUTDIR/impact-verifier/readiness_report.md
     outputs:
       - $OUTDIR/impact-verifier/readiness_report.md
-    evidence_dir: null
+    evidence_dir: $OUTDIR/impact-verifier
+    safety_tier: passive
     detection_signals:
       - "findings scored 80+ are submission-ready"
       - "findings below 60 need more evidence"

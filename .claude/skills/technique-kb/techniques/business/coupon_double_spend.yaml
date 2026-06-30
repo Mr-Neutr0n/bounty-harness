@@ -29,3 +29,7 @@ references:
 safety:
   risk_tier: intrusive
   data_modifying: true
+
+related_skills:
+  - business-logic
+  - race-condition

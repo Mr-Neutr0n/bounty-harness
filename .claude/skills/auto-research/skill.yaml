@@ -5,13 +5,19 @@ bounded_context: AutoResearchContext
 owasp_wstg: []
 owasp_api_top10: []
 severity_range: [info]
+safety_tier: passive
 tools_required:
   - python3
   - jq
 input_files: []
+evidence_templates:
+  candidates: "Normalized candidate records with source attribution (source_id, source_type, extracted_at, content_hash) written to the local cache as scan_result.json / pipeline_log.json."
+  dedup_report: "Deduplication and review report (batch_review.json) showing scored candidates, near-duplicate clusters, and accept/reject decisions before any KB update."
+  pipeline_log: "Full import pipeline log (pipeline_log.json) recording each stage scan, extract, deduplicate, review for provenance and reproducibility."
 workflows:
   scan:
     description: Scan all sources for new content since last check.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       python3 .claude/skills/auto-research/scripts/source_scanner.py --sources .claude/skills/auto-research/sources.yaml --cache-dir .claude/skills/auto-research/cache/ --output .claude/skills/auto-research/cache/scan_result.json
@@ -27,6 +33,7 @@ workflows:
 
   batch:
     description: Run full import pipeline scan extract deduplicate review.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       python3 .claude/skills/auto-research/scripts/batch_importer.py --sources .claude/skills/auto-research/sources.yaml --cache-dir .claude/skills/auto-research/cache/ --rules .claude/skills/auto-research/ingest_rules.yaml
@@ -42,6 +49,7 @@ workflows:
 
   review:
     description: Review pipeline output candidates.
+    safety_tier: passive
     inputs: [OUTDIR]
     command: |
       python3 .claude/skills/auto-research/scripts/candidate_reviewer.py --candidates .claude/skills/auto-research/cache/dedup_batch.json --rules .claude/skills/auto-research/ingest_rules.yaml --output .claude/skills/auto-research/cache/batch_review.json

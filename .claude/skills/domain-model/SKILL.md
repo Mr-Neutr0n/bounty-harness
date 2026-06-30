@@ -11,6 +11,7 @@ This is a thin human-facing router. Use `skill.yaml` as the source of truth for 
 - Required tools: `python3`, `pyyaml`
 - Required prior skills: `recon` (needs `subdomains/subs.txt`, `live/live_full.csv`, `js/js_endpoints.txt`)
 - Scope check: no intrusive operations in this skill — classification only.
+- Redaction: classification, surface map, and domain profile artifacts are local-only and must be sanitized to redact target hostnames and identifiers before sharing; they are never committed and should stay covered by `.gitignore`.
 
 ## Workflow Selection
 - Run `classify` first to determine archetypes from recon data.
