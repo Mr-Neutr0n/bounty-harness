@@ -37,10 +37,12 @@ jobs:
 
       - name: Check no private dirs tracked
         run: |
-          test ! -d .bb && echo ".bb ok" || (echo ".bb present - check .gitignore"; exit 1)
-          test ! -d output && echo "output ok" || (echo "output present - check .gitignore"; exit 1)
-          test ! -d engagements && echo "engagements ok" || (echo "engagements present - check .gitignore"; exit 1)
+          tracked_private="$(git ls-files .bb output evidence engagements artifacts captures reports runs scans cookies sessions secrets || true)"
+          test -z "$tracked_private" || (echo "Private runtime files are tracked:" && echo "$tracked_private" && exit 1)
+          echo "private runtime paths ok"
 
       - name: Check no vendored nuclei templates
         run: |
-          test ! -d templates/nuclei-templates && echo "nuclei-templates ok" || exit 1
+          tracked_templates="$(git ls-files templates/nuclei-templates || true)"
+          test -z "$tracked_templates" || (echo "Vendored nuclei templates are tracked:" && echo "$tracked_templates" && exit 1)
+          echo "nuclei-templates ok"
